@@ -45,10 +45,21 @@ ae2powertools.scanner.status.scanning_controller=正在从控制器开始扫描�
 ae2powertools.scanner.status.no_start=未找到起始节点。
 ae2powertools.scanner.status.error=扫描过程中出错：%s
 ae2powertools.scanner.status.too_large=网络过大（节点数大于%d）。扫描已停止。
-ae2powertools.scanner.status.no_issues=扫描完成：已分析%d个节点，未发现问题。
-ae2powertools.scanner.status.found_issues=扫描完成：已分析%d个节点，发现问题。
+ae2powertools.scanner.status.no_issues=扫描完成：已分析%d个节点。
+ae2powertools.scanner.status.found_issues=扫描完成：已分析%d个节点。
 ae2powertools.scanner.status.scanning=扫描中……已处理%d个节点。
 
 # Channel Chokepoint Tab
 ae2powertools.scanner.channel.no_controller=无法分析频道：未找到控制器。
 ae2powertools.scanner.channel.controllerless=无法分析频道：网络没有控制器。
+ae2powertools.scanner.channel.no_pathing_grid=未找到用于频道分析的寻路网格。
+ae2powertools.scanner.channel.building_tree=正在构建频道树……
+ae2powertools.scanner.channel.calculating_demand=正在计算频道需求……
+ae2powertools.scanner.channel.building_tree_progress=正在构建频道树……已处理%d个节点。
+ae2powertools.scanner.channel.no_chokepoints=未找到频道阻塞点或缺失设备。
+ae2powertools.scanner.channel.found=已找到%d个阻塞点，%d个缺失设备。
+ae2powertools.scanner.channel.calculating_progress=正在分析频道…… %d/%d 个节点
+ae2powertools.scanner.channel.to_controller=（→控制器）
+
+# Common strings
+ae2powertools.common.unknown=未知
