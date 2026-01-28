@@ -29,6 +29,12 @@ A tool for quickly setting and applying storage priorities:
 - Right-click on AE2 blocks (ME Drives, ME Chests, Buses, etc.) to apply the stored priority
 - Hold in off-hand for automatic priority application on block placement
 
+## FAQ
+
+### Will the scanner detect all unloaded chunks in my network?
+No, this is an AE2 limitation, due to them not storing grid nodes for unloaded chunks. Detecting them would involve loading neighboring chunks during the scan, which would refresh the whole network and trigger a heavy lag spike over large networks. The scanner can only detect chunks that were loaded at scan time but are not force-loaded. See `NetworkScanner.checkChunkLoaded()` for more details.
+
+
 ## Requirements
 - Minecraft 1.12.2
 - Forge 14.23.5.2847+
@@ -43,3 +49,6 @@ Resulting jar will be under `build/libs/`.
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Textures
+**SangreBK** : Priority Tuner, Network Health Scanner

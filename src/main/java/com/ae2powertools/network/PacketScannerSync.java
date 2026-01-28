@@ -17,6 +17,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.features.scanner.ChannelChokepoint;
 import com.ae2powertools.features.scanner.ChannelChokepoint.DirectionFlow;
+import com.ae2powertools.features.scanner.ChunkLocation;
 import com.ae2powertools.features.scanner.IssueLocation;
 import com.ae2powertools.features.scanner.MissingChannelDevice;
 import com.ae2powertools.features.scanner.NetworkScanner;
@@ -194,14 +195,12 @@ public class PacketScannerSync implements IMessage {
             }
 
             // Add unloaded chunk locations
-            String dimName = session.getDimensionName();
-            int dimension = session.getDimension();
-            for (BlockPos chunkPos : scanner.getUnloadedChunks()) {
+            for (ChunkLocation chunk : scanner.getUnloadedChunks()) {
                 chunkLocations.add(new ChunkLocationData(
-                    chunkPos.getX(),
-                    chunkPos.getZ(),
-                    dimension,
-                    dimName
+                    chunk.getChunkX(),
+                    chunk.getChunkZ(),
+                    chunk.getDimension(),
+                    chunk.getDimensionName()
                 ));
             }
 

@@ -1,0 +1,43 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:priority_tuner"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.certus_quartz_crystal_charged"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:smooth_sky_stone_block"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:priority_tuner"
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "a a",
+        "aba",
+        " c "
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "b": {
+            "type": "appliedenergistics2:part",
+            "part": "material.certus_quartz_crystal_charged"
+        },
+        "c": {
+            "item": "appliedenergistics2:smooth_sky_stone_block"
+        }
+    }
+}

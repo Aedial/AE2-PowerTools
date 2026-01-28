@@ -32,7 +32,7 @@ public class ScanSessionManager {
         private final int dimension;
         private final String dimensionName;
         private List<IssueLocation> sortedLoopResults = null;
-        private List<BlockPos> sortedChunkResults = null;
+        private List<ChunkLocation> sortedChunkResults = null;
 
         public ScanSession(NetworkScanner scanner, BlockPos startPos, int dimension, String dimensionName) {
             this.scanner = scanner;
@@ -92,31 +92,35 @@ public class ScanSessionManager {
         }
 
         /**
-         * Get chunk results sorted by distance from a position.
+         * Get chunk results sorted by dimension, then by distance from a position.
          */
-        public List<BlockPos> getSortedChunkResults(BlockPos playerPos) {
+        public List<ChunkLocation> getSortedChunkResults(BlockPos playerPos, int playerDimension) {
             if (sortedChunkResults == null || !scanner.isComplete()) {
-                Set<BlockPos> unloadedChunks = scanner.getUnloadedChunks();
+                Set<ChunkLocation> unloadedChunks = scanner.getUnloadedChunks();
                 sortedChunkResults = new ArrayList<>(unloadedChunks);
 
+                // Sort: current dimension first, then by dimension ID, then by distance
                 sortedChunkResults.sort((a, b) -> {
-                    double distA = getChunkDistanceSquared(a, playerPos);
-                    double distB = getChunkDistanceSquared(b, playerPos);
+                    // Current dimension comes first
+                    boolean aCurrentDim = a.getDimension() == playerDimension;
+                    boolean bCurrentDim = b.getDimension() == playerDimension;
+
+                    if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
+
+                    // Same dimension group - sort by dimension ID
+                    if (a.getDimension() != b.getDimension()) {
+                        return Integer.compare(a.getDimension(), b.getDimension());
+                    }
+
+                    // Same dimension - sort by distance
+                    double distA = a.getDistanceFrom(playerPos);
+                    double distB = b.getDistanceFrom(playerPos);
 
                     return Double.compare(distA, distB);
                 });
             }
 
             return sortedChunkResults;
-        }
-
-        private double getChunkDistanceSquared(BlockPos chunkCoord, BlockPos playerPos) {
-            int chunkCenterX = (chunkCoord.getX() << 4) + 8;
-            int chunkCenterZ = (chunkCoord.getZ() << 4) + 8;
-            double dx = chunkCenterX - playerPos.getX();
-            double dz = chunkCenterZ - playerPos.getZ();
-
-            return dx * dx + dz * dz;
         }
 
         /**

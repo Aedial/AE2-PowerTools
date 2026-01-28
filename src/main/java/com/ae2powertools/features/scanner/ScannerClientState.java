@@ -397,12 +397,11 @@ public class ScannerClientState {
         return selectedLoopIndices;
     }
 
-    public static List<LoopLocationClient> getSelectedLoopsInDimension(int dimension) {
+    public static List<LoopLocationClient> getSelectedLoops() {
         List<LoopLocationClient> result = new ArrayList<>();
         for (int index : selectedLoopIndices) {
             if (index >= 0 && index < loopLocations.size()) {
-                LoopLocationClient loc = loopLocations.get(index);
-                if (loc.dimension == dimension) result.add(loc);
+                result.add(loopLocations.get(index));
             }
         }
 
@@ -441,12 +440,11 @@ public class ScannerClientState {
         return selectedChunkIndices;
     }
 
-    public static List<ChunkLocationClient> getSelectedChunksInDimension(int dimension) {
+    public static List<ChunkLocationClient> getSelectedChunks() {
         List<ChunkLocationClient> result = new ArrayList<>();
         for (int index : selectedChunkIndices) {
             if (index >= 0 && index < chunkLocations.size()) {
-                ChunkLocationClient loc = chunkLocations.get(index);
-                if (loc.dimension == dimension) result.add(loc);
+                result.add(chunkLocations.get(index));
             }
         }
 
@@ -485,12 +483,11 @@ public class ScannerClientState {
         return selectedMissingIndices;
     }
 
-    public static List<MissingDeviceClient> getSelectedMissingInDimension(int dimension) {
+    public static List<MissingDeviceClient> getSelectedMissing() {
         List<MissingDeviceClient> result = new ArrayList<>();
         for (int index : selectedMissingIndices) {
             if (index >= 0 && index < missingDevices.size()) {
-                MissingDeviceClient loc = missingDevices.get(index);
-                if (loc.dimension == dimension) result.add(loc);
+                result.add(missingDevices.get(index));
             }
         }
 
@@ -529,12 +526,11 @@ public class ScannerClientState {
         return selectedChokeIndices;
     }
 
-    public static List<ChokeLocationClient> getSelectedChokesInDimension(int dimension) {
+    public static List<ChokeLocationClient> getSelectedChokes() {
         List<ChokeLocationClient> result = new ArrayList<>();
         for (int index : selectedChokeIndices) {
             if (index >= 0 && index < chokeLocations.size()) {
-                ChokeLocationClient loc = chokeLocations.get(index);
-                if (loc.dimension == dimension) result.add(loc);
+                result.add(chokeLocations.get(index));
             }
         }
 
@@ -637,22 +633,6 @@ public class ScannerClientState {
         } else {
             return selectedChokeIndices.size();
         }
-    }
-
-    public static List<LoopLocationClient> getSelectedLoopLocationsInDimension(int dimension) {
-        return getSelectedLoopsInDimension(dimension);
-    }
-
-    public static List<ChunkLocationClient> getSelectedChunkLocationsInDimension(int dimension) {
-        return getSelectedChunksInDimension(dimension);
-    }
-
-    public static List<MissingDeviceClient> getSelectedMissingLocationsInDimension(int dimension) {
-        return getSelectedMissingInDimension(dimension);
-    }
-
-    public static List<ChokeLocationClient> getSelectedChokeLocationsInDimension(int dimension) {
-        return getSelectedChokesInDimension(dimension);
     }
 
     // ========== Sorted/Grouped Access ==========

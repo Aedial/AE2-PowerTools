@@ -77,6 +77,9 @@ public class ScannerRenderer {
     // Chokepoint color (cyan/blue)
     private static final int CHOKE_COLOR = 0x66AAFF;
 
+    /**
+     * Render the scanner overlay on the HUD for info about the positions (top-left corner).
+     */
     @SubscribeEvent
     public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
@@ -90,17 +93,18 @@ public class ScannerRenderer {
 
         Tab currentTab = ScannerClientState.getCurrentTab();
         BlockPos playerPos = mc.player.getPosition();
+        int playerDim = mc.player.dimension;
 
         // Build display lines based on current tab
         List<String> lines = new ArrayList<>();
         List<Integer> colors = new ArrayList<>();
 
         if (currentTab == Tab.LOOPS) {
-            List<LoopLocationClient> selectedInDim = ScannerClientState.getSelectedLoopLocationsInDimension(
-                mc.player.dimension);
-            if (selectedInDim.isEmpty()) return;
+            List<LoopLocationClient> selected = ScannerClientState.getSelectedLoops();
 
-            for (LoopLocationClient loc : selectedInDim) {
+            for (LoopLocationClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 double distance = loc.getDistanceFrom(playerPos);
                 String distanceStr = formatDistance(distance);
                 String posStr = String.format("[%d, %d, %d]", loc.pos.getX(), loc.pos.getY(), loc.pos.getZ());
@@ -108,11 +112,11 @@ public class ScannerRenderer {
                 colors.add(LOOP_COLOR);
             }
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            List<ChunkLocationClient> selectedInDim = ScannerClientState.getSelectedChunkLocationsInDimension(
-                mc.player.dimension);
-            if (selectedInDim.isEmpty()) return;
+            List<ChunkLocationClient> selected = ScannerClientState.getSelectedChunks();
 
-            for (ChunkLocationClient loc : selectedInDim) {
+            for (ChunkLocationClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 double distance = loc.getDistanceFrom(playerPos);
                 String distanceStr = formatDistance(distance);
                 String text = I18n.format("gui.ae2powertools.scanner.chunk_entry", loc.chunkX, loc.chunkZ)
@@ -121,11 +125,11 @@ public class ScannerRenderer {
                 colors.add(CHUNK_COLOR);
             }
         } else if (currentTab == Tab.MISSING_CHANNELS) {
-            List<MissingDeviceClient> selectedInDim = ScannerClientState.getSelectedMissingLocationsInDimension(
-                mc.player.dimension);
-            if (selectedInDim.isEmpty()) return;
+            List<MissingDeviceClient> selected = ScannerClientState.getSelectedMissing();
 
-            for (MissingDeviceClient loc : selectedInDim) {
+            for (MissingDeviceClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 double distance = loc.getDistanceFrom(playerPos);
                 String distanceStr = formatDistance(distance);
                 String posStr = String.format("[%d, %d, %d]", loc.pos.getX(), loc.pos.getY(), loc.pos.getZ());
@@ -133,11 +137,11 @@ public class ScannerRenderer {
                 colors.add(MISSING_COLOR);
             }
         } else {
-            List<ChokeLocationClient> selectedInDim = ScannerClientState.getSelectedChokeLocationsInDimension(
-                mc.player.dimension);
-            if (selectedInDim.isEmpty()) return;
+            List<ChokeLocationClient> selected = ScannerClientState.getSelectedChokes();
 
-            for (ChokeLocationClient loc : selectedInDim) {
+            for (ChokeLocationClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 double distance = loc.getDistanceFrom(playerPos);
                 String distanceStr = formatDistance(distance);
                 String posStr = String.format("[%d, %d, %d]", loc.pos.getX(), loc.pos.getY(), loc.pos.getZ());
@@ -217,10 +221,9 @@ public class ScannerRenderer {
      */
     private void renderLoopLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
             double playerX, double playerY, double playerZ, float partialTicks) {
-        List<LoopLocationClient> selectedInDim = ScannerClientState.getSelectedLoopLocationsInDimension(playerDim);
-        if (selectedInDim.isEmpty()) return;
+        List<LoopLocationClient> selected = ScannerClientState.getSelectedLoops();
 
-        // Render block outlines (only within wireframe distance)
+        // Render block outlines (only within wireframe distance and in current dimension)
         GlStateManager.pushMatrix();
         GlStateManager.translate(-playerX, -playerY, -playerZ);
 
@@ -232,7 +235,9 @@ public class ScannerRenderer {
         GlStateManager.depthMask(false);
         GlStateManager.glLineWidth(3.0F);
 
-        for (LoopLocationClient loc : selectedInDim) {
+        for (LoopLocationClient loc : selected) {
+            if (loc.dimension != playerDim) continue;
+
             double distance = loc.getDistanceFrom(playerPos);
             if (distance <= WIREFRAME_MAX_DISTANCE) {
                 BlockHighlightRenderer.renderBlockOutline(loc.pos, 1.0f, 0.27f, 0.27f, 0.8f);
@@ -248,7 +253,9 @@ public class ScannerRenderer {
 
         // Render direction arrows (for locations beyond wireframe distance)
         if (ScannerClientState.isOverlayEnabled()) {
-            for (LoopLocationClient loc : selectedInDim) {
+            for (LoopLocationClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 double distance = loc.getDistanceFrom(playerPos);
                 if (distance > WIREFRAME_MAX_DISTANCE) {
                     drawDirectionArrow(player, loc.pos, LOOP_COLOR, distance, partialTicks);
@@ -262,12 +269,13 @@ public class ScannerRenderer {
      */
     private void renderChunkLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
             float partialTicks) {
-        List<ChunkLocationClient> selectedInDim = ScannerClientState.getSelectedChunkLocationsInDimension(playerDim);
-        if (selectedInDim.isEmpty()) return;
+        List<ChunkLocationClient> selected = ScannerClientState.getSelectedChunks();
 
-        // Render direction arrows pointing to chunk centers
+        // Render direction arrows pointing to chunk centers (only in current dimension)
         if (ScannerClientState.isOverlayEnabled()) {
-            for (ChunkLocationClient loc : selectedInDim) {
+            for (ChunkLocationClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 BlockPos centerPos = loc.getCenterPos();
                 double distance = loc.getDistanceFrom(playerPos);
                 drawDirectionArrowYAgnostic(player, centerPos, CHUNK_COLOR, distance, partialTicks);
@@ -280,10 +288,9 @@ public class ScannerRenderer {
      */
     private void renderMissingLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
             double playerX, double playerY, double playerZ, float partialTicks) {
-        List<MissingDeviceClient> selectedInDim = ScannerClientState.getSelectedMissingLocationsInDimension(playerDim);
-        if (selectedInDim.isEmpty()) return;
+        List<MissingDeviceClient> selected = ScannerClientState.getSelectedMissing();
 
-        // Render block outlines (only within wireframe distance)
+        // Render block outlines (only within wireframe distance and in current dimension)
         GlStateManager.pushMatrix();
         GlStateManager.translate(-playerX, -playerY, -playerZ);
 
@@ -295,7 +302,9 @@ public class ScannerRenderer {
         GlStateManager.depthMask(false);
         GlStateManager.glLineWidth(3.0F);
 
-        for (MissingDeviceClient loc : selectedInDim) {
+        for (MissingDeviceClient loc : selected) {
+            if (loc.dimension != playerDim) continue;
+
             double distance = loc.getDistanceFrom(playerPos);
             if (distance <= WIREFRAME_MAX_DISTANCE) {
                 // Red-ish color for missing channels
@@ -312,7 +321,9 @@ public class ScannerRenderer {
 
         // Render direction arrows (for locations beyond wireframe distance)
         if (ScannerClientState.isOverlayEnabled()) {
-            for (MissingDeviceClient loc : selectedInDim) {
+            for (MissingDeviceClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 double distance = loc.getDistanceFrom(playerPos);
                 if (distance > WIREFRAME_MAX_DISTANCE) {
                     drawDirectionArrow(player, loc.pos, MISSING_COLOR, distance, partialTicks);
@@ -326,8 +337,8 @@ public class ScannerRenderer {
      */
     private void renderChokeLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
             double playerX, double playerY, double playerZ, float partialTicks) {
-        List<ChokeLocationClient> selectedInDim = ScannerClientState.getSelectedChokeLocationsInDimension(playerDim);
-        if (selectedInDim.isEmpty()) return;
+        List<ChokeLocationClient> selected = ScannerClientState.getSelectedChokes();
+        if (selected.isEmpty()) return;
 
         // Render block outlines and floating text (only within wireframe distance)
         GlStateManager.pushMatrix();
@@ -341,7 +352,9 @@ public class ScannerRenderer {
         GlStateManager.depthMask(false);
         GlStateManager.glLineWidth(3.0F);
 
-        for (ChokeLocationClient loc : selectedInDim) {
+        for (ChokeLocationClient loc : selected) {
+            if (loc.dimension != playerDim) continue;
+
             double distance = loc.getDistanceFrom(playerPos);
             if (distance <= WIREFRAME_MAX_DISTANCE) {
                 // Cyan-ish color for chokepoints
@@ -357,7 +370,9 @@ public class ScannerRenderer {
         GlStateManager.popMatrix();
 
         // Render floating text for nearby chokepoints
-        for (ChokeLocationClient loc : selectedInDim) {
+        for (ChokeLocationClient loc : selected) {
+            if (loc.dimension != playerDim) continue;
+
             double distance = loc.getDistanceFrom(playerPos);
             if (distance <= FLOATING_TEXT_MAX_DISTANCE) {
                 renderChokeFloatingText(mc, player, loc, playerX, playerY, playerZ, partialTicks);
@@ -366,7 +381,9 @@ public class ScannerRenderer {
 
         // Render direction arrows (for locations beyond wireframe distance)
         if (ScannerClientState.isOverlayEnabled()) {
-            for (ChokeLocationClient loc : selectedInDim) {
+            for (ChokeLocationClient loc : selected) {
+                if (loc.dimension != playerDim) continue;
+
                 double distance = loc.getDistanceFrom(playerPos);
                 if (distance > WIREFRAME_MAX_DISTANCE) {
                     drawDirectionArrow(player, loc.pos, CHOKE_COLOR, distance, partialTicks);

@@ -14,6 +14,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.text.translation.I18n;
 import net.minecraft.world.World;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.ForgeChunkManager;
 
 import com.google.common.collect.ImmutableSetMultimap;
@@ -25,6 +26,8 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.util.DimensionalCoord;
+import appeng.me.cluster.IAECluster;
+import appeng.me.cluster.IAEMultiBlock;
 import appeng.tile.networking.TileController;
 
 import com.ae2powertools.AE2PowerTools;
@@ -44,13 +47,19 @@ public class NetworkScanner {
 
     private final IGrid grid;
     private final World world;
-    private final ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket> forcedChunks;
+
+    // Cache of forced chunks per dimension (lazy-loaded)
+    private final Map<Integer, ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket>> forcedChunksCache = new HashMap<>();
 
     // BFS state
     private final Queue<PathNode> openList = new LinkedList<>();
     private final Map<IGridNode, PathNode> visitedNodes = new HashMap<>();
     private final Set<IssueLocation> detectedLoops = new HashSet<>();
-    private final Set<BlockPos> unloadedChunks = new HashSet<>();
+    private final Set<ChunkLocation> unloadedChunks = new HashSet<>();
+
+    // Track multiblock clusters and where they were first entered from outside.
+    // If we enter the same cluster from outside again, that indicates a loop.
+    private final Map<IAECluster, BlockPos> clusterEntryPoints = new HashMap<>();
 
     // Channel scanner (runs after main scan completes)
     private ChannelScanner channelScanner = null;
@@ -82,7 +91,6 @@ public class NetworkScanner {
     public NetworkScanner(IGrid grid, World world) {
         this.grid = grid;
         this.world = world;
-        this.forcedChunks = ForgeChunkManager.getPersistentChunksFor(world);
 
         initialize();
     }
@@ -230,6 +238,8 @@ public class NetworkScanner {
      */
     private void processNode(PathNode current) {
         IGridNode node = current.node;
+        IGridHost currentHost = node.getMachine();
+        IAECluster currentCluster = getClusterOf(currentHost);
 
         for (IGridConnection connection : node.getConnections()) {
             IGridNode neighbor = connection.getOtherSide(node);
@@ -251,6 +261,23 @@ public class NetworkScanner {
                 openList.add(newPath);
                 visitedNodes.put(neighbor, newPath);
 
+                // Check for cluster entry from outside - this detects loops through multiblocks
+                IGridHost neighborHost = neighbor.getMachine();
+                IAECluster neighborCluster = getClusterOf(neighborHost);
+
+                if (neighborCluster != null && neighborCluster != currentCluster) {
+                    // Entering a cluster from outside
+                    BlockPos neighborPos = getNodePosition(neighbor);
+
+                    if (clusterEntryPoints.containsKey(neighborCluster)) {
+                        // We've already entered this cluster from a different path - that's a loop!
+                        addClusterLoopLocation(neighborPos, neighborHost, neighbor);
+                    } else if (neighborPos != null) {
+                        // First entry to this cluster, record it
+                        clusterEntryPoints.put(neighborCluster, neighborPos);
+                    }
+                }
+
                 // Check if the node's chunk is loaded
                 checkChunkLoaded(neighbor);
             }
@@ -258,24 +285,60 @@ public class NetworkScanner {
     }
 
     /**
+     * Get the cluster that a grid host belongs to, or null if not a multiblock.
+     */
+    private IAECluster getClusterOf(IGridHost host) {
+        if (host instanceof IAEMultiBlock) return ((IAEMultiBlock) host).getCluster();
+
+        return null;
+    }
+
+    /**
      * Add a loop location to the detected loops set.
      * We report the location of the current node that discovered the loop-closing edge.
      */
     private void addLoopLocation(IGridConnection connection, PathNode current, PathNode existing) {
-        // Report the current node's position as the loop location
         IGridNode node = current.node;
         IGridHost host = node.getMachine();
         BlockPos pos = getNodePosition(node);
         if (pos == null) return;
 
-        int dimension = world.provider.getDimension();
-        String dimName = world.provider.getDimensionType().getName();
+        // For multiblock structures, internal connections are handled separately via cluster entry tracking.
+        // Skip if both nodes are in the same cluster - that's just internal multiblock wiring.
+        IGridHost existingHost = existing.node.getMachine();
+        IAECluster currentCluster = getClusterOf(host);
+        IAECluster existingCluster = getClusterOf(existingHost);
+
+        if (currentCluster != null && currentCluster == existingCluster) return;
+
+        // Get dimension from the node itself
+        int dimension = getNodeDimension(node);
+        String dimName = getNodeDimensionName(node);
+        World nodeWorld = getNodeWorld(node);
+
+        boolean isLoaded = nodeWorld != null && nodeWorld.isBlockLoaded(pos);
+        IBlockState blockState = isLoaded ? nodeWorld.getBlockState(pos) : Blocks.AIR.getDefaultState();
+
+        String description = getNodeDescription(host);
+        IssueLocation loopLoc = new IssueLocation(pos, dimension, dimName, blockState, isLoaded, description);
+        detectedLoops.add(loopLoc);
+    }
+
+    /**
+     * Add a loop location when we detect a second entry into a multiblock cluster.
+     * Reports the cluster block where the second cable enters.
+     */
+    private void addClusterLoopLocation(BlockPos pos, IGridHost host, IGridNode node) {
+        if (pos == null) return;
+
+        int dimension = getNodeDimension(node);
+        String dimName = getNodeDimensionName(node);
+        World nodeWorld = getNodeWorld(node);
 
         IBlockState blockState = Blocks.AIR.getDefaultState();
-        ChunkPos chunkPos = new ChunkPos(pos);
-        boolean isLoaded = world.isBlockLoaded(pos);
+        boolean isLoaded = nodeWorld != null && nodeWorld.isBlockLoaded(pos);
 
-        if (isLoaded) blockState = world.getBlockState(pos);
+        if (isLoaded) blockState = nodeWorld.getBlockState(pos);
 
         String description = getNodeDescription(host);
         IssueLocation loopLoc = new IssueLocation(pos, dimension, dimName, blockState, isLoaded, description);
@@ -286,17 +349,39 @@ public class NetworkScanner {
      * Check if a node's chunk is force-loaded (chunkloaded) and track non-chunkloaded chunks.
      * Note: This checks for FORCED chunk loading (chunkloaders), not just loaded chunks.
      * Chunks can be loaded temporarily when players are nearby but not force-loaded.
+     *
+     * LIMITATION: This can only detect non-force-loaded chunks for nodes we can actually visit,
+     * meaning the chunk must be currently loaded (player nearby, spawn chunks, etc.). We cannot
+     * detect network components in chunks that are fully unloaded without loading them first.
+     *
+     * Potential workarounds (all with significant drawbacks):
+     * - Load chunks along cable paths temporarily (causes network forceUpdates, server lag)
+     * - Track quantum bridge endpoints and check their target chunks (complex, bridges may be unloaded)
+     *   Same issues as above.
+     * - Persist network topology to disk and compare against live scan (stale data issues)
+     * - Use IGridStorage to serialize/deserialize network state (may not include all location data)
+     *
+     * For now, we accept this limitation and only report what we can see in currently loaded chunks.
      */
     private void checkChunkLoaded(IGridNode node) {
         BlockPos pos = getNodePosition(node);
         if (pos == null) return;
 
+        int dimension = getNodeDimension(node);
+        String dimName = getNodeDimensionName(node);
+        World nodeWorld = getNodeWorld(node);
+        if (nodeWorld == null) return;
+
         ChunkPos chunkPos = new ChunkPos(pos);
+
+        // Get forced chunks for this dimension (cached)
+        ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket> forcedChunks = forcedChunksCache.computeIfAbsent(
+            dimension, dim -> ForgeChunkManager.getPersistentChunksFor(nodeWorld)
+        );
 
         // Check if the chunk is force-loaded (persistent)
         if (!forcedChunks.containsKey(chunkPos)) {
-            // Store chunk coordinates, not block coordinates
-            unloadedChunks.add(new BlockPos(chunkPos.x, 0, chunkPos.z));
+            unloadedChunks.add(new ChunkLocation(chunkPos, dimension, dimName));
         }
     }
 
@@ -322,7 +407,7 @@ public class NetworkScanner {
      * Get a human-readable description of a grid node.
      */
     private String getNodeDescription(IGridHost host) {
-        if (host == null) return "Unknown";
+        if (host == null) return I18n.translateToLocal("ae2powertools.common.unknown");
 
         String className = host.getClass().getSimpleName();
 
@@ -336,6 +421,45 @@ public class NetworkScanner {
         }
 
         return className;
+    }
+
+    /**
+     * Get the world of a grid node.
+     */
+    private World getNodeWorld(IGridNode node) {
+        if (node == null) return null;
+
+        IGridHost host = node.getMachine();
+        if (host instanceof TileEntity) return ((TileEntity) host).getWorld();
+
+        try {
+            DimensionalCoord coord = node.getGridBlock().getLocation();
+            if (coord != null) return coord.getWorld();
+        } catch (Exception e) {
+            // Fall through
+        }
+
+        return world; // Fallback to scanner's world
+    }
+
+    /**
+     * Get the dimension ID of a grid node.
+     */
+    private int getNodeDimension(IGridNode node) {
+        World nodeWorld = getNodeWorld(node);
+        if (nodeWorld != null) return nodeWorld.provider.getDimension();
+
+        return world.provider.getDimension(); // Fallback
+    }
+
+    /**
+     * Get the dimension name of a grid node.
+     */
+    private String getNodeDimensionName(IGridNode node) {
+        World nodeWorld = getNodeWorld(node);
+        if (nodeWorld != null) return nodeWorld.provider.getDimensionType().getName();
+
+        return world.provider.getDimensionType().getName(); // Fallback
     }
 
     // ========== Getters ==========
@@ -352,7 +476,7 @@ public class NetworkScanner {
         return detectedLoops;
     }
 
-    public Set<BlockPos> getUnloadedChunks() {
+    public Set<ChunkLocation> getUnloadedChunks() {
         return unloadedChunks;
     }
 

@@ -45,10 +45,21 @@ ae2powertools.scanner.status.scanning_controller=Scanning from controller...
 ae2powertools.scanner.status.no_start=No starting node found.
 ae2powertools.scanner.status.error=Error during scan: %s
 ae2powertools.scanner.status.too_large=Network too large (>%d nodes). Scan stopped.
-ae2powertools.scanner.status.no_issues=Scan complete: %d nodes analyzed, no issues found.
-ae2powertools.scanner.status.found_issues=Scan complete: %d nodes analyzed, found issues.
+ae2powertools.scanner.status.no_issues=Scan complete: %d nodes analyzed.
+ae2powertools.scanner.status.found_issues=Scan complete: %d nodes analyzed.
 ae2powertools.scanner.status.scanning=Scanning... %d nodes processed.
 
 # Channel Chokepoint Tab
 ae2powertools.scanner.channel.no_controller=Cannot analyze channels: no controller found.
 ae2powertools.scanner.channel.controllerless=Cannot analyze channels: network has no controller.
+ae2powertools.scanner.channel.no_pathing_grid=No pathing grid found for channel analysis.
+ae2powertools.scanner.channel.building_tree=Building channel tree...
+ae2powertools.scanner.channel.calculating_demand=Calculating channel demand...
+ae2powertools.scanner.channel.building_tree_progress=Building channel tree... %d nodes processed.
+ae2powertools.scanner.channel.no_chokepoints=No channel chokepoints or missing devices found.
+ae2powertools.scanner.channel.found=Found %d chokepoints, %d missing devices.
+ae2powertools.scanner.channel.calculating_progress=Analyzing channels... %d/%d nodes.
+ae2powertools.scanner.channel.to_controller=(→Controller)
+
+# Common strings
+ae2powertools.common.unknown=Unknown

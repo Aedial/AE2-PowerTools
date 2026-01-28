@@ -203,7 +203,6 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
     /**
      * Calculate the GUI size based on content.
-     * TODO: account for the tabs in height calculation. We should grow taller if needed to fit all tabs.
      */
     private void calculateDynamicSize() {
         // Calculate max dimensions based on screen size
@@ -222,6 +221,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         // Also ensure minimum width for buttons
         guiWidth = Math.max(guiWidth, TAB_SIZE + PADDING + 60 + 4 + 60 + 4 + 60 + 10);
 
+        // Minimum height to fit all 4 tabs: HEADER_HEIGHT + 4 tabs + 3 spacers (2px each)
+        int minTabsHeight = HEADER_HEIGHT + 4 * TAB_SIZE + 3 * 2;
+
         // Calculate height based on number of rows (fit as many as possible up to max)
         int availableContentHeight = maxGuiHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2;
         int maxVisibleRows = availableContentHeight / ROW_HEIGHT;
@@ -231,11 +233,35 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         guiHeight = HEADER_HEIGHT + contentHeight + FOOTER_HEIGHT + PADDING * 2;
         guiHeight = Math.max(MIN_GUI_HEIGHT, Math.min(maxGuiHeight, guiHeight));
 
+        // Ensure GUI is tall enough to fit all tabs
+        guiHeight = Math.max(guiHeight, minTabsHeight);
+
         // Recalculate max scroll
         int viewHeight = guiHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2;
         int totalContentHeight = displayRows.size() * ROW_HEIGHT;
         maxScroll = Math.max(0, totalContentHeight - viewHeight);
         scrollOffset = Math.min(scrollOffset, maxScroll);
+    }
+
+    /**
+     * Recalculate GUI dimensions and reposition elements after content changes.
+     */
+    private void recalculateLayout() {
+        calculateDynamicSize();
+        guiLeft = (width - guiWidth) / 2;
+        guiTop = (height - guiHeight) / 2;
+
+        // Reposition buttons
+        int buttonY = guiTop + 6;
+        int buttonWidth = 60;
+        int spacing = 4;
+
+        selectAllButton.x = guiLeft + TAB_SIZE + PADDING + 2;
+        selectAllButton.y = buttonY;
+        deselectAllButton.x = guiLeft + TAB_SIZE + PADDING + 2 + buttonWidth + spacing;
+        deselectAllButton.y = buttonY;
+        cancelButton.x = guiLeft + guiWidth - buttonWidth - 6;
+        cancelButton.y = buttonY;
     }
 
     @Override
@@ -283,26 +309,27 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
     private void rebuildLoopRows() {
         List<LoopLocationClient> sorted = ScannerClientState.getSortedLoopLocations();
+        List<LoopLocationClient> original = ScannerClientState.getLoopLocations();
         if (sorted.isEmpty()) return;
 
-        // Group by dimension
-        Map<String, List<IndexedLocation<LoopLocationClient>>> grouped = new HashMap<>();
-        for (int i = 0; i < sorted.size(); i++) {
-            LoopLocationClient loc = sorted.get(i);
+        // Group by dimension (counting only)
+        Map<String, Integer> dimCounts = new HashMap<>();
+        for (LoopLocationClient loc : sorted) {
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
-            grouped.computeIfAbsent(dimKey, k -> new ArrayList<>()).add(new IndexedLocation<>(i, loc));
+            dimCounts.merge(dimKey, 1, Integer::sum);
         }
 
         // Build rows in order
         String lastDimKey = null;
         for (int i = 0; i < sorted.size(); i++) {
             LoopLocationClient loc = sorted.get(i);
+            // Find original index for proper selection tracking
+            int originalIndex = original.indexOf(loc);
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
 
             // Add category header if new dimension
             if (!dimKey.equals(lastDimKey)) {
-                List<IndexedLocation<LoopLocationClient>> dimLocs = grouped.get(dimKey);
-                int count = dimLocs != null ? dimLocs.size() : 0;
+                int count = dimCounts.getOrDefault(dimKey, 0);
                 String catText = dimKey + " (" + count + ")";
                 displayRows.add(new DisplayRow(dimKey, catText));
                 maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(catText));
@@ -326,33 +353,34 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = loc.description + " " + posStr + distStr;
 
-            displayRows.add(new DisplayRow(i, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
 
     private void rebuildChunkRows() {
         List<ChunkLocationClient> sorted = ScannerClientState.getSortedChunkLocations();
+        List<ChunkLocationClient> original = ScannerClientState.getChunkLocations();
         if (sorted.isEmpty()) return;
 
-        // Group by dimension
-        Map<String, List<IndexedLocation<ChunkLocationClient>>> grouped = new HashMap<>();
-        for (int i = 0; i < sorted.size(); i++) {
-            ChunkLocationClient loc = sorted.get(i);
+        // Group by dimension (counting only)
+        Map<String, Integer> dimCounts = new HashMap<>();
+        for (ChunkLocationClient loc : sorted) {
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
-            grouped.computeIfAbsent(dimKey, k -> new ArrayList<>()).add(new IndexedLocation<>(i, loc));
+            dimCounts.merge(dimKey, 1, Integer::sum);
         }
 
         // Build rows in order
         String lastDimKey = null;
         for (int i = 0; i < sorted.size(); i++) {
             ChunkLocationClient loc = sorted.get(i);
+            // Find original index for proper selection tracking
+            int originalIndex = original.indexOf(loc);
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
 
             // Add category header if new dimension
             if (!dimKey.equals(lastDimKey)) {
-                List<IndexedLocation<ChunkLocationClient>> dimLocs = grouped.get(dimKey);
-                int count = dimLocs != null ? dimLocs.size() : 0;
+                int count = dimCounts.getOrDefault(dimKey, 0);
                 String catText = dimKey + " (" + count + ")";
                 displayRows.add(new DisplayRow(dimKey, catText));
                 maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(catText));
@@ -373,7 +401,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = I18n.format("gui.ae2powertools.scanner.chunk_entry", loc.chunkX, loc.chunkZ) + distStr;
 
-            displayRows.add(new DisplayRow(i, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
@@ -400,26 +428,27 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
     private void rebuildMissingRows() {
         List<MissingDeviceClient> sorted = ScannerClientState.getSortedMissingDevices();
+        List<MissingDeviceClient> original = ScannerClientState.getMissingDevices();
         if (sorted.isEmpty()) return;
 
-        // Group by dimension
-        Map<String, List<IndexedLocation<MissingDeviceClient>>> grouped = new HashMap<>();
-        for (int i = 0; i < sorted.size(); i++) {
-            MissingDeviceClient loc = sorted.get(i);
+        // Group by dimension (counting only)
+        Map<String, Integer> dimCounts = new HashMap<>();
+        for (MissingDeviceClient loc : sorted) {
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
-            grouped.computeIfAbsent(dimKey, k -> new ArrayList<>()).add(new IndexedLocation<>(i, loc));
+            dimCounts.merge(dimKey, 1, Integer::sum);
         }
 
         // Build rows in order
         String lastDimKey = null;
         for (int i = 0; i < sorted.size(); i++) {
             MissingDeviceClient loc = sorted.get(i);
+            // Find original index for proper selection tracking
+            int originalIndex = original.indexOf(loc);
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
 
             // Add category header if new dimension
             if (!dimKey.equals(lastDimKey)) {
-                List<IndexedLocation<MissingDeviceClient>> dimLocs = grouped.get(dimKey);
-                int count = dimLocs != null ? dimLocs.size() : 0;
+                int count = dimCounts.getOrDefault(dimKey, 0);
                 String catText = dimKey + " (" + count + ")";
                 displayRows.add(new DisplayRow(dimKey, catText));
                 maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(catText));
@@ -443,7 +472,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = loc.getDisplayName() + " " + posStr + distStr;
 
-            displayRows.add(new DisplayRow(i, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
@@ -460,26 +489,27 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
     private void rebuildChokeRows() {
         List<ChokeLocationClient> sorted = ScannerClientState.getSortedChokeLocations();
+        List<ChokeLocationClient> original = ScannerClientState.getChokeLocations();
         if (sorted.isEmpty()) return;
 
-        // Group by dimension
-        Map<String, List<IndexedLocation<ChokeLocationClient>>> grouped = new HashMap<>();
-        for (int i = 0; i < sorted.size(); i++) {
-            ChokeLocationClient loc = sorted.get(i);
+        // Group by dimension (counting only)
+        Map<String, Integer> dimCounts = new HashMap<>();
+        for (ChokeLocationClient loc : sorted) {
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
-            grouped.computeIfAbsent(dimKey, k -> new ArrayList<>()).add(new IndexedLocation<>(i, loc));
+            dimCounts.merge(dimKey, 1, Integer::sum);
         }
 
         // Build rows in order
         String lastDimKey = null;
         for (int i = 0; i < sorted.size(); i++) {
             ChokeLocationClient loc = sorted.get(i);
+            // Find original index for proper selection tracking
+            int originalIndex = original.indexOf(loc);
             String dimKey = I18n.format("gui.ae2powertools.scanner.dimension_format", loc.dimensionName, loc.dimension);
 
             // Add category header if new dimension
             if (!dimKey.equals(lastDimKey)) {
-                List<IndexedLocation<ChokeLocationClient>> dimLocs = grouped.get(dimKey);
-                int count = dimLocs != null ? dimLocs.size() : 0;
+                int count = dimCounts.getOrDefault(dimKey, 0);
                 String catText = dimKey + " (" + count + ")";
                 displayRows.add(new DisplayRow(dimKey, catText));
                 maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(catText));
@@ -506,7 +536,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = loc.description + " " + posStr + " " + channelStr + excessStr + distStr;
 
-            displayRows.add(new DisplayRow(i, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
@@ -519,16 +549,6 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         }
 
         return true;
-    }
-
-    private static class IndexedLocation<T> {
-        final int index;
-        final T location;
-
-        IndexedLocation(int index, T location) {
-            this.index = index;
-            this.location = location;
-        }
     }
 
     @Override
@@ -660,8 +680,11 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             fontRenderer.drawString(selectIndicator, x + 18, y + (ROW_HEIGHT - fontRenderer.FONT_HEIGHT) / 2,
                 selected ? COLOR_CATEGORY_TEXT : COLOR_TEXT_DIM);
 
-            // For missing device entries, draw the item icon
             int textX = x + 28;
+            // For missing device entries, draw the item icon
+            // FIXME: Needs to be connected inventory, not AE2 part item
+            //        Also needs to be ajusted to fit properly
+            /*
             if (row.type == DisplayRow.Type.MISSING_ENTRY && row.missingDevice != null) {
                 ItemStack itemStack = row.missingDevice.itemStack;
                 if (!itemStack.isEmpty()) {
@@ -675,7 +698,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
                     GlStateManager.popMatrix();
                     textX = x + 38;  // Offset text past the icon
                 }
-            }
+            }*/
 
             // Entry text
             fontRenderer.drawString(row.text, textX, y + (ROW_HEIGHT - fontRenderer.FONT_HEIGHT) / 2, COLOR_TEXT);
@@ -706,6 +729,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private void drawIconTabs(int mouseX, int mouseY) {
         Tab currentTab = ScannerClientState.getCurrentTab();
         hoveredTabIndex = -1;
+
+        // TODO: refactor
 
         // Tab 0: Loops
         int tab0Y = guiTop + HEADER_HEIGHT;
@@ -852,6 +877,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
                     ScannerClientState.setCurrentTab(Tab.LOOPS);
                     scrollOffset = 0;
                     rebuildDisplayRows();
+                    recalculateLayout();
                 }
 
                 return;
@@ -862,6 +888,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
                     ScannerClientState.setCurrentTab(Tab.UNLOADED_CHUNKS);
                     scrollOffset = 0;
                     rebuildDisplayRows();
+                    recalculateLayout();
                 }
 
                 return;
@@ -872,6 +899,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
                     ScannerClientState.setCurrentTab(Tab.MISSING_CHANNELS);
                     scrollOffset = 0;
                     rebuildDisplayRows();
+                    recalculateLayout();
                 }
 
                 return;
@@ -882,6 +910,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
                     ScannerClientState.setCurrentTab(Tab.CHOKEPOINTS);
                     scrollOffset = 0;
                     rebuildDisplayRows();
+                    recalculateLayout();
                 }
 
                 return;
