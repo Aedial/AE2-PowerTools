@@ -12,12 +12,24 @@ item.ae2powertools.network_health_scanner.no_network=该位置未找到AE2网络
 item.ae2powertools.network_health_scanner.no_session=无激活的扫描会话。右击网络以开始。
 item.ae2powertools.network_health_scanner.already_scanning=已有扫描正在进行中。
 item.ae2powertools.network_health_scanner.cancelled=扫描已取消，已处理%d个节点。
+item.ae2powertools.network_health_scanner.cache_valid=已缓存扫描数据（有效）
+item.ae2powertools.network_health_scanner.cache_invalid=已缓存扫描数据（过期）
 
 item.ae2powertools.priority_tuner.name=优先级调节器
 item.ae2powertools.priority_tuner.stored=已储存优先级：%s
 item.ae2powertools.priority_tuner.tip1=潜行+右击以打开优先级GUI
 item.ae2powertools.priority_tuner.tip2=右击以应用储存的优先级
 item.ae2powertools.priority_tuner.tip3=副手持有时：放置方块时自动应用
+
+item.ae2powertools.cards_distributor.name=卡片分配器
+item.ae2powertools.cards_distributor.tip1=对网络右击以从物品栏中分配卡片
+item.ae2powertools.cards_distributor.tip2=支持分子装配室（加速卡）
+item.ae2powertools.cards_distributor.no_network=该位置未找到AE2网络。
+item.ae2powertools.cards_distributor.use_on_network=对网络组件右击以分配加速卡。
+item.ae2powertools.cards_distributor.success_accelerator=向%2$d个装配室分配了%1$d张加速卡。
+item.ae2powertools.cards_distributor.still_needed=还需%d张卡片才能完全升级%d个装配室。
+item.ae2powertools.cards_distributor.all_full=网络中的所有装配室都已完全升级！
+item.ae2powertools.cards_distributor.pulled_from_ae2=从AE2网络存储中取出了%d张卡片。
 
 ae2powertools.priority.applied=已将优先级%d应用于[%d, %d, %d]
 
