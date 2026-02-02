@@ -29,6 +29,12 @@ A tool for quickly setting and applying storage priorities:
 - Right-click on AE2 blocks (ME Drives, ME Chests, Buses, etc.) to apply the stored priority
 - Hold in off-hand for automatic priority application on block placement
 
+### Cards Distributor
+A tool to distribute cards from your inventory to Molecular Assemblers on the network.
+Supports:
+- **Acceleration Cards** for AE2 Molecular Assemblers
+
+
 ## FAQ
 
 ### Will the scanner detect all unloaded chunks in my network?

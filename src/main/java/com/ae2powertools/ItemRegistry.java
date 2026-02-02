@@ -10,6 +10,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.ae2powertools.items.ItemCardsDistributor;
 import com.ae2powertools.items.ItemNetworkHealthScanner;
 import com.ae2powertools.items.ItemPriorityTuner;
 
@@ -22,17 +23,20 @@ public class ItemRegistry {
 
     public static ItemNetworkHealthScanner NETWORK_HEALTH_SCANNER;
     public static ItemPriorityTuner PRIORITY_TUNER;
+    public static ItemCardsDistributor CARDS_DISTRIBUTOR;
 
     public static void init() {
         NETWORK_HEALTH_SCANNER = new ItemNetworkHealthScanner();
         PRIORITY_TUNER = new ItemPriorityTuner();
+        CARDS_DISTRIBUTOR = new ItemCardsDistributor();
     }
 
     @SubscribeEvent
     public static void registerItems(RegistryEvent.Register<Item> event) {
         event.getRegistry().registerAll(
             NETWORK_HEALTH_SCANNER,
-            PRIORITY_TUNER
+            PRIORITY_TUNER,
+            CARDS_DISTRIBUTOR
         );
     }
 
@@ -41,6 +45,7 @@ public class ItemRegistry {
     public static void registerModels(ModelRegistryEvent event) {
         registerItemModel(NETWORK_HEALTH_SCANNER);
         registerItemModel(PRIORITY_TUNER);
+        registerItemModel(CARDS_DISTRIBUTOR);
     }
 
     @SideOnly(Side.CLIENT)

@@ -24,6 +24,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.SelectedPart;
+import appeng.core.CreativeTab;
 import appeng.helpers.IPriorityHost;
 
 import com.ae2powertools.Tags;
@@ -45,8 +46,7 @@ public class ItemPriorityTuner extends Item {
         this.setRegistryName(Tags.MODID, "priority_tuner");
         this.setTranslationKey(Tags.MODID + ".priority_tuner");
         this.setMaxStackSize(1);
-        this.setCreativeTab(appeng.api.AEApi.instance().definitions().materials().cell1kPart().maybeStack(1)
-            .map(s -> s.getItem().getCreativeTab()).orElse(null));
+        this.setCreativeTab(CreativeTab.instance);
     }
 
     /**

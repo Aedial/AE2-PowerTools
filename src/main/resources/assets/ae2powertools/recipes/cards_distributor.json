@@ -1,0 +1,68 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:cards_distributor"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.silicon"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.wireless"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.basic_card"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.advanced_card"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.calculation_processor"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:cards_distributor"
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "sws",
+        "bca",
+        "sis"
+    ],
+    "key": {
+        "s": {
+            "type": "appliedenergistics2:part",
+            "part": "material.silicon"
+        },
+        "w": {
+            "type": "appliedenergistics2:part",
+            "part": "material.wireless"
+        },
+        "b": {
+            "type": "appliedenergistics2:part",
+            "part": "material.basic_card"
+        },
+        "a": {
+            "type": "appliedenergistics2:part",
+            "part": "material.advanced_card"
+        },
+        "c": {
+            "type": "appliedenergistics2:part",
+            "part": "material.calculation_processor"
+        },
+        "i": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        }
+    }
+}

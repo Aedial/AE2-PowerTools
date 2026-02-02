@@ -12,12 +12,24 @@ item.ae2powertools.network_health_scanner.no_network=No AE2 network found at thi
 item.ae2powertools.network_health_scanner.no_session=No active scan session. Right-click on a network to start.
 item.ae2powertools.network_health_scanner.already_scanning=A scan is already in progress.
 item.ae2powertools.network_health_scanner.cancelled=Scan cancelled after processing %d nodes.
+item.ae2powertools.network_health_scanner.cache_valid=Cached scan data (valid)
+item.ae2powertools.network_health_scanner.cache_invalid=Cached scan data (outdated)
 
 item.ae2powertools.priority_tuner.name=Priority Tuner
 item.ae2powertools.priority_tuner.stored=Stored Priority: %s
 item.ae2powertools.priority_tuner.tip1=Sneak + Right-click to open priority GUI
 item.ae2powertools.priority_tuner.tip2=Right-click to apply stored priority
 item.ae2powertools.priority_tuner.tip3=Off-hand: Auto-apply on block placement
+
+item.ae2powertools.cards_distributor.name=Cards Distributor
+item.ae2powertools.cards_distributor.tip1=Right-click on network to distribute cards from inventory
+item.ae2powertools.cards_distributor.tip2=Supports Molecular Assemblers (acceleration cards)
+item.ae2powertools.cards_distributor.no_network=No AE2 network found at this location.
+item.ae2powertools.cards_distributor.use_on_network=Right-click on a network component to distribute acceleration cards.
+item.ae2powertools.cards_distributor.success_accelerator=Distributed %d acceleration cards to %d assemblers.
+item.ae2powertools.cards_distributor.still_needed=Still need %d cards for %d assemblers to be fully upgraded.
+item.ae2powertools.cards_distributor.all_full=All assemblers on the network are fully upgraded!
+item.ae2powertools.cards_distributor.pulled_from_ae2=Pulled %d cards from AE2 network storage.
 
 ae2powertools.priority.applied=Applied priority %d at [%d, %d, %d]
 

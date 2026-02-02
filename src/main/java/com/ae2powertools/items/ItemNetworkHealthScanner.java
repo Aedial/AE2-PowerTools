@@ -27,6 +27,7 @@ import appeng.api.networking.IGridNode;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
+import appeng.core.CreativeTab;
 
 import com.ae2powertools.Tags;
 import com.ae2powertools.network.PacketScannerSync;
@@ -50,8 +51,7 @@ public class ItemNetworkHealthScanner extends Item {
         this.setRegistryName(Tags.MODID, "network_health_scanner");
         this.setTranslationKey(Tags.MODID + ".network_health_scanner");
         this.setMaxStackSize(1);
-        this.setCreativeTab(appeng.api.AEApi.instance().definitions().materials().cell1kPart().maybeStack(1)
-            .map(s -> s.getItem().getCreativeTab()).orElse(null));
+        this.setCreativeTab(CreativeTab.instance);
     }
 
     @Override

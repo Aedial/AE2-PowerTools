@@ -16,6 +16,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
  * Client-side state for scanner overlay and rendering.
  * Stores detected loops, unloaded chunks, and channels received from server.
  * TODO: refactor into array-based functions, with Tab enum supplying indexes.
+ * TODO: index cache to use multiple devices simultaneously.
  */
 @SideOnly(Side.CLIENT)
 public class ScannerClientState {
