@@ -1,14 +1,18 @@
 package com.ae2powertools.items;
 
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
@@ -47,6 +51,15 @@ import com.ae2powertools.features.scanner.ScanSessionManager;
  */
 public class ItemNetworkHealthScanner extends Item {
 
+    private static final String NBT_DEVICE_ID = "DeviceId";
+    private static final String NBT_OVERLAY_ENABLED = "OverlayEnabled";
+
+    // Cache device ID by NBT compound identity to avoid repeated lookups
+    private static final Map<NBTTagCompound, Long> deviceIdCache = new IdentityHashMap<>();
+
+    // Cache overlay state by device ID
+    private static final Map<Long, Boolean> overlayCache = new IdentityHashMap<>();
+
     public ItemNetworkHealthScanner() {
         this.setRegistryName(Tags.MODID, "network_health_scanner");
         this.setTranslationKey(Tags.MODID + ".network_health_scanner");
@@ -54,10 +67,116 @@ public class ItemNetworkHealthScanner extends Item {
         this.setCreativeTab(CreativeTab.instance);
     }
 
+    /**
+     * Get or create a unique device ID for this scanner.
+     * Uses nanosecond timestamp on first creation for uniqueness.
+     * Values are cached to avoid repeated NBT lookups.
+     */
+    public static long getDeviceId(ItemStack stack) {
+        if (stack.isEmpty()) return 0L;
+
+        NBTTagCompound nbt = stack.getTagCompound();
+
+        // Check cache first (using NBT compound identity)
+        if (nbt != null) {
+            Long cached = deviceIdCache.get(nbt);
+            if (cached != null) return cached;
+        }
+
+        // Create NBT if needed
+        if (nbt == null) {
+            nbt = new NBTTagCompound();
+            stack.setTagCompound(nbt);
+        }
+
+        // Generate new ID if not present
+        if (!nbt.hasKey(NBT_DEVICE_ID)) nbt.setLong(NBT_DEVICE_ID, System.nanoTime());
+
+        long deviceId = nbt.getLong(NBT_DEVICE_ID);
+        deviceIdCache.put(nbt, deviceId);
+
+        return deviceId;
+    }
+
+    /**
+     * Check if overlay is enabled for this scanner.
+     * Defaults to true if not set.
+     * Values are cached by device ID to avoid repeated NBT lookups.
+     */
+    public static boolean isOverlayEnabled(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+
+        long deviceId = getDeviceId(stack);
+        if (deviceId == 0L) return false;
+
+        // Check cache first
+        Boolean cached = overlayCache.get(deviceId);
+        if (cached != null) return cached;
+
+        // Read from NBT
+        NBTTagCompound nbt = stack.getTagCompound();
+        boolean enabled = (nbt == null || !nbt.hasKey(NBT_OVERLAY_ENABLED)) || nbt.getBoolean(NBT_OVERLAY_ENABLED);
+
+        overlayCache.put(deviceId, enabled);
+
+        return enabled;
+    }
+
+    /**
+     * Set overlay enabled state for this scanner.
+     * Updates the cache immediately.
+     */
+    public static void setOverlayEnabled(ItemStack stack, boolean enabled) {
+        if (stack.isEmpty()) return;
+
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt == null) {
+            nbt = new NBTTagCompound();
+            stack.setTagCompound(nbt);
+        }
+
+        nbt.setBoolean(NBT_OVERLAY_ENABLED, enabled);
+
+        // Update cache
+        long deviceId = getDeviceId(stack);
+        if (deviceId != 0L) overlayCache.put(deviceId, enabled);
+    }
+
+    /**
+     * Toggle overlay enabled state for this scanner.
+     * @return The new overlay enabled state.
+     */
+    public static boolean toggleOverlayEnabled(ItemStack stack) {
+        boolean newState = !isOverlayEnabled(stack);
+        setOverlayEnabled(stack, newState);
+
+        return newState;
+    }
+
+    /**
+     * Check if a stack has a device ID assigned.
+     */
+    public static boolean hasDeviceId(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+
+        NBTTagCompound nbt = stack.getTagCompound();
+
+        return nbt != null && nbt.hasKey(NBT_DEVICE_ID);
+    }
+
+    @Override
+    public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean isHeld) {
+        // Ensure device ID is assigned on first inventory tick
+        if (!world.isRemote && !stack.isEmpty()) getDeviceId(stack);
+    }
+
     @Override
     public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side,
             float hitX, float hitY, float hitZ, EnumHand hand) {
         if (world.isRemote) return EnumActionResult.PASS;
+
+        ItemStack stack = player.getHeldItem(hand);
+        long deviceId = getDeviceId(stack);
 
         // Try to get grid from the clicked block
         IGrid grid = getGridFromPosition(world, pos, side);
@@ -68,12 +187,12 @@ public class ItemNetworkHealthScanner extends Item {
             return EnumActionResult.FAIL;
         }
 
-        // Start network scan
-        ScanSessionManager.startSession(player, grid);
+        // Start network scan with device ID
+        ScanSessionManager.startSession(player, grid, deviceId);
         player.sendMessage(new TextComponentTranslation("item.ae2powertools.network_health_scanner.started"));
 
         // Send initial sync packet
-        syncToClient((EntityPlayerMP) player);
+        syncToClient((EntityPlayerMP) player, deviceId);
 
         return EnumActionResult.SUCCESS;
     }
@@ -83,17 +202,19 @@ public class ItemNetworkHealthScanner extends Item {
         ItemStack stack = player.getHeldItem(hand);
 
         if (world.isRemote) {
+            long deviceId = getDeviceId(stack);
+
             if (player.isSneaking()) {
                 // Shift-right-click: toggle overlay
-                ScannerClientState.toggleOverlay();
-                String key = ScannerClientState.isOverlayEnabled() ?
+                boolean enabled = toggleOverlayEnabled(stack);
+                String key = enabled ?
                     "item.ae2powertools.network_health_scanner.overlay_enabled" :
                     "item.ae2powertools.network_health_scanner.overlay_disabled";
                 player.sendMessage(new TextComponentTranslation(key));
             } else {
                 // Regular right-click in air: open GUI
-                if (ScannerClientState.hasActiveSession()) {
-                    openGui();
+                if (ScannerClientState.hasSession(deviceId)) {
+                    openGui(deviceId);
                 } else {
                     player.sendMessage(new TextComponentTranslation("item.ae2powertools.network_health_scanner.no_session"));
                 }
@@ -107,7 +228,8 @@ public class ItemNetworkHealthScanner extends Item {
     }
 
     @SideOnly(Side.CLIENT)
-    private void openGui() {
+    private void openGui(long deviceId) {
+        ScannerClientState.setActiveDeviceId(deviceId);
         Minecraft.getMinecraft().displayGuiScreen(new GuiNetworkHealthScanner());
     }
 
@@ -163,12 +285,14 @@ public class ItemNetworkHealthScanner extends Item {
     }
 
     /**
-     * Sync scan state to client.
+     * Sync scan state to client for a specific device.
      */
-    public static void syncToClient(EntityPlayerMP player) {
-        ScanSessionManager.ScanSession session = ScanSessionManager.getSession(player);
+    public static void syncToClient(EntityPlayerMP player, long deviceId) {
+        ScanSessionManager.ScanSession session = ScanSessionManager.getSession(player, deviceId);
 
-        PacketScannerSync packet = session == null ? PacketScannerSync.noSession() : new PacketScannerSync(session);
+        PacketScannerSync packet = session == null ?
+            PacketScannerSync.noSession(deviceId) :
+            new PacketScannerSync(session, deviceId);
         PowerToolsNetwork.INSTANCE.sendTo(packet, player);
     }
 
@@ -182,7 +306,7 @@ public class ItemNetworkHealthScanner extends Item {
         tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.network_health_scanner.tip2"));
 
         // Show current overlay state in tip3 with colored ON/OFF
-        boolean overlayEnabled = ScannerClientState.isOverlayEnabled();
+        boolean overlayEnabled = isOverlayEnabled(stack);
         String overlayState = overlayEnabled ?
             TextFormatting.GREEN + I18n.format("item.ae2powertools.network_health_scanner.overlay_on") + TextFormatting.AQUA :
             TextFormatting.RED + I18n.format("item.ae2powertools.network_health_scanner.overlay_off") + TextFormatting.AQUA;

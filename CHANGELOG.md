@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.3.1] - 2026-02-07
+### Added
+- Add multi-session support for Network Health Scanner to allow using multiple scanners on different networks simultaneously.
+- Improve the tooltip of the Cards Distributor a bit.
+
+
 ## [1.3.0] - 2026-02-01
 ### Added
 - Add the Cards Distributor tool for AE2 networks. This tool allows players to send acceleration cards from inventory directly to any free Molecular Assembler (or compatible) on the network by right-clicking.

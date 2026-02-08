@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -29,6 +30,7 @@ import com.ae2powertools.features.scanner.ScannerClientState.ConnectionFlowClien
 import com.ae2powertools.features.scanner.ScannerClientState.LoopLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.MissingDeviceClient;
 import com.ae2powertools.features.scanner.ScannerClientState.Tab;
+import com.ae2powertools.items.ItemNetworkHealthScanner;
 
 
 /**
@@ -83,13 +85,20 @@ public class ScannerRenderer {
     @SubscribeEvent
     public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
-        if (!ScannerClientState.isOverlayEnabled()) return;
-        if (!ScannerClientState.hasActiveSession()) return;
 
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.player == null || mc.world == null) return;
         if (mc.gameSettings.showDebugInfo) return;
-        if (!isHoldingScanner(mc)) return;
+
+        // Get held scanner and check its overlay enabled state
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (heldScanner.isEmpty()) return;
+        if (!ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) return;
+
+        long deviceId = ItemNetworkHealthScanner.getDeviceId(heldScanner);
+        ScannerClientState.setActiveDeviceId(deviceId);
+
+        if (!ScannerClientState.hasActiveSession()) return;
 
         Tab currentTab = ScannerClientState.getCurrentTab();
         BlockPos playerPos = mc.player.getPosition();
@@ -189,12 +198,18 @@ public class ScannerRenderer {
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
-        if (!ScannerClientState.hasActiveSession()) return;
-
         Minecraft mc = Minecraft.getMinecraft();
         EntityPlayer player = mc.player;
         if (player == null || mc.world == null) return;
-        if (!isHoldingScanner(mc)) return;
+
+        // Get the held scanner and set its device ID as active
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (heldScanner.isEmpty()) return;
+
+        long deviceId = ItemNetworkHealthScanner.getDeviceId(heldScanner);
+        ScannerClientState.setActiveDeviceId(deviceId);
+
+        if (!ScannerClientState.hasActiveSession()) return;
 
         int playerDim = player.dimension;
         float partialTicks = event.getPartialTicks();
@@ -252,7 +267,8 @@ public class ScannerRenderer {
         GlStateManager.popMatrix();
 
         // Render direction arrows (for locations beyond wireframe distance)
-        if (ScannerClientState.isOverlayEnabled()) {
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
             for (LoopLocationClient loc : selected) {
                 if (loc.dimension != playerDim) continue;
 
@@ -272,7 +288,8 @@ public class ScannerRenderer {
         List<ChunkLocationClient> selected = ScannerClientState.getSelectedChunks();
 
         // Render direction arrows pointing to chunk centers (only in current dimension)
-        if (ScannerClientState.isOverlayEnabled()) {
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
             for (ChunkLocationClient loc : selected) {
                 if (loc.dimension != playerDim) continue;
 
@@ -320,7 +337,8 @@ public class ScannerRenderer {
         GlStateManager.popMatrix();
 
         // Render direction arrows (for locations beyond wireframe distance)
-        if (ScannerClientState.isOverlayEnabled()) {
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
             for (MissingDeviceClient loc : selected) {
                 if (loc.dimension != playerDim) continue;
 
@@ -380,7 +398,8 @@ public class ScannerRenderer {
         }
 
         // Render direction arrows (for locations beyond wireframe distance)
-        if (ScannerClientState.isOverlayEnabled()) {
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
             for (ChokeLocationClient loc : selected) {
                 if (loc.dimension != playerDim) continue;
 
@@ -718,11 +737,21 @@ public class ScannerRenderer {
 
     /**
      * Check if the player is holding a Network Health Scanner in either hand.
+     * Returns the scanner ItemStack if held, or ItemStack.EMPTY if not.
      */
-    private boolean isHoldingScanner(Minecraft mc) {
-        if (mc.player == null) return false;
+    private ItemStack getHeldScanner(Minecraft mc) {
+        if (mc.player == null) return ItemStack.EMPTY;
 
-        return mc.player.getHeldItemMainhand().getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER
-            || mc.player.getHeldItemOffhand().getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER;
+        ItemStack mainHand = mc.player.getHeldItemMainhand();
+        if (mainHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) return mainHand;
+
+        ItemStack offHand = mc.player.getHeldItemOffhand();
+        if (offHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) return offHand;
+
+        return ItemStack.EMPTY;
+    }
+
+    private boolean isHoldingScanner(Minecraft mc) {
+        return !getHeldScanner(mc).isEmpty();
     }
 }

@@ -20,8 +20,8 @@ import com.ae2powertools.items.ItemNetworkHealthScanner;
  */
 public class ScannerTickHandler {
 
-    // Track which players need sync updates
-    private static final Map<UUID, Integer> syncCounters = new HashMap<>();
+    // Track which sessions need sync updates (keyed by session key)
+    private static final Map<ScanSessionManager.SessionKey, Integer> syncCounters = new HashMap<>();
     private static final int SYNC_INTERVAL = 20; // Ticks between syncs
 
     @SubscribeEvent
@@ -35,54 +35,38 @@ public class ScannerTickHandler {
         ScanSessionManager.tickSessions();
 
         // Sync to clients periodically
-        Set<UUID> toRemove = new HashSet<>();
+        Set<ScanSessionManager.SessionKey> toRemove = new HashSet<>();
 
-        for (Map.Entry<UUID, ScanSessionManager.ScanSession> entry : getSessionEntries(server)) {
-            UUID playerId = entry.getKey();
+        for (Map.Entry<ScanSessionManager.SessionKey, ScanSessionManager.ScanSession> entry : ScanSessionManager.getSessionEntries()) {
+            ScanSessionManager.SessionKey key = entry.getKey();
             ScanSessionManager.ScanSession session = entry.getValue();
 
             // Increment sync counter
-            int counter = syncCounters.getOrDefault(playerId, 0) + 1;
-            syncCounters.put(playerId, counter);
+            int counter = syncCounters.getOrDefault(key, 0) + 1;
+            syncCounters.put(key, counter);
 
             // Sync at intervals or when complete
             boolean shouldSync = counter >= SYNC_INTERVAL || session.getScanner().isComplete();
 
             if (shouldSync) {
-                syncCounters.put(playerId, 0);
+                syncCounters.put(key, 0);
 
                 // Find the player and sync
-                EntityPlayerMP player = findPlayer(server, playerId);
+                EntityPlayerMP player = findPlayer(server, key.getPlayerId());
                 if (player != null) {
-                    ItemNetworkHealthScanner.syncToClient(player);
+                    ItemNetworkHealthScanner.syncToClient(player, key.getDeviceId());
                 } else {
                     // Player disconnected, remove session
-                    toRemove.add(playerId);
+                    toRemove.add(key);
                 }
             }
         }
 
         // Clean up disconnected players
-        for (UUID playerId : toRemove) {
-            ScanSessionManager.endSession(playerId);
-            syncCounters.remove(playerId);
+        for (ScanSessionManager.SessionKey key : toRemove) {
+            ScanSessionManager.endSession(key.getPlayerId(), key.getDeviceId());
+            syncCounters.remove(key);
         }
-    }
-
-    /**
-     * Get all session entries. This is a workaround since ScanSessionManager doesn't expose iteration.
-     */
-    private Iterable<Map.Entry<UUID, ScanSessionManager.ScanSession>> getSessionEntries(MinecraftServer server) {
-        // We need to iterate through known players with sessions
-        // Since ScanSessionManager doesn't expose the map, we'll track players ourselves
-        Map<UUID, ScanSessionManager.ScanSession> entries = new HashMap<>();
-
-        for (EntityPlayerMP player : server.getPlayerList().getPlayers()) {
-            ScanSessionManager.ScanSession session = ScanSessionManager.getSession(player);
-            if (session != null) entries.put(player.getUniqueID(), session);
-        }
-
-        return entries.entrySet();
     }
 
     private EntityPlayerMP findPlayer(MinecraftServer server, UUID playerId) {

@@ -35,6 +35,7 @@ import com.ae2powertools.features.scanner.ScannerClientState.MissingDeviceClient
  */
 public class PacketScannerSync implements IMessage {
 
+    private long deviceId;
     private boolean hasSession;
     private boolean isComplete;
     private String statusMessage;
@@ -169,7 +170,8 @@ public class PacketScannerSync implements IMessage {
         this.chokeLocations = new ArrayList<>();
     }
 
-    public PacketScannerSync(ScanSessionManager.ScanSession session) {
+    public PacketScannerSync(ScanSessionManager.ScanSession session, long deviceId) {
+        this.deviceId = deviceId;
         this.hasSession = true;
         this.loopLocations = new ArrayList<>();
         this.chunkLocations = new ArrayList<>();
@@ -252,8 +254,9 @@ public class PacketScannerSync implements IMessage {
     /**
      * Create a packet indicating no session.
      */
-    public static PacketScannerSync noSession() {
+    public static PacketScannerSync noSession(long deviceId) {
         PacketScannerSync packet = new PacketScannerSync();
+        packet.deviceId = deviceId;
         packet.hasSession = false;
         packet.isComplete = true;
         packet.statusMessage = "";
@@ -263,6 +266,7 @@ public class PacketScannerSync implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
+        deviceId = buf.readLong();
         hasSession = buf.readBoolean();
         isComplete = buf.readBoolean();
         statusMessage = ByteBufUtils.readUTF8String(buf);
@@ -339,6 +343,7 @@ public class PacketScannerSync implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
+        buf.writeLong(deviceId);
         buf.writeBoolean(hasSession);
         buf.writeBoolean(isComplete);
         ByteBufUtils.writeUTF8String(buf, statusMessage != null ? statusMessage : "");
@@ -411,9 +416,11 @@ public class PacketScannerSync implements IMessage {
         @SideOnly(Side.CLIENT)
         public IMessage onMessage(PacketScannerSync message, MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
-                ScannerClientState.setActiveSession(message.hasSession);
-                ScannerClientState.setScanComplete(message.isComplete);
-                ScannerClientState.setStatusMessage(message.statusMessage);
+                long deviceId = message.deviceId;
+
+                ScannerClientState.setActiveSession(deviceId, message.hasSession);
+                ScannerClientState.setScanComplete(deviceId, message.isComplete);
+                ScannerClientState.setStatusMessage(deviceId, message.statusMessage);
 
                 // Set loop locations
                 List<LoopLocationClient> clientLoops = new ArrayList<>();
@@ -427,7 +434,7 @@ public class PacketScannerSync implements IMessage {
                         data.isLoaded
                     ));
                 }
-                ScannerClientState.setLoopLocations(clientLoops);
+                ScannerClientState.setLoopLocations(deviceId, clientLoops);
 
                 // Set chunk locations
                 List<ChunkLocationClient> clientChunks = new ArrayList<>();
@@ -439,7 +446,7 @@ public class PacketScannerSync implements IMessage {
                         data.dimensionName
                     ));
                 }
-                ScannerClientState.setChunkLocations(clientChunks);
+                ScannerClientState.setChunkLocations(deviceId, clientChunks);
 
                 // Set missing device locations
                 List<MissingDeviceClient> clientMissing = new ArrayList<>();
@@ -452,7 +459,7 @@ public class PacketScannerSync implements IMessage {
                         data.description
                     ));
                 }
-                ScannerClientState.setMissingDevices(clientMissing);
+                ScannerClientState.setMissingDevices(deviceId, clientMissing);
 
                 // Set chokepoint locations
                 List<ChokeLocationClient> clientChokes = new ArrayList<>();
@@ -480,7 +487,7 @@ public class PacketScannerSync implements IMessage {
                         flows
                     ));
                 }
-                ScannerClientState.setChokeLocations(clientChokes);
+                ScannerClientState.setChokeLocations(deviceId, clientChokes);
             });
 
             return null;

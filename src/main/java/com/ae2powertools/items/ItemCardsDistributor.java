@@ -494,21 +494,24 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
+        String encKey = null;
         if (stack.hasTagCompound()) {
             NBTTagCompound tag = Platform.openNbtData(stack);
-            String encKey = tag.getString("encryptionKey");
-
-            if (encKey == null || encKey.isEmpty()) {
-                tooltip.add(TextFormatting.RED + GuiText.Unlinked.getLocal());
-            } else {
-                tooltip.add(TextFormatting.GREEN + GuiText.Linked.getLocal());
-            }
-        } else {
-            tooltip.add(TextFormatting.RED + GuiText.Unlinked.getLocal());
+            encKey = tag.getString("encryptionKey");
         }
 
+        if (encKey == null || encKey.isEmpty()) {
+            tooltip.add(TextFormatting.RED + GuiText.Unlinked.getLocal());
+        } else {
+            tooltip.add(TextFormatting.GREEN + GuiText.Linked.getLocal());
+        }
+
+        String tip1 = encKey != null && !encKey.isEmpty() ?
+            I18n.format("item.ae2powertools.cards_distributor.tip1bis") :
+            I18n.format("item.ae2powertools.cards_distributor.tip1");
+
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.cards_distributor.tip1"));
+        tooltip.add(TextFormatting.AQUA + tip1);
         tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2powertools.cards_distributor.tip2"));
     }
 }

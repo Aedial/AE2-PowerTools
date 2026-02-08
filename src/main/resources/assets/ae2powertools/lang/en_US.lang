@@ -23,6 +23,7 @@ item.ae2powertools.priority_tuner.tip3=Off-hand: Auto-apply on block placement
 
 item.ae2powertools.cards_distributor.name=Cards Distributor
 item.ae2powertools.cards_distributor.tip1=Right-click on network to distribute cards from inventory
+item.ae2powertools.cards_distributor.tip1bis=Right-click on network to distribute cards from inventory and linked AE2 storage
 item.ae2powertools.cards_distributor.tip2=Supports Molecular Assemblers (acceleration cards)
 item.ae2powertools.cards_distributor.no_network=No AE2 network found at this location.
 item.ae2powertools.cards_distributor.use_on_network=Right-click on a network component to distribute acceleration cards.

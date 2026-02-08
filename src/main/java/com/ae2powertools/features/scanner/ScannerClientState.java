@@ -1,8 +1,10 @@
 package com.ae2powertools.features.scanner;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.client.Minecraft;
@@ -15,8 +17,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /**
  * Client-side state for scanner overlay and rendering.
  * Stores detected loops, unloaded chunks, and channels received from server.
- * TODO: refactor into array-based functions, with Tab enum supplying indexes.
- * TODO: index cache to use multiple devices simultaneously.
+ * State is indexed by device ID to support multiple scanner devices simultaneously.
  */
 @SideOnly(Side.CLIENT)
 public class ScannerClientState {
@@ -31,31 +32,64 @@ public class ScannerClientState {
         MISSING_CHANNELS
     }
 
-    private static boolean overlayEnabled = true;
-    private static boolean hasActiveSession = false;
-    private static String statusMessage = "";
-    private static boolean isScanComplete = false;
-    private static Tab currentTab = Tab.LOOPS;
+    /**
+     * Per-device scan state.
+     */
+    public static class DeviceScanState {
+        private String statusMessage = "";
+        private boolean isScanComplete = false;
+        private Tab currentTab = Tab.LOOPS;
 
-    // Loop locations synced from server
-    private static final List<LoopLocationClient> loopLocations = new ArrayList<>();
-    private static final Set<Integer> selectedLoopIndices = new HashSet<>();
-    private static List<LoopLocationClient> sortedLoopLocations = null;
+        // Loop locations synced from server
+        private final List<LoopLocationClient> loopLocations = new ArrayList<>();
+        private final Set<Integer> selectedLoopIndices = new HashSet<>();
+        private List<LoopLocationClient> sortedLoopLocations = null;
 
-    // Unloaded chunk locations synced from server
-    private static final List<ChunkLocationClient> chunkLocations = new ArrayList<>();
-    private static final Set<Integer> selectedChunkIndices = new HashSet<>();
-    private static List<ChunkLocationClient> sortedChunkLocations = null;
+        // Unloaded chunk locations synced from server
+        private final List<ChunkLocationClient> chunkLocations = new ArrayList<>();
+        private final Set<Integer> selectedChunkIndices = new HashSet<>();
+        private List<ChunkLocationClient> sortedChunkLocations = null;
 
-    // Missing channel device locations synced from server
-    private static final List<MissingDeviceClient> missingDevices = new ArrayList<>();
-    private static final Set<Integer> selectedMissingIndices = new HashSet<>();
-    private static List<MissingDeviceClient> sortedMissingDevices = null;
+        // Missing channel device locations synced from server
+        private final List<MissingDeviceClient> missingDevices = new ArrayList<>();
+        private final Set<Integer> selectedMissingIndices = new HashSet<>();
+        private List<MissingDeviceClient> sortedMissingDevices = null;
 
-    // Channel chokepoint locations synced from server
-    private static final List<ChokeLocationClient> chokeLocations = new ArrayList<>();
-    private static final Set<Integer> selectedChokeIndices = new HashSet<>();
-    private static List<ChokeLocationClient> sortedChokeLocations = null;
+        // Channel chokepoint locations synced from server
+        private final List<ChokeLocationClient> chokeLocations = new ArrayList<>();
+        private final Set<Integer> selectedChokeIndices = new HashSet<>();
+        private List<ChokeLocationClient> sortedChokeLocations = null;
+
+        public void clearData() {
+            loopLocations.clear();
+            selectedLoopIndices.clear();
+            sortedLoopLocations = null;
+            chunkLocations.clear();
+            selectedChunkIndices.clear();
+            sortedChunkLocations = null;
+            missingDevices.clear();
+            selectedMissingIndices.clear();
+            sortedMissingDevices = null;
+            chokeLocations.clear();
+            selectedChokeIndices.clear();
+            sortedChokeLocations = null;
+            isScanComplete = false;
+            currentTab = Tab.LOOPS;
+        }
+
+        public void invalidateSortCache() {
+            sortedLoopLocations = null;
+            sortedChunkLocations = null;
+            sortedMissingDevices = null;
+            sortedChokeLocations = null;
+        }
+    }
+
+    // Global state
+    private static long activeDeviceId = 0L;
+
+    // Per-device state map
+    private static final Map<Long, DeviceScanState> deviceStates = new HashMap<>();
 
     /**
      * Client-side loop location data.
@@ -233,176 +267,257 @@ public class ScannerClientState {
         }
     }
 
+    // ========== Device ID Management ==========
+
+    /**
+     * Get the currently active device ID for the GUI/overlays.
+     */
+    public static long getActiveDeviceId() {
+        return activeDeviceId;
+    }
+
+    /**
+     * Set the active device ID (when opening GUI or selecting a scanner).
+     */
+    public static void setActiveDeviceId(long deviceId) {
+        activeDeviceId = deviceId;
+    }
+
+    /**
+     * Get or create state for a specific device.
+     */
+    private static DeviceScanState getOrCreateState(long deviceId) {
+        return deviceStates.computeIfAbsent(deviceId, k -> new DeviceScanState());
+    }
+
+    /**
+     * Get state for a specific device, or null if not exists.
+     */
+    private static DeviceScanState getState(long deviceId) {
+        return deviceStates.get(deviceId);
+    }
+
+    /**
+     * Get state for the active device, or null if not exists.
+     */
+    private static DeviceScanState getActiveState() {
+        return deviceStates.get(activeDeviceId);
+    }
+
+    /**
+     * Check if a session exists for a specific device.
+     */
+    public static boolean hasSession(long deviceId) {
+        return deviceStates.containsKey(deviceId);
+    }
+
+    /**
+     * Remove session data for a specific device.
+     */
+    public static void removeSession(long deviceId) {
+        deviceStates.remove(deviceId);
+    }
+
     // ========== Tab Management ==========
 
     public static Tab getCurrentTab() {
-        return currentTab;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.currentTab : Tab.LOOPS;
     }
 
     public static void setCurrentTab(Tab tab) {
-        currentTab = tab;
+        DeviceScanState state = getActiveState();
+        if (state != null) state.currentTab = tab;
     }
 
-    // ========== State Management ==========
+    // ========== Global State Management ==========
 
-    public static void setOverlayEnabled(boolean enabled) {
-        overlayEnabled = enabled;
-    }
-
-    public static boolean isOverlayEnabled() {
-        return overlayEnabled;
-    }
-
-    public static void toggleOverlay() {
-        overlayEnabled = !overlayEnabled;
-    }
-
+    /**
+     * Check if there's an active session for the currently active device.
+     */
     public static boolean hasActiveSession() {
-        return hasActiveSession;
+        return hasSession(activeDeviceId);
     }
 
-    public static void setActiveSession(boolean active) {
-        hasActiveSession = active;
-
-        if (!active) clearData();
+    /**
+     * Set session active state for a specific device.
+     */
+    public static void setActiveSession(long deviceId, boolean active) {
+        if (active) {
+            getOrCreateState(deviceId);
+        } else {
+            removeSession(deviceId);
+        }
     }
 
     public static String getStatusMessage() {
-        return statusMessage;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.statusMessage : "";
     }
 
-    public static void setStatusMessage(String message) {
-        statusMessage = message;
+    public static void setStatusMessage(long deviceId, String message) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.statusMessage = message;
     }
 
     public static boolean isScanComplete() {
-        return isScanComplete;
+        DeviceScanState state = getActiveState();
+
+        return state != null && state.isScanComplete;
     }
 
-    public static void setScanComplete(boolean complete) {
-        isScanComplete = complete;
+    public static void setScanComplete(long deviceId, boolean complete) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.isScanComplete = complete;
     }
 
     // ========== Data Management ==========
 
-    public static void clearData() {
-        loopLocations.clear();
-        selectedLoopIndices.clear();
-        sortedLoopLocations = null;
-        chunkLocations.clear();
-        selectedChunkIndices.clear();
-        sortedChunkLocations = null;
-        missingDevices.clear();
-        selectedMissingIndices.clear();
-        sortedMissingDevices = null;
-        chokeLocations.clear();
-        selectedChokeIndices.clear();
-        sortedChokeLocations = null;
-        isScanComplete = false;
-        currentTab = Tab.LOOPS;
+    public static void clearData(long deviceId) {
+        DeviceScanState state = getState(deviceId);
+        if (state != null) state.clearData();
     }
 
     // ========== Loop Location Management ==========
 
-    public static void setLoopLocations(List<LoopLocationClient> locations) {
-        loopLocations.clear();
-        loopLocations.addAll(locations);
-        sortedLoopLocations = null;
+    public static void setLoopLocations(long deviceId, List<LoopLocationClient> locations) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.loopLocations.clear();
+        state.loopLocations.addAll(locations);
+        state.sortedLoopLocations = null;
     }
 
     public static List<LoopLocationClient> getLoopLocations() {
-        return loopLocations;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.loopLocations : new ArrayList<>();
     }
 
     public static int getLoopCount() {
-        return loopLocations.size();
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.loopLocations.size() : 0;
     }
 
     // ========== Chunk Location Management ==========
 
-    public static void setChunkLocations(List<ChunkLocationClient> locations) {
-        chunkLocations.clear();
-        chunkLocations.addAll(locations);
-        sortedChunkLocations = null;
+    public static void setChunkLocations(long deviceId, List<ChunkLocationClient> locations) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.chunkLocations.clear();
+        state.chunkLocations.addAll(locations);
+        state.sortedChunkLocations = null;
     }
 
     public static List<ChunkLocationClient> getChunkLocations() {
-        return chunkLocations;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.chunkLocations : new ArrayList<>();
     }
 
     public static int getChunkCount() {
-        return chunkLocations.size();
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.chunkLocations.size() : 0;
     }
 
     // ========== Missing Device Management ==========
 
-    public static void setMissingDevices(List<MissingDeviceClient> devices) {
-        missingDevices.clear();
-        missingDevices.addAll(devices);
-        sortedMissingDevices = null;
+    public static void setMissingDevices(long deviceId, List<MissingDeviceClient> devices) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.missingDevices.clear();
+        state.missingDevices.addAll(devices);
+        state.sortedMissingDevices = null;
     }
 
     public static List<MissingDeviceClient> getMissingDevices() {
-        return missingDevices;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.missingDevices : new ArrayList<>();
     }
 
     public static int getMissingCount() {
-        return missingDevices.size();
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.missingDevices.size() : 0;
     }
 
     // ========== Chokepoint Location Management ==========
 
-    public static void setChokeLocations(List<ChokeLocationClient> locations) {
-        chokeLocations.clear();
-        chokeLocations.addAll(locations);
-        sortedChokeLocations = null;
+    public static void setChokeLocations(long deviceId, List<ChokeLocationClient> locations) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.chokeLocations.clear();
+        state.chokeLocations.addAll(locations);
+        state.sortedChokeLocations = null;
     }
 
     public static List<ChokeLocationClient> getChokeLocations() {
-        return chokeLocations;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.chokeLocations : new ArrayList<>();
     }
 
     public static int getChokeCount() {
-        return chokeLocations.size();
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.chokeLocations.size() : 0;
     }
 
     // ========== Loop Selection Management ==========
 
     public static void toggleLoopSelection(int index) {
-        if (selectedLoopIndices.contains(index)) {
-            selectedLoopIndices.remove(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        if (state.selectedLoopIndices.contains(index)) {
+            state.selectedLoopIndices.remove(index);
         } else {
-            selectedLoopIndices.add(index);
+            state.selectedLoopIndices.add(index);
         }
     }
 
     public static void selectOnlyLoop(int index) {
-        selectedLoopIndices.clear();
-        selectedLoopIndices.add(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedLoopIndices.clear();
+        state.selectedLoopIndices.add(index);
     }
 
     public static void selectAllLoops() {
-        selectedLoopIndices.clear();
-        for (int i = 0; i < loopLocations.size(); i++) selectedLoopIndices.add(i);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedLoopIndices.clear();
+        for (int i = 0; i < state.loopLocations.size(); i++) state.selectedLoopIndices.add(i);
     }
 
     public static void deselectAllLoops() {
-        selectedLoopIndices.clear();
+        DeviceScanState state = getActiveState();
+        if (state != null) state.selectedLoopIndices.clear();
     }
 
     public static boolean isLoopSelected(int index) {
-        return selectedLoopIndices.contains(index);
+        DeviceScanState state = getActiveState();
+
+        return state != null && state.selectedLoopIndices.contains(index);
     }
 
     public static Set<Integer> getSelectedLoopIndices() {
-        return selectedLoopIndices;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.selectedLoopIndices : new HashSet<>();
     }
 
     public static List<LoopLocationClient> getSelectedLoops() {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
         List<LoopLocationClient> result = new ArrayList<>();
-        for (int index : selectedLoopIndices) {
-            if (index >= 0 && index < loopLocations.size()) {
-                result.add(loopLocations.get(index));
+        for (int index : state.selectedLoopIndices) {
+            if (index >= 0 && index < state.loopLocations.size()) {
+                result.add(state.loopLocations.get(index));
             }
         }
 
@@ -412,40 +527,57 @@ public class ScannerClientState {
     // ========== Chunk Selection Management ==========
 
     public static void toggleChunkSelection(int index) {
-        if (selectedChunkIndices.contains(index)) {
-            selectedChunkIndices.remove(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        if (state.selectedChunkIndices.contains(index)) {
+            state.selectedChunkIndices.remove(index);
         } else {
-            selectedChunkIndices.add(index);
+            state.selectedChunkIndices.add(index);
         }
     }
 
     public static void selectOnlyChunk(int index) {
-        selectedChunkIndices.clear();
-        selectedChunkIndices.add(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedChunkIndices.clear();
+        state.selectedChunkIndices.add(index);
     }
 
     public static void selectAllChunks() {
-        selectedChunkIndices.clear();
-        for (int i = 0; i < chunkLocations.size(); i++) selectedChunkIndices.add(i);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedChunkIndices.clear();
+        for (int i = 0; i < state.chunkLocations.size(); i++) state.selectedChunkIndices.add(i);
     }
 
     public static void deselectAllChunks() {
-        selectedChunkIndices.clear();
+        DeviceScanState state = getActiveState();
+        if (state != null) state.selectedChunkIndices.clear();
     }
 
     public static boolean isChunkSelected(int index) {
-        return selectedChunkIndices.contains(index);
+        DeviceScanState state = getActiveState();
+
+        return state != null && state.selectedChunkIndices.contains(index);
     }
 
     public static Set<Integer> getSelectedChunkIndices() {
-        return selectedChunkIndices;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.selectedChunkIndices : new HashSet<>();
     }
 
     public static List<ChunkLocationClient> getSelectedChunks() {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
         List<ChunkLocationClient> result = new ArrayList<>();
-        for (int index : selectedChunkIndices) {
-            if (index >= 0 && index < chunkLocations.size()) {
-                result.add(chunkLocations.get(index));
+        for (int index : state.selectedChunkIndices) {
+            if (index >= 0 && index < state.chunkLocations.size()) {
+                result.add(state.chunkLocations.get(index));
             }
         }
 
@@ -455,40 +587,57 @@ public class ScannerClientState {
     // ========== Missing Device Selection Management ==========
 
     public static void toggleMissingSelection(int index) {
-        if (selectedMissingIndices.contains(index)) {
-            selectedMissingIndices.remove(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        if (state.selectedMissingIndices.contains(index)) {
+            state.selectedMissingIndices.remove(index);
         } else {
-            selectedMissingIndices.add(index);
+            state.selectedMissingIndices.add(index);
         }
     }
 
     public static void selectOnlyMissing(int index) {
-        selectedMissingIndices.clear();
-        selectedMissingIndices.add(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedMissingIndices.clear();
+        state.selectedMissingIndices.add(index);
     }
 
     public static void selectAllMissing() {
-        selectedMissingIndices.clear();
-        for (int i = 0; i < missingDevices.size(); i++) selectedMissingIndices.add(i);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedMissingIndices.clear();
+        for (int i = 0; i < state.missingDevices.size(); i++) state.selectedMissingIndices.add(i);
     }
 
     public static void deselectAllMissing() {
-        selectedMissingIndices.clear();
+        DeviceScanState state = getActiveState();
+        if (state != null) state.selectedMissingIndices.clear();
     }
 
     public static boolean isMissingSelected(int index) {
-        return selectedMissingIndices.contains(index);
+        DeviceScanState state = getActiveState();
+
+        return state != null && state.selectedMissingIndices.contains(index);
     }
 
     public static Set<Integer> getSelectedMissingIndices() {
-        return selectedMissingIndices;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.selectedMissingIndices : new HashSet<>();
     }
 
     public static List<MissingDeviceClient> getSelectedMissing() {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
         List<MissingDeviceClient> result = new ArrayList<>();
-        for (int index : selectedMissingIndices) {
-            if (index >= 0 && index < missingDevices.size()) {
-                result.add(missingDevices.get(index));
+        for (int index : state.selectedMissingIndices) {
+            if (index >= 0 && index < state.missingDevices.size()) {
+                result.add(state.missingDevices.get(index));
             }
         }
 
@@ -498,40 +647,57 @@ public class ScannerClientState {
     // ========== Chokepoint Selection Management ==========
 
     public static void toggleChokeSelection(int index) {
-        if (selectedChokeIndices.contains(index)) {
-            selectedChokeIndices.remove(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        if (state.selectedChokeIndices.contains(index)) {
+            state.selectedChokeIndices.remove(index);
         } else {
-            selectedChokeIndices.add(index);
+            state.selectedChokeIndices.add(index);
         }
     }
 
     public static void selectOnlyChoke(int index) {
-        selectedChokeIndices.clear();
-        selectedChokeIndices.add(index);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedChokeIndices.clear();
+        state.selectedChokeIndices.add(index);
     }
 
     public static void selectAllChokes() {
-        selectedChokeIndices.clear();
-        for (int i = 0; i < chokeLocations.size(); i++) selectedChokeIndices.add(i);
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        state.selectedChokeIndices.clear();
+        for (int i = 0; i < state.chokeLocations.size(); i++) state.selectedChokeIndices.add(i);
     }
 
     public static void deselectAllChokes() {
-        selectedChokeIndices.clear();
+        DeviceScanState state = getActiveState();
+        if (state != null) state.selectedChokeIndices.clear();
     }
 
     public static boolean isChokeSelected(int index) {
-        return selectedChokeIndices.contains(index);
+        DeviceScanState state = getActiveState();
+
+        return state != null && state.selectedChokeIndices.contains(index);
     }
 
     public static Set<Integer> getSelectedChokeIndices() {
-        return selectedChokeIndices;
+        DeviceScanState state = getActiveState();
+
+        return state != null ? state.selectedChokeIndices : new HashSet<>();
     }
 
     public static List<ChokeLocationClient> getSelectedChokes() {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
         List<ChokeLocationClient> result = new ArrayList<>();
-        for (int index : selectedChokeIndices) {
-            if (index >= 0 && index < chokeLocations.size()) {
-                result.add(chokeLocations.get(index));
+        for (int index : state.selectedChokeIndices) {
+            if (index >= 0 && index < state.chokeLocations.size()) {
+                result.add(state.chokeLocations.get(index));
             }
         }
 
@@ -541,6 +707,8 @@ public class ScannerClientState {
     // ========== Generic Selection for Current Tab ==========
 
     public static void selectAll() {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
             selectAllLoops();
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
@@ -553,6 +721,8 @@ public class ScannerClientState {
     }
 
     public static void deselectAll() {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
             deselectAllLoops();
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
@@ -565,6 +735,8 @@ public class ScannerClientState {
     }
 
     public static void toggleSelection(int index) {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
             toggleLoopSelection(index);
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
@@ -577,6 +749,8 @@ public class ScannerClientState {
     }
 
     public static void selectOnly(int index) {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
             selectOnlyLoop(index);
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
@@ -589,6 +763,8 @@ public class ScannerClientState {
     }
 
     public static boolean isSelected(int index) {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
             return isLoopSelected(index);
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
@@ -601,38 +777,44 @@ public class ScannerClientState {
     }
 
     public static Set<Integer> getSelectedIndices() {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
-            return selectedLoopIndices;
+            return getSelectedLoopIndices();
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            return selectedChunkIndices;
+            return getSelectedChunkIndices();
         } else if (currentTab == Tab.MISSING_CHANNELS) {
-            return selectedMissingIndices;
+            return getSelectedMissingIndices();
         } else {
-            return selectedChokeIndices;
+            return getSelectedChokeIndices();
         }
     }
 
     public static int getCurrentTabItemCount() {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
-            return loopLocations.size();
+            return getLoopCount();
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            return chunkLocations.size();
+            return getChunkCount();
         } else if (currentTab == Tab.MISSING_CHANNELS) {
-            return missingDevices.size();
+            return getMissingCount();
         } else {
-            return chokeLocations.size();
+            return getChokeCount();
         }
     }
 
     public static int getCurrentTabSelectedCount() {
+        Tab currentTab = getCurrentTab();
+
         if (currentTab == Tab.LOOPS) {
-            return selectedLoopIndices.size();
+            return getSelectedLoopIndices().size();
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            return selectedChunkIndices.size();
+            return getSelectedChunkIndices().size();
         } else if (currentTab == Tab.MISSING_CHANNELS) {
-            return selectedMissingIndices.size();
+            return getSelectedMissingIndices().size();
         } else {
-            return selectedChokeIndices.size();
+            return getSelectedChokeIndices().size();
         }
     }
 
@@ -642,15 +824,18 @@ public class ScannerClientState {
      * Get loop locations sorted by dimension (current first), then distance.
      */
     public static List<LoopLocationClient> getSortedLoopLocations() {
-        if (sortedLoopLocations == null) {
-            sortedLoopLocations = new ArrayList<>(loopLocations);
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
+        if (state.sortedLoopLocations == null) {
+            state.sortedLoopLocations = new ArrayList<>(state.loopLocations);
 
             Minecraft mc = Minecraft.getMinecraft();
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
 
-                sortedLoopLocations.sort((a, b) -> {
+                state.sortedLoopLocations.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
                     boolean bCurrentDim = b.dimension == playerDim;
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
@@ -661,22 +846,25 @@ public class ScannerClientState {
             }
         }
 
-        return sortedLoopLocations;
+        return state.sortedLoopLocations;
     }
 
     /**
      * Get chunk locations sorted by dimension (current first), then distance.
      */
     public static List<ChunkLocationClient> getSortedChunkLocations() {
-        if (sortedChunkLocations == null) {
-            sortedChunkLocations = new ArrayList<>(chunkLocations);
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
+        if (state.sortedChunkLocations == null) {
+            state.sortedChunkLocations = new ArrayList<>(state.chunkLocations);
 
             Minecraft mc = Minecraft.getMinecraft();
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
 
-                sortedChunkLocations.sort((a, b) -> {
+                state.sortedChunkLocations.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
                     boolean bCurrentDim = b.dimension == playerDim;
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
@@ -687,22 +875,25 @@ public class ScannerClientState {
             }
         }
 
-        return sortedChunkLocations;
+        return state.sortedChunkLocations;
     }
 
     /**
      * Get missing device locations sorted by dimension (current first), then by display name.
      */
     public static List<MissingDeviceClient> getSortedMissingDevices() {
-        if (sortedMissingDevices == null) {
-            sortedMissingDevices = new ArrayList<>(missingDevices);
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
+        if (state.sortedMissingDevices == null) {
+            state.sortedMissingDevices = new ArrayList<>(state.missingDevices);
 
             Minecraft mc = Minecraft.getMinecraft();
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
 
-                sortedMissingDevices.sort((a, b) -> {
+                state.sortedMissingDevices.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
                     boolean bCurrentDim = b.dimension == playerDim;
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
@@ -717,22 +908,25 @@ public class ScannerClientState {
             }
         }
 
-        return sortedMissingDevices;
+        return state.sortedMissingDevices;
     }
 
     /**
      * Get chokepoint locations sorted by dimension (current first), then by excess channels (worst first).
      */
     public static List<ChokeLocationClient> getSortedChokeLocations() {
-        if (sortedChokeLocations == null) {
-            sortedChokeLocations = new ArrayList<>(chokeLocations);
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
+        if (state.sortedChokeLocations == null) {
+            state.sortedChokeLocations = new ArrayList<>(state.chokeLocations);
 
             Minecraft mc = Minecraft.getMinecraft();
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
 
-                sortedChokeLocations.sort((a, b) -> {
+                state.sortedChokeLocations.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
                     boolean bCurrentDim = b.dimension == playerDim;
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
@@ -748,16 +942,14 @@ public class ScannerClientState {
             }
         }
 
-        return sortedChokeLocations;
+        return state.sortedChokeLocations;
     }
 
     /**
-     * Invalidate sorted cache (call when player moves significantly).
+     * Invalidate sorted cache for the active device (call when player moves significantly).
      */
     public static void invalidateSortCache() {
-        sortedLoopLocations = null;
-        sortedChunkLocations = null;
-        sortedMissingDevices = null;
-        sortedChokeLocations = null;
+        DeviceScanState state = getActiveState();
+        if (state != null) state.invalidateSortCache();
     }
 }

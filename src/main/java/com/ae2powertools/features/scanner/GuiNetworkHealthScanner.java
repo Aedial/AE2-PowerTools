@@ -276,8 +276,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
                 break;
 
             case 2: // Cancel - cancels the scan session
-                PowerToolsNetwork.INSTANCE.sendToServer(new PacketScannerCancel());
-                ScannerClientState.setActiveSession(false);
+                long deviceId = ScannerClientState.getActiveDeviceId();
+                PowerToolsNetwork.INSTANCE.sendToServer(new PacketScannerCancel(deviceId));
+                ScannerClientState.setActiveSession(deviceId, false);
                 mc.displayGuiScreen(null);
                 break;
         }

@@ -15,20 +15,26 @@ import com.ae2powertools.features.scanner.ScanSessionManager;
 
 
 /**
- * Client -> Server packet to cancel network scan.
+ * Client -> Server packet to cancel network scan for a specific device.
  */
 public class PacketScannerCancel implements IMessage {
 
+    private long deviceId;
+
     public PacketScannerCancel() {}
+
+    public PacketScannerCancel(long deviceId) {
+        this.deviceId = deviceId;
+    }
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        // No data needed
+        deviceId = buf.readLong();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
-        // No data needed
+        buf.writeLong(deviceId);
     }
 
     public static class Handler implements IMessageHandler<PacketScannerCancel, IMessage> {
@@ -39,14 +45,16 @@ public class PacketScannerCancel implements IMessage {
             if (server == null) return null;
 
             EntityPlayerMP player = ctx.getServerHandler().player;
+            long deviceId = message.deviceId;
+
             server.addScheduledTask(() -> {
-                ScanSessionManager.ScanSession session = ScanSessionManager.getSession(player);
+                ScanSessionManager.ScanSession session = ScanSessionManager.getSession(player, deviceId);
 
                 if (session != null) {
                     int nodesProcessed = session.getScanner().getNodesProcessed();
                     boolean wasComplete = session.getScanner().isComplete();
 
-                    ScanSessionManager.endSession(player);
+                    ScanSessionManager.endSession(player, deviceId);
 
                     if (!wasComplete) {
                         player.sendMessage(new TextComponentTranslation(
@@ -54,7 +62,7 @@ public class PacketScannerCancel implements IMessage {
                     }
 
                     // Sync to client that session ended
-                    ItemNetworkHealthScanner.syncToClient(player);
+                    ItemNetworkHealthScanner.syncToClient(player, deviceId);
                 }
             });
 
