@@ -51,15 +51,15 @@ gui.ae2powertools.scanner.chunk_entry=区块 [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d 频道
 
 # Scanner Status Messages
-ae2powertools.scanner.session_started=网络扫描已开始……
+ae2powertools.scanner.session_started=开始网络扫描……
 ae2powertools.scanner.status.no_pathing_grid=网络中未找到寻路网格。
 ae2powertools.scanner.status.scanning_controllerless=正在扫描无控制器网络……
 ae2powertools.scanner.status.scanning_controller=正在从控制器开始扫描……
 ae2powertools.scanner.status.no_start=未找到起始节点。
 ae2powertools.scanner.status.error=扫描过程中出错：%s
 ae2powertools.scanner.status.too_large=网络过大（节点数大于%d）。扫描已停止。
-ae2powertools.scanner.status.no_issues=扫描完成：已分析%d个节点。
-ae2powertools.scanner.status.found_issues=扫描完成：已分析%d个节点。
+ae2powertools.scanner.status.no_issues=扫描完成：分析%d了个节点。
+ae2powertools.scanner.status.found_issues=扫描完成：分析%d了个节点。
 ae2powertools.scanner.status.scanning=扫描中……已处理%d个节点。
 
 # Channel Chokepoint Tab
@@ -70,9 +70,16 @@ ae2powertools.scanner.channel.building_tree=正在构建频道树……
 ae2powertools.scanner.channel.calculating_demand=正在计算频道需求……
 ae2powertools.scanner.channel.building_tree_progress=正在构建频道树……已处理%d个节点。
 ae2powertools.scanner.channel.no_chokepoints=未找到频道阻塞点或缺失设备。
-ae2powertools.scanner.channel.found=已找到%d个阻塞点，%d个缺失设备。
+ae2powertools.scanner.channel.found=找到了%d个阻塞点，%d个缺失设备。
 ae2powertools.scanner.channel.calculating_progress=正在分析频道…… %d/%d 个节点
 ae2powertools.scanner.channel.to_controller=（→控制器）
+
+# Scan Completion Messages
+ae2powertools.scanner.complete.summary.top=扫描了%d个节点：
+ae2powertools.scanner.complete.summary.line1=- 找到了%d个环路
+ae2powertools.scanner.complete.summary.line2=- 找到了%d个未常加载区块
+ae2powertools.scanner.complete.summary.line3=- 找到了%d个阻塞点
+ae2powertools.scanner.complete.summary.line4=- 找到了%d台缺失频道的设备
 
 # Common strings
 ae2powertools.common.unknown=未知
