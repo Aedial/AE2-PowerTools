@@ -9,6 +9,8 @@ import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.translation.I18n;
 
 import appeng.api.networking.IGrid;
@@ -57,6 +59,7 @@ public class ScanSessionManager {
     }
 
     private static final Map<SessionKey, ScanSession> sessions = new HashMap<>();
+    private static final List<SessionKey> completedThisTick = new ArrayList<>();
 
     /**
      * Represents an active scan session for a player.
@@ -248,8 +251,47 @@ public class ScanSessionManager {
      * Call this from server tick handler.
      */
     public static void tickSessions() {
-        for (ScanSession session : sessions.values()) {
-            if (!session.getScanner().isComplete()) session.getScanner().processBatch();
+        completedThisTick.clear();
+
+        for (Map.Entry<SessionKey, ScanSession> entry : sessions.entrySet()) {
+            ScanSession session = entry.getValue();
+            if (session.getScanner().isComplete()) continue;
+
+            session.getScanner().processBatch();
+
+            // Track if this session just completed
+            if (session.getScanner().isComplete()) {
+                completedThisTick.add(entry.getKey());
+            }
         }
+    }
+
+    /**
+     * Get the list of session keys that completed during the last tick.
+     */
+    public static List<SessionKey> getCompletedThisTick() {
+        return completedThisTick;
+    }
+
+    /**
+     * Build the completion message for a scan session.
+     */
+    public static ITextComponent buildCompletionMessage(ScanSession session) {
+        NetworkScanner scanner = session.getScanner();
+        int nodes = scanner.getNodesProcessed();
+        int loops = scanner.getDetectedLoops().size();
+        int chunks = scanner.getUnloadedChunks().size();
+        int chokepoints = scanner.getChokepoints().size();
+        int missing = scanner.getMissingDevices().size();
+
+        // Build the message as a single component with newlines
+        StringBuilder messageBuilder = new StringBuilder();
+        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.top", nodes)).append("\n");
+        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line1", loops)).append("\n");
+        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line2", chunks)).append("\n");
+        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line3", chokepoints)).append("\n");
+        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line4", missing));
+
+        return new TextComponentTranslation(messageBuilder.toString());
     }
 }

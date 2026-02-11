@@ -34,6 +34,18 @@ public class ScannerTickHandler {
         // Process all active scan sessions
         ScanSessionManager.tickSessions();
 
+        // Send completion messages for sessions that just finished
+        for (ScanSessionManager.SessionKey key : ScanSessionManager.getCompletedThisTick()) {
+            EntityPlayerMP player = findPlayer(server, key.getPlayerId());
+
+            if (player != null) {
+                ScanSessionManager.ScanSession session = ScanSessionManager.getSession(key.getPlayerId(), key.getDeviceId());
+                if (session != null) {
+                    player.sendMessage(ScanSessionManager.buildCompletionMessage(session));
+                }
+            }
+        }
+
         // Sync to clients periodically
         Set<ScanSessionManager.SessionKey> toRemove = new HashSet<>();
 

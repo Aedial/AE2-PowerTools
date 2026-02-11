@@ -380,7 +380,7 @@ public class ChannelScanner {
             World nodeWorld = getNodeWorld(bfsNode.gridNode);
             IBlockState blockState = (nodeWorld != null && nodeWorld.isBlockLoaded(pos))
                 ? nodeWorld.getBlockState(pos) : Blocks.AIR.getDefaultState();
-            String description = getNodeDescription(bfsNode.gridNode.getMachine());
+            String description = getNodeDescription(bfsNode.gridNode);
 
             ChannelChokepoint chokepoint = new ChannelChokepoint(
                 pos, dimension, dimName, blockState, description,
@@ -423,7 +423,7 @@ public class ChannelScanner {
                 // Fall back to empty stack
             }
 
-            String description = getNodeDescription(node.getMachine());
+            String description = getNodeDescription(node);
             MissingChannelDevice device = new MissingChannelDevice(
                 pos, dimension, dimName, itemStack, description
             );
@@ -439,7 +439,7 @@ public class ChannelScanner {
         if (bfsNode.parent != null) {
             BlockPos parentPos = getNodePosition(bfsNode.parent.gridNode);
             EnumFacing direction = getConnectionDirection(bfsNode.gridNode, bfsNode.connectionFromParent);
-            String parentDesc = getNodeDescription(bfsNode.parent.gridNode.getMachine());
+            String parentDesc = getNodeDescription(bfsNode.parent.gridNode);
 
             // Parent carries all the demand (toward controller)
             int parentChannels = bfsNode.connectionFromParent != null
@@ -457,7 +457,7 @@ public class ChannelScanner {
         for (BfsNode child : bfsNode.children) {
             BlockPos childPos = getNodePosition(child.gridNode);
             EnumFacing direction = getConnectionDirection(bfsNode.gridNode, child.connectionFromParent);
-            String childDesc = getNodeDescription(child.gridNode.getMachine());
+            String childDesc = getNodeDescription(child.gridNode);
 
             int childChannels = child.connectionFromParent != null
                 ? child.connectionFromParent.getUsedChannels() : 0;
@@ -513,8 +513,22 @@ public class ChannelScanner {
 
     /**
      * Get a human-readable description of a grid node.
+     * Uses the machine representation's display name for localized output.
      */
-    private String getNodeDescription(IGridHost host) {
+    private String getNodeDescription(IGridNode node) {
+        if (node == null) return I18n.translateToLocal("ae2powertools.common.unknown");
+
+        // Try to get the localized name from the machine representation
+        try {
+            ItemStack representation = node.getGridBlock().getMachineRepresentation();
+
+            if (!representation.isEmpty()) return representation.getDisplayName();
+        } catch (Exception e) {
+            // Fall through to class name fallback
+        }
+
+        // Fallback: clean up class name
+        IGridHost host = node.getMachine();
         if (host == null) return I18n.translateToLocal("ae2powertools.common.unknown");
 
         String className = host.getClass().getSimpleName();

@@ -49,6 +49,7 @@ public class ScannerRenderer {
     private static final int LINE_SPACING = 2;
 
     // ========== Arrow Rendering Constants ==========
+    // TODO: Adapt these values to the screen resolution for better visibility
     private static final float ARROW_BASE_DISTANCE = 0.6f;
     private static final float ARROW_SPREAD_RADIUS = 0.12f;
     private static final float ARROW_LENGTH = 0.05f;

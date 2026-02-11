@@ -74,5 +74,12 @@ ae2powertools.scanner.channel.found=Found %d chokepoints, %d missing devices.
 ae2powertools.scanner.channel.calculating_progress=Analyzing channels... %d/%d nodes.
 ae2powertools.scanner.channel.to_controller=(→Controller)
 
+# Scan Completion Messages
+ae2powertools.scanner.complete.summary.top=Scanned %d nodes:
+ae2powertools.scanner.complete.summary.line1=- Found %d loop(s)
+ae2powertools.scanner.complete.summary.line2=- Found %d non-chunkloaded chunk(s)
+ae2powertools.scanner.complete.summary.line3=- Found %d chokepoint(s)
+ae2powertools.scanner.complete.summary.line4=- Found %d device(s) without channels
+
 # Common strings
 ae2powertools.common.unknown=Unknown

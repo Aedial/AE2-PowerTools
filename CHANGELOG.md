@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.3.2] - 2026-02-10
+### Added
+- Add scan finished message to the player when a network scan is completed, showing the number of issues found in each category.
+
+### Fixed
+- Fix localization for ME Network part names in the Network Health Scanner GUI.
+
+
 ## [1.3.1] - 2026-02-07
 ### Added
 - Add multi-session support for Network Health Scanner to allow using multiple scanners on different networks simultaneously.

@@ -88,6 +88,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private GuiButton deselectAllButton;
     private GuiButton cancelButton;
 
+    // TODO: add sort button (distance/A-Z/Z-A)
+
     /**
      * Represents a row in the display list.
      */
@@ -309,6 +311,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     }
 
     private void rebuildLoopRows() {
+        // TODO: Add a message telling loops are not a "hard" issue and can be ignored as long as nothing looks wrong in the network.
+
         List<LoopLocationClient> sorted = ScannerClientState.getSortedLoopLocations();
         List<LoopLocationClient> original = ScannerClientState.getLoopLocations();
         if (sorted.isEmpty()) return;

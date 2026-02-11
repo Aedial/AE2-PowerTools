@@ -9,6 +9,7 @@ import java.util.Set;
 
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -319,7 +320,7 @@ public class NetworkScanner {
         boolean isLoaded = nodeWorld != null && nodeWorld.isBlockLoaded(pos);
         IBlockState blockState = isLoaded ? nodeWorld.getBlockState(pos) : Blocks.AIR.getDefaultState();
 
-        String description = getNodeDescription(host);
+        String description = getNodeDescription(node);
         IssueLocation loopLoc = new IssueLocation(pos, dimension, dimName, blockState, isLoaded, description);
         detectedLoops.add(loopLoc);
     }
@@ -340,7 +341,7 @@ public class NetworkScanner {
 
         if (isLoaded) blockState = nodeWorld.getBlockState(pos);
 
-        String description = getNodeDescription(host);
+        String description = getNodeDescription(node);
         IssueLocation loopLoc = new IssueLocation(pos, dimension, dimName, blockState, isLoaded, description);
         detectedLoops.add(loopLoc);
     }
@@ -405,15 +406,26 @@ public class NetworkScanner {
 
     /**
      * Get a human-readable description of a grid node.
+     * Uses the machine representation's display name for localized output.
      */
-    private String getNodeDescription(IGridHost host) {
+    private String getNodeDescription(IGridNode node) {
+        if (node == null) return I18n.translateToLocal("ae2powertools.common.unknown");
+
+        // Try to get the localized name from the machine representation
+        try {
+            ItemStack representation = node.getGridBlock().getMachineRepresentation();
+
+            if (!representation.isEmpty()) return representation.getDisplayName();
+        } catch (Exception e) {
+            // Fall through to class name fallback
+        }
+
+        // Fallback: clean up class name
+        IGridHost host = node.getMachine();
         if (host == null) return I18n.translateToLocal("ae2powertools.common.unknown");
 
         String className = host.getClass().getSimpleName();
 
-        // TODO: should we try to localize some common AE2 part names here?
-        //       Or maybe we can get the part name from the host if it's a part?
-        // Clean up common names
         if (className.startsWith("Tile")) {
             className = className.substring(4);
         } else if (className.startsWith("Part")) {
