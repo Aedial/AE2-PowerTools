@@ -26,5 +26,11 @@ public class PowerToolsNetwork {
         // Priority Tuner packets
         INSTANCE.registerMessage(PacketPriorityApplied.Handler.class, PacketPriorityApplied.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketSetTunerPriority.Handler.class, PacketSetTunerPriority.class, packetId++, Side.SERVER);
+
+        // Better Level Maintainer packets
+        INSTANCE.registerMessage(PacketOpenMaintainerGui.Handler.class, PacketOpenMaintainerGui.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketUpdateMaintainerEntry.Handler.class, PacketUpdateMaintainerEntry.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSelectRecipe.Handler.class, PacketSelectRecipe.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketCraftableItemsSync.Handler.class, PacketCraftableItemsSync.class, packetId++, Side.CLIENT);
     }
 }

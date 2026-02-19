@@ -1,0 +1,63 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:better_level_maintainer"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.fluix_pearl"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.calculation_processor"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.cell64k_part"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:quartz_pillar"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:better_level_maintainer"
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "aba",
+        "cdc",
+        "efe"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "b": {
+            "type": "forge:ore_dict",
+            "ore": "itemIlluminatedPanel"
+        },
+        "c": {
+            "item": "appliedenergistics2:material",
+            "data": 9
+        },
+        "d": {
+            "item": "appliedenergistics2:quartz_pillar"
+        },
+        "e": {
+            "item": "appliedenergistics2:material",
+            "data": 23
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 38
+        }
+    }
+}

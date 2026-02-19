@@ -34,6 +34,32 @@ item.ae2powertools.cards_distributor.pulled_from_ae2=Pulled %d cards from AE2 ne
 
 ae2powertools.priority.applied=Applied priority %d at [%d, %d, %d]
 
+# Blocks
+tile.ae2powertools.better_level_maintainer.name=Better Level Maintainer
+tile.ae2powertools.better_level_maintainer.tooltip=Automates crafting of specified items to maintain a target quantity in the network.
+tile.ae2powertools.better_level_maintainer.warning=Warning: This block can cause significant server lag if put on a large network/used with complex recipes. Use it on a small sub-network, with simple recipes.
+
+# Config GUI and keys for the config factory
+ae2powertools.config.title=AE2 PowerTools Configuration
+ae2powertools.config.client=Client
+ae2powertools.config.client.scanner=Scanner Overlay
+ae2powertools.config.client.scanner.tooltip=Scanner overlay and arrow rendering settings
+ae2powertools.config.client.scanner.arrowScalePercent=Directional arrows scale
+ae2powertools.config.client.scanner.arrowScalePercent.tooltip=Percentage scale for directional arrows
+ae2powertools.config.client.scanner.textScalePercent=Arrow text scale
+ae2powertools.config.client.scanner.textScalePercent.tooltip=Percentage scale for text labels on directional arrows
+ae2powertools.config.client.scanner.adaptiveTextScale=Adaptive text scaling
+ae2powertools.config.client.scanner.adaptiveTextScale.tooltip=Automatically scale arrow text size based on distance to camera
+ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent=Min adaptive text scale
+ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent.tooltip=Minimum scale (in percent) when adaptive text scaling is applied
+ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent=Max adaptive text scale
+ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent.tooltip=Maximum scale (in percent) when adaptive text scaling is applied
+
+ae2powertools.config.client.maintainer=Maintainer
+ae2powertools.config.client.maintainer.tooltip=Level Maintainer GUI settings
+ae2powertools.config.client.maintainer.useTallView=Use tall view
+ae2powertools.config.client.maintainer.useTallView.tooltip=Use tall view (single column) instead of compact view (three columns)
+
 # GUI - Priority Tuner
 gui.ae2powertools.priority_tuner.title=Priority Tuner
 
@@ -49,6 +75,7 @@ gui.ae2powertools.scanner.tab_chokepoints=Chokepoints (%d)
 gui.ae2powertools.scanner.tab_missing=Missing channels (%d)
 gui.ae2powertools.scanner.chunk_entry=Chunk [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d channels
+gui.ae2powertools.scanner.loops_info=Note: Loops are not necessarily a problem unless the network is misbehaving and other causes have been ruled out. Nonetheless, try to avoid causing loops if possible.
 
 # Scanner Status Messages
 ae2powertools.scanner.session_started=Network scan started...
@@ -83,3 +110,86 @@ ae2powertools.scanner.complete.summary.line4=- Found %d device(s) without channe
 
 # Common strings
 ae2powertools.common.unknown=Unknown
+
+# GUI - Maintainer Main
+gui.ae2powertools.maintainer.title=Better Level Maintainer
+gui.ae2powertools.maintainer.recipes=Recipes
+gui.ae2powertools.maintainer.failed=failed
+gui.ae2powertools.maintainer.post_error=output error
+
+# GUI - Maintainer States
+gui.ae2powertools.maintainer.state.disabled=Disabled
+gui.ae2powertools.maintainer.state.idle=Idle - Waiting for next run
+gui.ae2powertools.maintainer.state.scheduled=Scheduled - Calculating crafting tree
+gui.ae2powertools.maintainer.state.running=Running - Crafting in progress
+gui.ae2powertools.maintainer.state.stalled=Stalled - Waiting for free machine(s)
+gui.ae2powertools.maintainer.state.error=Error
+gui.ae2powertools.maintainer.state.post_error=Output Error (no space for crafted items)
+
+# GUI - Maintainer Short States (for compact tall view entries)
+gui.ae2powertools.maintainer.state.short.disabled=Disabled
+gui.ae2powertools.maintainer.state.short.idle=Idle
+gui.ae2powertools.maintainer.state.short.scheduled=Scheduled
+gui.ae2powertools.maintainer.state.short.running=Running
+gui.ae2powertools.maintainer.state.short.stalled=Stalled
+gui.ae2powertools.maintainer.state.short.error=Error
+gui.ae2powertools.maintainer.state.short.post_error=Output Error
+
+# GUI - Maintainer Entry
+gui.ae2powertools.maintainer.frequency=Runs every %s
+
+# GUI - Maintainer Entry Tooltips
+gui.ae2powertools.maintainer.tooltip.empty=Empty slot
+gui.ae2powertools.maintainer.tooltip.click_add=Click to add a recipe to maintain
+gui.ae2powertools.maintainer.tooltip.click_edit=Left-click to edit recipe settings
+gui.ae2powertools.maintainer.tooltip.right_click_toggle=Right-click to toggle enabled
+gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift+Scroll to double/halve quantity
+gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl+Scroll to double/halve time
+gui.ae2powertools.maintainer.tooltip.batch_size=Crafts (at least) %d item(s) per run
+gui.ae2powertools.maintainer.tooltip.frequency=Runs every %s
+
+# GUI - Maintainer Status Bar Tooltips
+gui.ae2powertools.maintainer.status.cpu_title=Crafting CPUs
+gui.ae2powertools.maintainer.status.cpu_active=Active: %d
+gui.ae2powertools.maintainer.status.cpu_total=Total: %d
+gui.ae2powertools.maintainer.status.recipe_title=Recipe Status
+gui.ae2powertools.maintainer.status.recipe_running=Running: %d
+gui.ae2powertools.maintainer.status.recipe_total=Total: %d
+gui.ae2powertools.maintainer.status.recipe_failed=Failed: %d
+gui.ae2powertools.maintainer.status.recipe_post_error=Output Errors: %d
+
+# GUI - Maintainer Modal
+gui.ae2powertools.maintainer.modal.target=Target Quantity
+gui.ae2powertools.maintainer.modal.batch=Batch Size
+gui.ae2powertools.maintainer.modal.frequency=Frequency
+gui.ae2powertools.maintainer.modal.select_item=Click on the slot to select item...
+
+# GUI - Maintainer Modal Tooltips
+gui.ae2powertools.maintainer.modal.slot_left_click=Left-click: Select recipe
+gui.ae2powertools.maintainer.modal.slot_right_click=Right-click: Clear
+gui.ae2powertools.maintainer.modal.name_click_toggle=Click to toggle enabled/disabled
+gui.ae2powertools.maintainer.modal.target_tooltip=Stop crafting when quantity reaches this value
+gui.ae2powertools.maintainer.modal.batch_tooltip=Number of items to craft per run
+gui.ae2powertools.maintainer.modal.frequency_tooltip=Time between crafting checks
+gui.ae2powertools.maintainer.modal.frequency_use=Use buttons to adjust
+
+# GUI - Maintainer Recipe Selector
+gui.ae2powertools.maintainer.selector.title=Select Recipe
+
+# GUI - Maintainer Style Toggle
+gui.ae2powertools.maintainer.style.title=View Style
+gui.ae2powertools.maintainer.style.tall=Tall view
+gui.ae2powertools.maintainer.style.small=Compact view
+gui.ae2powertools.maintainer.style.click_toggle=Click to toggle
+
+# Maintainer Error Messages
+gui.ae2powertools.maintainer.error.no_recipe=No pattern found for this item
+gui.ae2powertools.maintainer.error.no_network=Network not available
+gui.ae2powertools.maintainer.error.no_cpu=No crafting CPU available
+gui.ae2powertools.maintainer.error.cpu_too_small=No CPU with enough storage (%s/%s)
+gui.ae2powertools.maintainer.error.simulation_failed=Crafting simulation failed
+gui.ae2powertools.maintainer.error.job_failed=Failed to calculate crafting job
+gui.ae2powertools.maintainer.error.cancelled=Crafting was cancelled
+gui.ae2powertools.maintainer.error.no_space=No space for crafted items
+gui.ae2powertools.maintainer.error.missing_resources=Not enough items to start crafting
+gui.ae2powertools.maintainer.error.calculation_timeout=Job calculation timed out (recipe too complex)

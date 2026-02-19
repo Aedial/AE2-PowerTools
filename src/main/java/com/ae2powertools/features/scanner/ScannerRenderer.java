@@ -24,6 +24,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.ItemRegistry;
 import com.ae2powertools.client.BlockHighlightRenderer;
+import com.ae2powertools.client.PowerToolsClientConfig;
 import com.ae2powertools.features.scanner.ScannerClientState.ChunkLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.ChokeLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.ConnectionFlowClient;
@@ -49,15 +50,15 @@ public class ScannerRenderer {
     private static final int LINE_SPACING = 2;
 
     // ========== Arrow Rendering Constants ==========
-    // TODO: Adapt these values to the screen resolution for better visibility
+    // Base values - can be scaled via config
     private static final float ARROW_BASE_DISTANCE = 0.6f;
     private static final float ARROW_SPREAD_RADIUS = 0.12f;
     private static final float ARROW_LENGTH = 0.05f;
     private static final float ARROW_WIDTH = 0.02f;
     private static final float ARROW_THICKNESS = 0.01f;
     private static final float MIN_PITCH_ANGLE = 10.0f;
-    private static final float TEXT_SCALE = 0.0012f;
-    private static final float TEXT_HEIGHT_OFFSET = 0.04f;
+    private static final float BASE_TEXT_SCALE = 0.0012f;
+    private static final float BASE_TEXT_HEIGHT_OFFSET = 0.02f;
     private static final float ARROW_ALPHA = 1.0f;
 
     // ========== Arrow Gradient Constants ==========
@@ -590,9 +591,12 @@ public class ScannerRenderer {
 
         buffer.begin(GL11.GL_TRIANGLES, DefaultVertexFormats.POSITION_COLOR);
 
-        float halfThick = ARROW_THICKNESS / 2;
-        float len = ARROW_LENGTH;
-        float w = ARROW_WIDTH;
+        // Apply arrow scale from config
+        float arrowScale = getArrowScale();
+        float halfThick = (ARROW_THICKNESS / 2) * arrowScale;
+        float len = ARROW_LENGTH * arrowScale;
+        float w = ARROW_WIDTH * arrowScale;
+        float offset = BASE_TEXT_HEIGHT_OFFSET * arrowScale;
 
         for (int i = 0; i < GRADIENT_RINGS; i++) {
             float t0 = (float) i / GRADIENT_RINGS;
@@ -714,13 +718,22 @@ public class ScannerRenderer {
         // Draw distance text above arrow
         String distanceStr = formatDistance(distance);
 
+        // Calculate text scale based on arrow's distance from camera (not target distance)
+        // Arrows further around the viewing sphere appear smaller due to perspective
+        double arrowDistFromCamera = Math.sqrt(renderX * renderX + renderY * renderY + renderZ * renderZ);
+        float textScale = calculateTextScale(arrowDistFromCamera);
+
+        // Calculate text offset: base offset scales with arrow, plus additional offset for text size
+        // Font height is ~8 pixels, we add half of that (in world units) to keep text above arrow
+        float textOffset = offset + 4.0f * textScale;
+
         GlStateManager.pushMatrix();
-        GlStateManager.translate(renderX, renderY + TEXT_HEIGHT_OFFSET, renderZ);
+        GlStateManager.translate(renderX, renderY + textOffset, renderZ);
 
         GlStateManager.rotate(-cameraYaw, 0, 1, 0);
         GlStateManager.rotate(cameraPitch, 1, 0, 0);
 
-        GlStateManager.scale(-TEXT_SCALE, -TEXT_SCALE, TEXT_SCALE);
+        GlStateManager.scale(-textScale, -textScale, textScale);
 
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
@@ -734,6 +747,44 @@ public class ScannerRenderer {
         GlStateManager.disableBlend();
 
         GlStateManager.popMatrix();
+    }
+
+    /**
+     * Calculate adaptive text scale based on arrow's distance from camera.
+     * Arrows further around the viewing sphere appear smaller due to perspective,
+     * so we scale them up to maintain consistent readability.
+     *
+     * @param arrowDistFromCamera Distance from camera to arrow position (typically 0.5-2 blocks)
+     */
+    private float calculateTextScale(double arrowDistFromCamera) {
+        float baseScale = BASE_TEXT_SCALE * PowerToolsClientConfig.scanner.getTextScale();
+
+        if (!PowerToolsClientConfig.scanner.adaptiveTextScale) return baseScale;
+
+        // Derive distance bounds from arrow positioning constants:
+        // - Closest: looking directly at arrow (base distance, minimal perpendicular offset)
+        // - Furthest: looking away from arrow (base + spread * behindFactor where behindFactor max is 1.5)
+        double minDist = ARROW_BASE_DISTANCE - ARROW_SPREAD_RADIUS;
+        double maxDist = ARROW_BASE_DISTANCE + ARROW_SPREAD_RADIUS * 1.5;
+
+        float minMult = PowerToolsClientConfig.scanner.getAdaptiveMin();
+        float maxMult = PowerToolsClientConfig.scanner.getAdaptiveMax();
+
+        if (arrowDistFromCamera <= minDist) return baseScale * minMult;
+        if (arrowDistFromCamera >= maxDist) return baseScale * maxMult;
+
+        // Linear interpolation: further arrows get larger text
+        float t = (float) ((arrowDistFromCamera - minDist) / (maxDist - minDist));
+        float multiplier = minMult + t * (maxMult - minMult);
+
+        return baseScale * multiplier;
+    }
+
+    /**
+     * Get the arrow scale factor from config.
+     */
+    private float getArrowScale() {
+        return PowerToolsClientConfig.scanner.getArrowScale();
     }
 
     /**

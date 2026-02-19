@@ -34,6 +34,40 @@ A tool to distribute cards from your inventory to Molecular Assemblers on the ne
 Supports:
 - **Acceleration Cards** for AE2 Molecular Assemblers
 
+### Better Level Maintainer
+A block that automatically maintains item quantities in your AE2 network by scheduling crafting jobs.
+
+**Features:**
+- **Multiple Recipes**: Manage an unlimited(-ish) number of items to maintain
+- **Target Quantities**: Set the desired quantity for each item (shift-scroll the entry to double/halve quantity quickly)
+- **Batch Crafting**: Configure how many items to craft per run
+- **Customizable Frequency**: Set check intervals from seconds to days (ctrl-scroll the entry to double/halve the time quickly)
+- **CPU Management**: Automatically queues tasks when no CPU is available
+- **Status Indicators**: Visual color coding shows the state of each recipe:
+  - **Gray**: Recipe is disabled (click the item name or right-click the entry to enable/disable)
+  - **No color**: Idle, waiting for next check
+  - **Light Blue**: Scheduled to run
+  - **Green**: Currently crafting
+  - **Yellow**: Stalled (waiting for resources)
+  - **Red**: Error (no recipe, no CPU, missing resources)
+  - **Purple**: Post-crafting error (no space for output)
+
+**Usage:**
+1. Place the Better Level Maintainer block and right-click to open the GUI
+2. Click on an empty slot to add a recipe
+3. In the modal, click the item slot to select a craftable item from your network
+4. Set the target quantity (how many items you want to maintain)
+5. Set the batch size (how many to craft at once)
+6. Set the frequency (how often to check, e.g., "1h 30m" for every 1.5 hours)
+7. The maintainer will automatically craft <batch size> items when quantity falls below target
+
+**Tips:**
+- Set batch size high to avoid frequent crafting (you may even set it to several times the target quantity). Be mindful of setting it too high, as it may cause resource shortages or crafting failures if the network can't keep up.
+- Use subnets to reduce the load when calculating the recipes, as the load scales with the number of items and patterns in the network.
+- Try to keep the recipes simple and avoid long crafting chains, as they are exponentially more expensive to calculate and schedule.
+- Prefer longer check intervals. You can batch 10k every 100 minutes instead of 100 every minute, which will be much easier on the network and still keep your stock at the desired level.
+- Make sure you have enough CPUs, energy, and crafting resources to keep up with the scheduled tasks, especially if you have many recipes, long recipes, or short check intervals.
+
 
 ## FAQ
 

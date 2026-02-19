@@ -43,7 +43,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private static final float MAX_GUI_HEIGHT_PERCENT = 0.80f;  // 80% of screen height
     private static final int TAB_SIZE = 24;           // Icon tabs are square
     private static final int HEADER_HEIGHT = 28;      // Title + buttons
-    private static final int FOOTER_HEIGHT = 18;      // Status bar
+    private static final int MIN_FOOTER_HEIGHT = 14;  // Minimum footer height (single line)
     private static final int ROW_HEIGHT = 14;
     private static final int SCROLLBAR_WIDTH = 8;
     private static final int PADDING = 4;
@@ -83,6 +83,10 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private int hoveredRowIndex = -1;
     private int hoveredTabIndex = -1;
 
+    // Dynamic footer
+    private int footerHeight = MIN_FOOTER_HEIGHT;
+    private List<String> footerLines = new ArrayList<>();
+
     // Buttons
     private GuiButton selectAllButton;
     private GuiButton deselectAllButton;
@@ -94,7 +98,24 @@ public class GuiNetworkHealthScanner extends GuiScreen {
      * Represents a row in the display list.
      */
     private static class DisplayRow {
-        enum Type { CATEGORY, LOOP_ENTRY, CHUNK_ENTRY, MISSING_ENTRY, CHOKE_ENTRY }
+        enum Type { CATEGORY, LOOP_ENTRY, CHUNK_ENTRY, MISSING_ENTRY, CHOKE_ENTRY, INFO_FOOTER }
+
+        // Info footer constructor
+        static DisplayRow infoFooter(String text) {
+            return new DisplayRow(Type.INFO_FOOTER, text);
+        }
+
+        private DisplayRow(Type type, String text) {
+            this.type = type;
+            this.text = text;
+            this.dimensionKey = null;
+            this.locationIndex = -1;
+            this.loopLocation = null;
+            this.chunkLocation = null;
+            this.missingDevice = null;
+            this.chokeLocation = null;
+            this.isLastInCategory = false;
+        }
 
         final Type type;
         final String text;
@@ -185,16 +206,22 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         // Add buttons in header
         int buttonY = guiTop + 6;
-        int buttonWidth = 60;
         int buttonHeight = 14;
         int spacing = 4;
+        int buttonPadding = 8;  // Padding inside button around text
 
-        selectAllButton = new GuiButton(0, guiLeft + TAB_SIZE + PADDING + 2, buttonY, buttonWidth, buttonHeight,
-            I18n.format("gui.ae2powertools.scanner.select_all"));
-        deselectAllButton = new GuiButton(1, guiLeft + TAB_SIZE + PADDING + 2 + buttonWidth + spacing, buttonY, buttonWidth, buttonHeight,
-            I18n.format("gui.ae2powertools.scanner.deselect_all"));
-        cancelButton = new GuiButton(2, guiLeft + guiWidth - buttonWidth - 6, buttonY, buttonWidth, buttonHeight,
-            I18n.format("gui.ae2powertools.scanner.cancel"));
+        // Calculate button widths based on text
+        String selectAllText = I18n.format("gui.ae2powertools.scanner.select_all");
+        String deselectAllText = I18n.format("gui.ae2powertools.scanner.deselect_all");
+        String cancelText = I18n.format("gui.ae2powertools.scanner.cancel");
+
+        int selectAllWidth = fontRenderer.getStringWidth(selectAllText) + buttonPadding;
+        int deselectAllWidth = fontRenderer.getStringWidth(deselectAllText) + buttonPadding;
+        int cancelWidth = fontRenderer.getStringWidth(cancelText) + buttonPadding;
+
+        selectAllButton = new GuiButton(0, guiLeft + TAB_SIZE + PADDING + 2, buttonY, selectAllWidth, buttonHeight, selectAllText);
+        deselectAllButton = new GuiButton(1, guiLeft + TAB_SIZE + PADDING + 2 + selectAllWidth + spacing, buttonY, deselectAllWidth, buttonHeight, deselectAllText);
+        cancelButton = new GuiButton(2, guiLeft + guiWidth - cancelWidth - 6, buttonY, cancelWidth, buttonHeight, cancelText);
 
         buttonList.add(selectAllButton);
         buttonList.add(deselectAllButton);
@@ -220,26 +247,31 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int contentWidth = leftOffset + maxTextWidth + rightMargin + SCROLLBAR_WIDTH;
         guiWidth = Math.max(MIN_GUI_WIDTH, Math.min(maxGuiWidth, contentWidth));
 
-        // Also ensure minimum width for buttons
-        guiWidth = Math.max(guiWidth, TAB_SIZE + PADDING + 60 + 4 + 60 + 4 + 60 + 10);
+        // Also ensure minimum width for buttons (calculate based on text width)
+        int buttonPadding = 8;
+        int selectAllWidth = fontRenderer.getStringWidth(I18n.format("gui.ae2powertools.scanner.select_all")) + buttonPadding;
+        int deselectAllWidth = fontRenderer.getStringWidth(I18n.format("gui.ae2powertools.scanner.deselect_all")) + buttonPadding;
+        int cancelWidth = fontRenderer.getStringWidth(I18n.format("gui.ae2powertools.scanner.cancel")) + buttonPadding;
+        int minButtonsWidth = TAB_SIZE + PADDING + selectAllWidth + 4 + deselectAllWidth + 10 + cancelWidth + 10;
+        guiWidth = Math.max(guiWidth, minButtonsWidth);
 
         // Minimum height to fit all 4 tabs: HEADER_HEIGHT + 4 tabs + 3 spacers (2px each)
         int minTabsHeight = HEADER_HEIGHT + 4 * TAB_SIZE + 3 * 2;
 
         // Calculate height based on number of rows (fit as many as possible up to max)
-        int availableContentHeight = maxGuiHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2;
+        int availableContentHeight = maxGuiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
         int maxVisibleRows = availableContentHeight / ROW_HEIGHT;
         int visibleRows = Math.min(displayRows.size(), maxVisibleRows);
         visibleRows = Math.max(3, visibleRows); // At least 3 rows
         int contentHeight = visibleRows * ROW_HEIGHT;
-        guiHeight = HEADER_HEIGHT + contentHeight + FOOTER_HEIGHT + PADDING * 2;
+        guiHeight = HEADER_HEIGHT + contentHeight + footerHeight + PADDING * 2;
         guiHeight = Math.max(MIN_GUI_HEIGHT, Math.min(maxGuiHeight, guiHeight));
 
         // Ensure GUI is tall enough to fit all tabs
         guiHeight = Math.max(guiHeight, minTabsHeight);
 
         // Recalculate max scroll
-        int viewHeight = guiHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2;
+        int viewHeight = guiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
         int totalContentHeight = displayRows.size() * ROW_HEIGHT;
         maxScroll = Math.max(0, totalContentHeight - viewHeight);
         scrollOffset = Math.min(scrollOffset, maxScroll);
@@ -253,16 +285,15 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         guiLeft = (width - guiWidth) / 2;
         guiTop = (height - guiHeight) / 2;
 
-        // Reposition buttons
+        // Reposition buttons (widths already set based on text)
         int buttonY = guiTop + 6;
-        int buttonWidth = 60;
         int spacing = 4;
 
         selectAllButton.x = guiLeft + TAB_SIZE + PADDING + 2;
         selectAllButton.y = buttonY;
-        deselectAllButton.x = guiLeft + TAB_SIZE + PADDING + 2 + buttonWidth + spacing;
+        deselectAllButton.x = selectAllButton.x + selectAllButton.width + spacing;
         deselectAllButton.y = buttonY;
-        cancelButton.x = guiLeft + guiWidth - buttonWidth - 6;
+        cancelButton.x = guiLeft + guiWidth - cancelButton.width - 6;
         cancelButton.y = buttonY;
     }
 
@@ -301,18 +332,40 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             rebuildChokeRows();
         }
 
+        // Calculate footer content and height
+        rebuildFooter();
+
         // Calculate max scroll based on current GUI size
         if (guiHeight > 0) {
-            int viewHeight = guiHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2;
+            int viewHeight = guiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
             int totalContentHeight = displayRows.size() * ROW_HEIGHT;
             maxScroll = Math.max(0, totalContentHeight - viewHeight);
             scrollOffset = Math.min(scrollOffset, maxScroll);
         }
     }
 
-    private void rebuildLoopRows() {
-        // TODO: Add a message telling loops are not a "hard" issue and can be ignored as long as nothing looks wrong in the network.
+    private void rebuildFooter() {
+        footerLines.clear();
+        Tab currentTab = ScannerClientState.getCurrentTab();
 
+        // Calculate available width for footer text
+        int footerTextWidth = guiWidth > 0 ? guiWidth - TAB_SIZE - 8 : 200;
+
+        if (currentTab == Tab.LOOPS && !ScannerClientState.getLoopLocations().isEmpty()) {
+            String loopInfo = I18n.format("gui.ae2powertools.scanner.loops_info");
+            footerLines.addAll(fontRenderer.listFormattedStringToWidth(loopInfo, footerTextWidth));
+        } else {
+            String status = ScannerClientState.getStatusMessage();
+            if (!status.isEmpty()) footerLines.add(status);
+        }
+
+        // Calculate footer height based on content
+        int lineCount = Math.max(1, footerLines.size());
+        footerHeight = lineCount * fontRenderer.FONT_HEIGHT + 4;  // 2px padding top and bottom
+        footerHeight = Math.max(footerHeight, MIN_FOOTER_HEIGHT);
+    }
+
+    private void rebuildLoopRows() {
         List<LoopLocationClient> sorted = ScannerClientState.getSortedLoopLocations();
         List<LoopLocationClient> original = ScannerClientState.getLoopLocations();
         if (sorted.isEmpty()) return;
@@ -565,7 +618,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int contentLeft = guiLeft + TAB_SIZE + PADDING;
         int contentTop = guiTop + HEADER_HEIGHT;
         int contentRight = guiLeft + guiWidth - SCROLLBAR_WIDTH;
-        int contentBottom = guiTop + guiHeight - FOOTER_HEIGHT;
+        int contentBottom = guiTop + guiHeight - footerHeight;
         int contentWidth = contentRight - contentLeft;
         int contentHeight = contentBottom - contentTop;
 
@@ -583,13 +636,13 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         drawIconTabs(mouseX, mouseY);
 
         // Draw footer bar
-        drawRect(guiLeft + TAB_SIZE, guiTop + guiHeight - FOOTER_HEIGHT, guiLeft + guiWidth, guiTop + guiHeight, COLOR_HEADER_BG);
+        drawRect(guiLeft + TAB_SIZE, guiTop + guiHeight - footerHeight, guiLeft + guiWidth, guiTop + guiHeight, COLOR_HEADER_BG);
 
-        // Draw status in footer
-        String status = ScannerClientState.getStatusMessage();
-        if (!status.isEmpty()) {
-            String truncatedStatus = fontRenderer.trimStringToWidth(status, guiWidth - TAB_SIZE - 8);
-            fontRenderer.drawString(truncatedStatus, contentLeft + 2, guiTop + guiHeight - FOOTER_HEIGHT + 4, COLOR_TEXT_DIM);
+        // Draw footer content (pre-calculated wrapped lines)
+        int footerTextY = guiTop + guiHeight - footerHeight + 2;
+        for (int i = 0; i < footerLines.size(); i++) {
+            fontRenderer.drawString(footerLines.get(i), contentLeft + 2,
+                footerTextY + i * fontRenderer.FONT_HEIGHT, COLOR_TEXT_DIM);
         }
 
         // Update hover states
@@ -735,107 +788,61 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         Tab currentTab = ScannerClientState.getCurrentTab();
         hoveredTabIndex = -1;
 
-        // TODO: refactor
+        int tabY = guiTop + HEADER_HEIGHT;
 
-        // Tab 0: Loops
-        int tab0Y = guiTop + HEADER_HEIGHT;
-        boolean loop0Hovered = mouseX >= guiLeft && mouseX < guiLeft + TAB_SIZE &&
-                              mouseY >= tab0Y && mouseY < tab0Y + TAB_SIZE;
-        boolean loopSelected = currentTab == Tab.LOOPS;
-
-        if (loop0Hovered) hoveredTabIndex = 0;
-
-        int loopBg = loopSelected ? COLOR_TAB_SELECTED : (loop0Hovered ? COLOR_TAB_HOVER : COLOR_TAB_BG);
-        drawRect(guiLeft, tab0Y, guiLeft + TAB_SIZE, tab0Y + TAB_SIZE, loopBg);
-        if (loopSelected) {
-            drawRect(guiLeft + TAB_SIZE - 2, tab0Y, guiLeft + TAB_SIZE, tab0Y + TAB_SIZE, COLOR_CATEGORY_TEXT);
-        }
-
-        // Draw loop icon (∞ symbol for infinity/loop)
+        // Tab 0: Loops (informational - blue count color)
         int loopCount = ScannerClientState.getLoopLocations().size();
-        String loopIcon = "∞";
-        int iconColor = loopSelected ? COLOR_CATEGORY_TEXT : (loop0Hovered ? COLOR_TEXT : COLOR_TEXT_DIM);
-        fontRenderer.drawString(loopIcon, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(loopIcon)) / 2,
-            tab0Y + 4, iconColor);
-        // Draw count below icon
-        String countStr = String.valueOf(loopCount);
-        fontRenderer.drawString(countStr, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(countStr)) / 2,
-            tab0Y + TAB_SIZE - fontRenderer.FONT_HEIGHT - 2, loopCount > 0 ? 0xFFFF6666 : COLOR_TEXT_DIM);
+        tabY = drawSingleTab(mouseX, mouseY, tabY, 0, Tab.LOOPS, currentTab,
+            "∞", loopCount, loopCount > 0 ? 0xFF66AAFF : COLOR_TEXT_DIM);
 
-        // Tab 1: Unloaded chunks
-        int tab1Y = tab0Y + TAB_SIZE + 2;
-        boolean chunk1Hovered = mouseX >= guiLeft && mouseX < guiLeft + TAB_SIZE &&
-                               mouseY >= tab1Y && mouseY < tab1Y + TAB_SIZE;
-        boolean chunkSelected = currentTab == Tab.UNLOADED_CHUNKS;
-
-        if (chunk1Hovered) hoveredTabIndex = 1;
-
-        int chunkBg = chunkSelected ? COLOR_TAB_SELECTED : (chunk1Hovered ? COLOR_TAB_HOVER : COLOR_TAB_BG);
-        drawRect(guiLeft, tab1Y, guiLeft + TAB_SIZE, tab1Y + TAB_SIZE, chunkBg);
-        if (chunkSelected) {
-            drawRect(guiLeft + TAB_SIZE - 2, tab1Y, guiLeft + TAB_SIZE, tab1Y + TAB_SIZE, COLOR_CATEGORY_TEXT);
-        }
-
-        // Draw chunk icon (▦ for grid/chunk)
+        // Tab 1: Unloaded chunks (warning - orange count color)
         int chunkCount = ScannerClientState.getChunkLocations().size();
-        String chunkIcon = "▦";
-        iconColor = chunkSelected ? COLOR_CATEGORY_TEXT : (chunk1Hovered ? COLOR_TEXT : COLOR_TEXT_DIM);
-        fontRenderer.drawString(chunkIcon, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(chunkIcon)) / 2,
-            tab1Y + 4, iconColor);
-        // Draw count below icon
-        countStr = String.valueOf(chunkCount);
-        fontRenderer.drawString(countStr, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(countStr)) / 2,
-            tab1Y + TAB_SIZE - fontRenderer.FONT_HEIGHT - 2, chunkCount > 0 ? 0xFFFFAA00 : COLOR_TEXT_DIM);
+        tabY = drawSingleTab(mouseX, mouseY, tabY, 1, Tab.UNLOADED_CHUNKS, currentTab,
+            "▦", chunkCount, chunkCount > 0 ? 0xFFFFAA00 : COLOR_TEXT_DIM);
 
-        // Tab 2: Missing channels
-        int tab2Y = tab1Y + TAB_SIZE + 2;
-        boolean missing2Hovered = mouseX >= guiLeft && mouseX < guiLeft + TAB_SIZE &&
-                               mouseY >= tab2Y && mouseY < tab2Y + TAB_SIZE;
-        boolean missingSelected = currentTab == Tab.MISSING_CHANNELS;
-
-        if (missing2Hovered) hoveredTabIndex = 2;
-
-        int missingBg = missingSelected ? COLOR_TAB_SELECTED : (missing2Hovered ? COLOR_TAB_HOVER : COLOR_TAB_BG);
-        drawRect(guiLeft, tab2Y, guiLeft + TAB_SIZE, tab2Y + TAB_SIZE, missingBg);
-        if (missingSelected) {
-            drawRect(guiLeft + TAB_SIZE - 2, tab2Y, guiLeft + TAB_SIZE, tab2Y + TAB_SIZE, COLOR_CATEGORY_TEXT);
-        }
-
-        // Draw missing icon (✗ for missing/disconnected)
+        // Tab 2: Missing channels (error - red count color)
         int missingCount = ScannerClientState.getMissingDevices().size();
-        String missingIcon = "✗";
-        iconColor = missingSelected ? COLOR_CATEGORY_TEXT : (missing2Hovered ? COLOR_TEXT : COLOR_TEXT_DIM);
-        fontRenderer.drawString(missingIcon, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(missingIcon)) / 2,
-            tab2Y + 4, iconColor);
-        // Draw count below icon
-        countStr = String.valueOf(missingCount);
-        fontRenderer.drawString(countStr, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(countStr)) / 2,
-            tab2Y + TAB_SIZE - fontRenderer.FONT_HEIGHT - 2, missingCount > 0 ? 0xFFFF6666 : COLOR_TEXT_DIM);
+        tabY = drawSingleTab(mouseX, mouseY, tabY, 2, Tab.MISSING_CHANNELS, currentTab,
+            "✗", missingCount, missingCount > 0 ? 0xFFFF6666 : COLOR_TEXT_DIM);
 
-        // Tab 3: Channel chokepoints
-        int tab3Y = tab2Y + TAB_SIZE + 2;
-        boolean choke3Hovered = mouseX >= guiLeft && mouseX < guiLeft + TAB_SIZE &&
-                               mouseY >= tab3Y && mouseY < tab3Y + TAB_SIZE;
-        boolean chokeSelected = currentTab == Tab.CHOKEPOINTS;
+        // Tab 3: Channel chokepoints (info - blue count color)
+        int chokeCount = ScannerClientState.getChokeLocations().size();
+        drawSingleTab(mouseX, mouseY, tabY, 3, Tab.CHOKEPOINTS, currentTab,
+            "⚡", chokeCount, chokeCount > 0 ? 0xFF66AAFF : COLOR_TEXT_DIM);
+    }
 
-        if (choke3Hovered) hoveredTabIndex = 3;
+    /**
+     * Draw a single icon tab and return the Y position for the next tab.
+     */
+    private int drawSingleTab(int mouseX, int mouseY, int tabY, int tabIndex, Tab tab, Tab currentTab,
+            String icon, int count, int countColor) {
+        boolean isHovered = mouseX >= guiLeft && mouseX < guiLeft + TAB_SIZE &&
+                           mouseY >= tabY && mouseY < tabY + TAB_SIZE;
+        boolean isSelected = currentTab == tab;
 
-        int chokeBg = chokeSelected ? COLOR_TAB_SELECTED : (choke3Hovered ? COLOR_TAB_HOVER : COLOR_TAB_BG);
-        drawRect(guiLeft, tab3Y, guiLeft + TAB_SIZE, tab3Y + TAB_SIZE, chokeBg);
-        if (chokeSelected) {
-            drawRect(guiLeft + TAB_SIZE - 2, tab3Y, guiLeft + TAB_SIZE, tab3Y + TAB_SIZE, COLOR_CATEGORY_TEXT);
+        if (isHovered) hoveredTabIndex = tabIndex;
+
+        // Draw tab background
+        int bgColor = isSelected ? COLOR_TAB_SELECTED : (isHovered ? COLOR_TAB_HOVER : COLOR_TAB_BG);
+        drawRect(guiLeft, tabY, guiLeft + TAB_SIZE, tabY + TAB_SIZE, bgColor);
+
+        // Draw selection indicator
+        if (isSelected) {
+            drawRect(guiLeft + TAB_SIZE - 2, tabY, guiLeft + TAB_SIZE, tabY + TAB_SIZE, COLOR_CATEGORY_TEXT);
         }
 
-        // Draw chokepoint icon (⚡ for channel/bottleneck)
-        int chokeCount = ScannerClientState.getChokeLocations().size();
-        String chokeIcon = "⚡";
-        iconColor = chokeSelected ? COLOR_CATEGORY_TEXT : (choke3Hovered ? COLOR_TEXT : COLOR_TEXT_DIM);
-        fontRenderer.drawString(chokeIcon, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(chokeIcon)) / 2,
-            tab3Y + 4, iconColor);
+        // Draw icon
+        int iconColor = isSelected ? COLOR_CATEGORY_TEXT : (isHovered ? COLOR_TEXT : COLOR_TEXT_DIM);
+        fontRenderer.drawString(icon, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(icon)) / 2,
+            tabY + 4, iconColor);
+
         // Draw count below icon
-        countStr = String.valueOf(chokeCount);
+        String countStr = String.valueOf(count);
         fontRenderer.drawString(countStr, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(countStr)) / 2,
-            tab3Y + TAB_SIZE - fontRenderer.FONT_HEIGHT - 2, chokeCount > 0 ? 0xFF66AAFF : COLOR_TEXT_DIM);
+            tabY + TAB_SIZE - fontRenderer.FONT_HEIGHT - 2, countColor);
+
+        // Return Y position for next tab (with 2px spacing)
+        return tabY + TAB_SIZE + 2;
     }
 
     /**
@@ -926,7 +933,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int contentLeft = guiLeft + TAB_SIZE + PADDING;
         int contentTop = guiTop + HEADER_HEIGHT;
         int contentRight = guiLeft + guiWidth - SCROLLBAR_WIDTH;
-        int contentBottom = guiTop + guiHeight - FOOTER_HEIGHT;
+        int contentBottom = guiTop + guiHeight - footerHeight;
 
         // Check scrollbar click
         int scrollbarX = guiLeft + guiWidth - SCROLLBAR_WIDTH;
@@ -970,7 +977,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         if (isDraggingScrollbar) {
             int contentTop = guiTop + HEADER_HEIGHT;
-            int contentHeight = guiHeight - HEADER_HEIGHT - FOOTER_HEIGHT;
+            int contentHeight = guiHeight - HEADER_HEIGHT - footerHeight;
             updateScrollFromMouse(mouseY, contentTop, contentHeight);
         }
     }

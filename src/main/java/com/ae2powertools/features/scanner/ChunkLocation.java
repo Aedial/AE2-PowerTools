@@ -88,7 +88,6 @@ public class ChunkLocation {
 
     @Override
     public String toString() {
-        // FIXME: localize
         return String.format("ChunkLocation[%d, %d] in %s (dim %d)", chunkX, chunkZ, dimensionName, dimension);
     }
 }
