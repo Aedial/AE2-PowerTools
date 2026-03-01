@@ -11,6 +11,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.items.ItemCardsDistributor;
+import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
 import com.ae2powertools.items.ItemNetworkHealthScanner;
 import com.ae2powertools.items.ItemPriorityTuner;
 
@@ -24,11 +25,13 @@ public class ItemRegistry {
     public static ItemNetworkHealthScanner NETWORK_HEALTH_SCANNER;
     public static ItemPriorityTuner PRIORITY_TUNER;
     public static ItemCardsDistributor CARDS_DISTRIBUTOR;
+    public static ItemCrafterSpeedUpgrade CRAFTER_SPEED_UPGRADE;
 
     public static void init() {
         NETWORK_HEALTH_SCANNER = new ItemNetworkHealthScanner();
         PRIORITY_TUNER = new ItemPriorityTuner();
         CARDS_DISTRIBUTOR = new ItemCardsDistributor();
+        CRAFTER_SPEED_UPGRADE = new ItemCrafterSpeedUpgrade();
     }
 
     @SubscribeEvent
@@ -36,7 +39,8 @@ public class ItemRegistry {
         event.getRegistry().registerAll(
             NETWORK_HEALTH_SCANNER,
             PRIORITY_TUNER,
-            CARDS_DISTRIBUTOR
+            CARDS_DISTRIBUTOR,
+            CRAFTER_SPEED_UPGRADE
         );
     }
 
@@ -46,11 +50,22 @@ public class ItemRegistry {
         registerItemModel(NETWORK_HEALTH_SCANNER);
         registerItemModel(PRIORITY_TUNER);
         registerItemModel(CARDS_DISTRIBUTOR);
+        registerSpeedUpgradeModels();
     }
 
     @SideOnly(Side.CLIENT)
     private static void registerItemModel(Item item) {
         ModelLoader.setCustomModelResourceLocation(item, 0,
             new ModelResourceLocation(item.getRegistryName(), "inventory"));
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static void registerSpeedUpgradeModels() {
+        // Register model for each tier (meta 0-3)
+        for (int tier = 0; tier < ItemCrafterSpeedUpgrade.TIER_NAMES.length; tier++) {
+            String tierName = ItemCrafterSpeedUpgrade.TIER_NAMES[tier].toLowerCase();
+            ModelLoader.setCustomModelResourceLocation(CRAFTER_SPEED_UPGRADE, tier,
+                new ModelResourceLocation(Tags.MODID + ":crafter_speed_upgrade_" + tierName, "inventory"));
+        }
     }
 }

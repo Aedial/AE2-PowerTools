@@ -5,6 +5,12 @@ import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.features.crafter.PacketOpenCrafterSubGui;
+import com.ae2powertools.features.crafter.PacketReturnToCrafterGui;
+import com.ae2powertools.features.crafter.PacketSetCrafterBatch;
+import com.ae2powertools.features.crafter.PacketSetCrafterPage;
+import com.ae2powertools.features.crafter.PacketSetCrafterSpeed;
+import com.ae2powertools.features.crafter.PacketToggleCrafterEntry;
 
 
 /**
@@ -32,5 +38,13 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketUpdateMaintainerEntry.Handler.class, PacketUpdateMaintainerEntry.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSelectRecipe.Handler.class, PacketSelectRecipe.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketCraftableItemsSync.Handler.class, PacketCraftableItemsSync.class, packetId++, Side.CLIENT);
+
+        // AutoCrafter packets
+        INSTANCE.registerMessage(PacketToggleCrafterEntry.Handler.class, PacketToggleCrafterEntry.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketOpenCrafterSubGui.Handler.class, PacketOpenCrafterSubGui.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetCrafterBatch.Handler.class, PacketSetCrafterBatch.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetCrafterSpeed.Handler.class, PacketSetCrafterSpeed.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetCrafterPage.Handler.class, PacketSetCrafterPage.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketReturnToCrafterGui.Handler.class, PacketReturnToCrafterGui.class, packetId++, Side.SERVER);
     }
 }

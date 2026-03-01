@@ -1,0 +1,37 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:crafter_speed_upgrade"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.singularity"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:crafter_speed_upgrade",
+        "data": 2
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "uuu",
+        "usu",
+        "uuu"
+    ],
+    "key": {
+        "u": {
+            "item": "ae2powertools:crafter_speed_upgrade",
+            "data": 1
+        },
+        "s": {
+            "item": "appliedenergistics2:material",
+            "data": 47
+        }
+    }
+}

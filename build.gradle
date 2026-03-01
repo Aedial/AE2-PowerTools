@@ -14,7 +14,7 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle.forge'
 
-version = "1.4.1"
+version = "1.5.0"
 group = "com.ae2powertools"
 archivesBaseName = "ae2-powertools"
 
@@ -98,27 +98,6 @@ if (cfProjectId) {
             tasks.findAll { it.name.startsWith('curseforge') }.each { t ->
                 t.dependsOn 'reobfJar'
             }
-        }
-    }
-}
-
-// Create lowercase-case duplicates of language files in the built resources directory
-// This avoids having to maintain duplicate source files for casing-sensitive loaders
-processResources.doLast {
-    def langDir = file("${buildDir}/resources/main/assets/ae2powertools/lang")
-    if (!langDir.exists()) return
-
-    // For each language file like 'en_US.lang', create the canonical 'en_us.lang' variant
-    langDir.eachFile { File f ->
-        if (!f.name.toLowerCase().endsWith('.lang')) return
-
-        def targetName = f.name.toLowerCase(java.util.Locale.ROOT)
-        if (targetName == f.name) return
-
-        def dest = new File(langDir, targetName)
-        if (!dest.exists()) {
-            dest.bytes = f.bytes
-            println "[lang] created canonical variant: ${dest.name}"
         }
     }
 }
