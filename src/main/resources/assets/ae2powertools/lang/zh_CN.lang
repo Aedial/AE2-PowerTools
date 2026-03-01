@@ -60,6 +60,13 @@ ae2powertools.config.client.maintainer.tooltip=缓存指令器GUI设置
 ae2powertools.config.client.maintainer.useTallView=使用高视图
 ae2powertools.config.client.maintainer.useTallView.tooltip=使用高视图（单列）而非紧凑视图（三列）
 
+# Server config
+ae2powertools.config.server=服务端
+ae2powertools.config.server.crafter=自动合成器
+ae2powertools.config.server.crafter.tooltip=自动合成器平衡性设置
+ae2powertools.config.server.crafter.baseCraftsPerOperation=每次操作的基础合成数
+ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=每个操作周期内执行的基础合成次数（对所有批量大小应用固定倍数）
+
 # GUI - Priority Tuner
 gui.ae2powertools.priority_tuner.title=优先级调节器
 
@@ -193,3 +200,76 @@ gui.ae2powertools.maintainer.error.cancelled=合成已取消
 gui.ae2powertools.maintainer.error.no_space=无空间用于存储合成产物
 gui.ae2powertools.maintainer.error.missing_resources=开始合成所需的物品不足
 gui.ae2powertools.maintainer.error.calculation_timeout=任务计算超时（配方过于复杂）
+
+# =====================================================
+# AE2 AutoCrafter
+# =====================================================
+
+# Block
+tile.ae2powertools.auto_crafter.name=AE2自动合成器
+tile.ae2powertools.auto_crafter.tooltip=使用样板自动合成物品（类似其他模组的自动合成器）。
+tile.ae2powertools.auto_crafter.tooltip2=支持可重复使用的物品、具有耐久度的工具，以及复制配方。
+
+# GUI - Main
+gui.ae2powertools.crafter.title=自动合成器
+gui.ae2powertools.crafter.overview=自动合成器总览
+gui.ae2powertools.crafter.page.previous=上一页
+gui.ae2powertools.crafter.page.next=下一页
+gui.ae2powertools.crafter.page=页码 %d/%d
+gui.ae2powertools.crafter.empty_slot=槽位 %d - 空
+gui.ae2powertools.crafter.click_to_view=左键点击以查看
+gui.ae2powertools.crafter.right_click_toggle=右键点击以开关
+
+
+# GUI - Batch
+gui.ae2powertools.crafter.batch.title=批量大小
+gui.ae2powertools.crafter.batch.desc=当前：%d
+gui.ae2powertools.crafter.batch.explanation=每次操作进行的合成数与耗时的倍数（吞吐量相同）
+
+# GUI - Speed
+gui.ae2powertools.crafter.speed.title=合成速度
+gui.ae2powertools.crafter.speed.desc=当前：%s
+gui.ae2powertools.crafter.speed.explanation=操作间隔时间（数值越高 = 吞吐量越低）
+
+# GUI - States
+gui.ae2powertools.crafter.state.disabled=已禁用
+gui.ae2powertools.crafter.state.idle=空闲 - 就绪
+gui.ae2powertools.crafter.state.running=运行中
+gui.ae2powertools.crafter.state.missing_catalyst=缺失催化剂类物品
+gui.ae2powertools.crafter.state.missing_input=缺失输入物品
+gui.ae2powertools.crafter.state.no_output_space=无输出空间
+gui.ae2powertools.crafter.state.simulation_failed=配方模拟失败
+gui.ae2powertools.crafter.state.holding_output=暂存输出（等待空间）
+
+# GUI - Metrics
+gui.ae2powertools.crafter.state=状态
+gui.ae2powertools.crafter.occupancy=占用率
+gui.ae2powertools.crafter.error_rate=错误率
+gui.ae2powertools.crafter.metrics_title=指标
+gui.ae2powertools.crafter.metrics_format=%s%% | %s%%
+gui.ae2powertools.crafter.occupancy_desc=实际完成量占请求批量的百分比（受资源限制影响）
+gui.ae2powertools.crafter.error_rate_desc=配方无法执行（错误状态）的操作占总尝试次数的比例
+gui.ae2powertools.crafter.crafts_per_operation=每%2$s合成%1$s
+gui.ae2powertools.crafter.issues=问题
+gui.ae2powertools.crafter.crafts_per_operation=%s 物品 / %s
+
+# GUI - Errors
+gui.ae2powertools.crafter.error.not_pattern=物品不是合成样板
+gui.ae2powertools.crafter.error.invalid_pattern=样板无效或损坏
+gui.ae2powertools.crafter.error.processing_pattern=仅支持合成样板，不支持处理样板
+gui.ae2powertools.crafter.error.need_have=%s（需要%d，现有%d）
+gui.ae2powertools.crafter.error.limited_by=受限于%s（分配%d，需要%d）
+gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
+gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂：%s
+gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误：应当是%s，实际为%s
+
+# =====================================================
+# Crafter Upgrades
+# =====================================================
+
+# Speed Upgrades
+item.ae2powertools.crafter_speed_upgrade_i.name=速度升级 I
+item.ae2powertools.crafter_speed_upgrade_ii.name=速度升级 II
+item.ae2powertools.crafter_speed_upgrade_iii.name=速度升级 III
+item.ae2powertools.crafter_speed_upgrade_iv.name=速度升级 IV
+item.ae2powertools.crafter_speed_upgrade.tooltip=批量大小x%d
