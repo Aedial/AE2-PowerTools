@@ -60,6 +60,13 @@ ae2powertools.config.client.maintainer.tooltip=Level Maintainer GUI settings
 ae2powertools.config.client.maintainer.useTallView=Use tall view
 ae2powertools.config.client.maintainer.useTallView.tooltip=Use tall view (single column) instead of compact view (three columns)
 
+# Server config
+ae2powertools.config.server=Server
+ae2powertools.config.server.crafter=AutoCrafter
+ae2powertools.config.server.crafter.tooltip=AutoCrafter balance settings
+ae2powertools.config.server.crafter.baseCraftsPerOperation=Base crafts per operation
+ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=Base number of crafts performed per operation cycle (flat multiplier on all batch sizes)
+
 # GUI - Priority Tuner
 gui.ae2powertools.priority_tuner.title=Priority Tuner
 
@@ -193,3 +200,76 @@ gui.ae2powertools.maintainer.error.cancelled=Crafting was cancelled
 gui.ae2powertools.maintainer.error.no_space=No space for crafted items
 gui.ae2powertools.maintainer.error.missing_resources=Not enough items to start crafting
 gui.ae2powertools.maintainer.error.calculation_timeout=Job calculation timed out (recipe too complex)
+
+# =====================================================
+# AE2 AutoCrafter
+# =====================================================
+
+# Block
+tile.ae2powertools.auto_crafter.name=AE2 AutoCrafter
+tile.ae2powertools.auto_crafter.tooltip=Automatically crafts items using patterns (like other Auto-Crafters).
+tile.ae2powertools.auto_crafter.tooltip2=Supports reusable items, durability tools, and duplication recipes.
+
+# GUI - Main
+gui.ae2powertools.crafter.title=AutoCrafter
+gui.ae2powertools.crafter.overview=AutoCrafter Overview
+gui.ae2powertools.crafter.page.previous=Previous Page
+gui.ae2powertools.crafter.page.next=Next Page
+gui.ae2powertools.crafter.page=Page %d/%d
+gui.ae2powertools.crafter.empty_slot=Slot %d - Empty
+gui.ae2powertools.crafter.click_to_view=Left-click to view
+gui.ae2powertools.crafter.right_click_toggle=Right-click to toggle
+
+
+# GUI - Batch
+gui.ae2powertools.crafter.batch.title=Batch Size
+gui.ae2powertools.crafter.batch.desc=Current: %d
+gui.ae2powertools.crafter.batch.explanation=Multiplies crafts per operation and time (same throughput)
+
+# GUI - Speed
+gui.ae2powertools.crafter.speed.title=Crafting Speed
+gui.ae2powertools.crafter.speed.desc=Current: %s
+gui.ae2powertools.crafter.speed.explanation=Time between operations (higher = lower throughput)
+
+# GUI - States
+gui.ae2powertools.crafter.state.disabled=Disabled
+gui.ae2powertools.crafter.state.idle=Idle - Ready
+gui.ae2powertools.crafter.state.running=Running
+gui.ae2powertools.crafter.state.missing_catalyst=Missing Catalyst Items
+gui.ae2powertools.crafter.state.missing_input=Missing Input Items
+gui.ae2powertools.crafter.state.no_output_space=No Output Space
+gui.ae2powertools.crafter.state.simulation_failed=Recipe Simulation Failed
+gui.ae2powertools.crafter.state.holding_output=Holding Output (waiting for space)
+
+# GUI - Metrics
+gui.ae2powertools.crafter.state=Status
+gui.ae2powertools.crafter.occupancy=Occupancy
+gui.ae2powertools.crafter.error_rate=Error Rate
+gui.ae2powertools.crafter.metrics_title=Metrics
+gui.ae2powertools.crafter.metrics_format=%s%% | %s%%
+gui.ae2powertools.crafter.occupancy_desc=Percentage of requested batch actually crafted (because of resource constraints)
+gui.ae2powertools.crafter.error_rate_desc=Proportion of operations where recipe couldn't run (error state) out of total attempts
+gui.ae2powertools.crafter.crafts_per_operation=On %d crafts every %s
+gui.ae2powertools.crafter.issues=Issues
+gui.ae2powertools.crafter.crafts_per_operation=%s items / %s
+
+# GUI - Errors
+gui.ae2powertools.crafter.error.not_pattern=Item is not a crafting pattern
+gui.ae2powertools.crafter.error.invalid_pattern=Invalid or corrupt pattern
+gui.ae2powertools.crafter.error.processing_pattern=Only crafting patterns are supported, not processing patterns
+gui.ae2powertools.crafter.error.need_have=%s (need %d, have %d)
+gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
+gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
+gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d: %s
+gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
+
+# =====================================================
+# Crafter Upgrades
+# =====================================================
+
+# Speed Upgrades
+item.ae2powertools.crafter_speed_upgrade_i.name=Speed Upgrade I
+item.ae2powertools.crafter_speed_upgrade_ii.name=Speed Upgrade II
+item.ae2powertools.crafter_speed_upgrade_iii.name=Speed Upgrade III
+item.ae2powertools.crafter_speed_upgrade_iv.name=Speed Upgrade IV
+item.ae2powertools.crafter_speed_upgrade.tooltip=x%d batch size multiplier

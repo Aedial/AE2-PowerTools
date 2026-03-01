@@ -34,6 +34,45 @@ A tool to distribute cards from your inventory to Molecular Assemblers on the ne
 Supports:
 - **Acceleration Cards** for AE2 Molecular Assemblers
 
+### AutoCrafter
+A powerful automation block that automatically crafts items using patterns from your AE2 network.
+
+**Features:**
+- **12 Recipe Slots**: Configure up to 12 different recipes
+- **Pattern Support**: Insert any AE2 crafting pattern to define the recipe
+- **Recipe Preview**: Visual 3x3 input grid showing required ingredients and output
+- **Catalyst Inventory**: 9-slot internal inventory per recipe for reusable/duplication items, or intermediary tools with durability (if the last recipe didn't completely consume them)
+- **Performance Optimization**: Caches recipe simulations and only recalculates when necessary (when recipe changes)
+- **Batch Crafting**: Configure how many items to craft per operation, while decreasing the crafting speed accordingly. A batch size of 50x means 50x the inputs, for 50x the output, but it will run 1/50th of the speed, so it will still consume the same amount of resources per second, just in bigger bursts. This is ideal if you want to run less frequently, while still getting the same overall throughput. A Crafter Speed Upgrade card (tier I/II/III/IV) can be used to increase this batch size even further, without speed penalty (the batch size is increased instead of the speed to avoid spamming the network, which causes lag). The base batch per operation can be set in config.
+- **Speed Control**: Set crafting interval from 1 second to days (1s, 1m, 1h, 1d increments). Note: this explicitly slows down crafting. You may want to use "Batch size" instead, to craft more items per operation without slowing down the overall crafting speed.
+- **Network Integration**: Automatically extracts inputs from ME storage and inserts outputs back
+- **State Indicators**: Color-coded status for each recipe entry:
+  - **Gray (Disabled)**: Recipe is disabled
+  - **No color (Idle)**: Waiting for next craft cycle
+  - **Orange (Missing Catalyst)**: Required catalyst items (inserted manually in the internal inventory)
+  - **Red (Missing Input)**: Required ingredients not available in network (couldn't even make a single item)
+  - **Purple (No Output Space)**: Network storage full
+  - **Yellow (Simulation Failed)**: Recipe simulation failed
+  - **Blue (Holding Output)**: Waiting to insert output into network
+- **Overview Mode**: See all 12 recipes at a glance on a single page
+- **Efficiency statistics**: The error rate and occupancy (since world load) of each recipe is tracked and displayed in the GUI, to help identify bottlenecks or resource shortages
+- **Fake Player Crafting**: Compatible with mods that require player context for crafting
+
+**Usage:**
+1. Place the AutoCrafter block and right-click to open the GUI
+2. Insert a crafting pattern into the pattern slot
+3. The recipe preview will show required inputs and output
+4. Add the required reusable/duplication items to the 9-slot internal inventory
+5. Configure batch size (how many to craft per cycle) via the Batch button
+6. Configure speed (base crafting interval) via the Speed button
+7. Toggle entries on/off by clicking the state indicator
+8. Use page navigation or Overview button to switch between recipes
+
+**Tips:**
+- Use larger batch size to avoid querying the network too often. Do note a very large batch size may cause resource shortages or crafting failures if the network can't keep up with the demand, but the recipes should automatically scale down the batch size if resources are insufficient.
+- The Overview mode lets you quickly check the status of all 12 recipes
+- Shift-click on +/- buttons in Speed GUI for 10x increments
+
 ### Better Level Maintainer
 A block that automatically maintains item quantities in your AE2 network by scheduling crafting jobs.
 

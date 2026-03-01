@@ -33,6 +33,8 @@ import com.ae2powertools.features.maintainer.MaintainerState;
 import com.ae2powertools.network.PacketSelectRecipe;
 import com.ae2powertools.network.PacketUpdateMaintainerEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.FormatUtil;
+
 
 /**
  * Main GUI for the Better Level Maintainer.
@@ -430,7 +432,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
 
         modalFreqField = new GuiTextField(3, fontRenderer, modalLeft + 60, modalTop + 90, 110, 12);
         modalFreqField.setMaxStringLength(20);
-        modalFreqField.setText(MaintainerEntry.formatTime(modalLastFrequency));
+        modalFreqField.setText(FormatUtil.formatTime(modalLastFrequency));
 
         // Frequency buttons
         int btnX = modalLeft + 3;
@@ -1156,7 +1158,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
 
         if (delta != 0) {
             modalLastFrequency = Math.max(1, modalLastFrequency + delta);
-            modalFreqField.setText(MaintainerEntry.formatTime(modalLastFrequency));
+            modalFreqField.setText(FormatUtil.formatTime(modalLastFrequency));
         }
     }
 

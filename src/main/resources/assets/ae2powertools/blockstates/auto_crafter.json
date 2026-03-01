@@ -1,0 +1,10 @@
+{
+    "variants": {
+        "inventory": { "model": "ae2powertools:auto_crafter" },
+        "tier=0": { "model": "ae2powertools:auto_crafter" },
+        "tier=1": { "model": "ae2powertools:auto_crafter_tier_i" },
+        "tier=2": { "model": "ae2powertools:auto_crafter_tier_ii" },
+        "tier=3": { "model": "ae2powertools:auto_crafter_tier_iii" },
+        "tier=4": { "model": "ae2powertools:auto_crafter_tier_iv" }
+    }
+}

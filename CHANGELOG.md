@@ -8,7 +8,24 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.4.1] - 2026-02-18
+## [1.5.0-beta] - 2026-03-01
+### Added
+- Add AE2 AutoCrafter block.
+  - A powerful automation block that automatically crafts items from configured patterns.
+  - Supports up to 12 recipe entries, each set to a specific pattern.
+  - Pattern slot with full insertion/extraction/swapping/shift-click support.
+  - Recipe preview showing 3x3 input grid and output slot.
+  - 9-slot internal inventory per recipe for catalyst/reusable items.
+  - Configurable batch size (to craft more at once less frequently).
+  - Configurable speed (to slow down crafting, sparring performance).
+  - Overview mode showing all 12 entries at a glance.
+  - Page navigation for detailed recipe view.
+  - Full network integration: extracts inputs from ME network, inserts outputs back.
+  - State indicators: Disabled, Idle, Missing Catalyst, Missing Input, No Output Space, Simulation Failed, Holding Output.
+  - Uses Fake Player for crafting operations (compatible with mods that require player context).
+
+
+## [1.4.1] - 2026-02-19
 ### Added
 - Add tall/compact view toggle for the Better Level Maintainer GUI.
   - Tall view shows one recipe per row with full item icons, state indicators, and detailed info.

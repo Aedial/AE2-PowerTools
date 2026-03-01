@@ -8,6 +8,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
 
+import com.ae2powertools.util.FormatUtil;
+
 
 /**
  * Represents a single entry in the Better Level Maintainer.
@@ -323,27 +325,7 @@ public class MaintainerEntry {
      * Formats the frequency as a human-readable string (e.g., "1h 30m 15s").
      */
     public String formatFrequency() {
-        return formatTime(frequencySeconds);
-    }
-
-    /**
-     * Formats a time in seconds as a human-readable string.
-     */
-    public static String formatTime(int totalSeconds) {
-        if (totalSeconds <= 0) return "0s";
-
-        int days = totalSeconds / 86400;
-        int hours = (totalSeconds % 86400) / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
-        int seconds = totalSeconds % 60;
-
-        StringBuilder sb = new StringBuilder();
-        if (days > 0) sb.append(days).append("d ");
-        if (hours > 0) sb.append(hours).append("h ");
-        if (minutes > 0) sb.append(minutes).append("m ");
-        if (seconds > 0 || sb.length() == 0) sb.append(seconds).append("s");
-
-        return sb.toString().trim();
+        return FormatUtil.formatTime(frequencySeconds);
     }
 
     /**

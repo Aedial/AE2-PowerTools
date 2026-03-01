@@ -1,0 +1,68 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:auto_crafter"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:molecular_assembler"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:better_level_maintainer"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.cell64k_part"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.fluix_pearl"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:crafting_accelerator"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.calculation_processor"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:auto_crafter"
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "msm",
+        "fbf",
+        "aca"
+    ],
+    "key": {
+        "m": {
+            "item": "appliedenergistics2:molecular_assembler"
+        },
+        "s": {
+            "item": "appliedenergistics2:crafting_storage_64k"
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 9
+        },
+        "b": {
+            "item": "ae2powertools:better_level_maintainer"
+        },
+        "a": {
+            "item": "appliedenergistics2:crafting_accelerator"
+        },
+        "c": {
+            "item": "appliedenergistics2:material",
+            "data": 23
+        }
+    }
+}

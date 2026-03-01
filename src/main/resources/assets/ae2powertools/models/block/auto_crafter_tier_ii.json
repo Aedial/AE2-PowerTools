@@ -1,0 +1,7 @@
+{
+    "credit": "AE2 AutoCrafter - Tier II variant",
+    "parent": "ae2powertools:block/auto_crafter",
+    "textures": {
+        "storage": "ae2powertools:blocks/storage_t2"
+    }
+}
