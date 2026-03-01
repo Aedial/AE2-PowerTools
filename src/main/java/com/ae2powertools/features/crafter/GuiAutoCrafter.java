@@ -14,17 +14,17 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import appeng.api.AEApi;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.client.gui.widgets.GuiTabButton;
-import appeng.core.localization.GuiText;
 import appeng.util.ReadableNumberConverter;
+import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.Tags;
 import com.ae2powertools.network.PowerToolsNetwork;
@@ -47,6 +47,10 @@ public class GuiAutoCrafter extends GuiContainer {
             Tags.MODID, "textures/guis/crafter_overview.png");
     private static final ResourceLocation AE2_STATES = new ResourceLocation(
             "appliedenergistics2", "textures/guis/states.png");
+    private static final ResourceLocation BATCH_BUTTON_TEXTURE = new ResourceLocation(
+            Tags.MODID, "textures/guis/batch_button.png");
+    private static final ResourceLocation SPEED_BUTTON_TEXTURE = new ResourceLocation(
+            Tags.MODID, "textures/guis/speed_button.png");
 
     // GUI dimensions
     private static final int GUI_WIDTH = 211;
@@ -62,10 +66,10 @@ public class GuiAutoCrafter extends GuiContainer {
     private static final int RECIPE_RESULT_SIZE = 22;  // 22x22 slot area
     private static final int CATALYST_START_X = 8;
     private static final int CATALYST_START_Y = 90;
-    private static final int SPEED_INFO_X = 8;
-    private static final int SPEED_INFO_Y = 112;      // Under catalyst slots (90 + 18 + 4)
-    private static final int STATE_INDICATOR_X = 8;
-    private static final int STATE_INDICATOR_Y = 124;  // Under speed info (112 + 12)
+    private static final int SPEED_INFO_X = 6;
+    private static final int SPEED_INFO_Y = 110;      // Under catalyst slots (90 + 18 + 2)
+    private static final int STATE_INDICATOR_X = 6;
+    private static final int STATE_INDICATOR_Y = 122;  // Under speed info (110 + 12)
     private static final int PAGE_LEFT_X = 7;
     private static final int PAGE_LEFT_Y = 137;
     private static final int PAGE_RIGHT_X = 157;
@@ -100,9 +104,9 @@ public class GuiAutoCrafter extends GuiContainer {
     // View state (currentPage is synced from tile)
     private boolean overviewMode = false;
 
-    // AE2-style tab buttons for batch and speed
-    private GuiTabButton batchButton;
-    private GuiTabButton speedButton;
+    // Custom image buttons for batch and speed (drawn manually, not GuiButton)
+    private boolean batchButtonHovered = false;
+    private boolean speedButtonHovered = false;
 
     // Custom drawn elements (no GuiButton for page nav - drawn manually)
     private boolean pagePrevHovered = false;
@@ -115,21 +119,69 @@ public class GuiAutoCrafter extends GuiContainer {
     private int hoveredOverviewRow = -1;
     private boolean hoveredResult = false;
 
-    // Overview modal position (centered)
+    // Overview modal position
     private int overviewLeft, overviewTop;
+
+    // Track last known page for client-side slot updates when synced page changes
+    private int lastKnownPage = -1;
+
+    // ==================== PACKET-SYNCED CLIENT STATE ====================
+    // These are populated by handleStateSync() when packets arrive from server.
+    // This replaces the unreliable AE2 stream-based syncing.
+
+    private boolean hasSyncedData = false;
+    private int syncedSpeedTicks = TileAutoCrafter.DEFAULT_SPEED_TICKS;
+    private int syncedBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
+    private int syncedEffectiveBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
+    private int syncedCurrentPage = 0;
+
+    // Per-entry synced data
+    private final CrafterState[] syncedStates = new CrafterState[TileAutoCrafter.ENTRY_COUNT];
+    private final boolean[] syncedHasDisplayData = new boolean[TileAutoCrafter.ENTRY_COUNT];
+    private final IAEItemStack[] syncedOutputItems = new IAEItemStack[TileAutoCrafter.ENTRY_COUNT];
+    private final IAEItemStack[][] syncedInputGrids = new IAEItemStack[TileAutoCrafter.ENTRY_COUNT][9];
+    private final long[] syncedMetricsTotal = new long[TileAutoCrafter.ENTRY_COUNT];
+    private final double[] syncedOccupancy = new double[TileAutoCrafter.ENTRY_COUNT];
+    private final double[] syncedErrorRate = new double[TileAutoCrafter.ENTRY_COUNT];
+    private final List<List<String>> syncedErrorDetails = new ArrayList<>();
+
+    // Catalyst info per entry (slot index -> expected item)
+    private final List<List<CatalystInfo>> syncedCatalystInfo = new ArrayList<>();
+    // Actual catalyst inventory per entry
+    private final ItemStack[][] syncedCatalystInventory = new ItemStack[TileAutoCrafter.ENTRY_COUNT][CrafterEntry.CATALYST_SLOTS];
+
+    /** Simple holder for catalyst slot info. */
+    private static class CatalystInfo {
+        final int slotIndex;
+        final IAEItemStack expectedItem;
+        CatalystInfo(int slotIndex, IAEItemStack expectedItem) {
+            this.slotIndex = slotIndex;
+            this.expectedItem = expectedItem;
+        }
+    }
 
     public GuiAutoCrafter(ContainerAutoCrafter container) {
         super(container);
         this.container = container;
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
+
+        // Initialize synced data arrays
+        for (int i = 0; i < TileAutoCrafter.ENTRY_COUNT; i++) {
+            syncedStates[i] = CrafterState.NO_PATTERN;
+            syncedErrorDetails.add(new ArrayList<>());
+            syncedCatalystInfo.add(new ArrayList<>());
+            for (int j = 0; j < CrafterEntry.CATALYST_SLOTS; j++) {
+                syncedCatalystInventory[i][j] = ItemStack.EMPTY;
+            }
+        }
     }
 
     /**
-     * Gets the current page from the container (synced from tile).
+     * Gets the current page - uses packet-synced data if available.
      */
     private int getCurrentPage() {
-        return container.getCurrentEntryIndex();
+        return hasSyncedData ? syncedCurrentPage : container.getCurrentEntryIndex();
     }
 
     @Override
@@ -138,46 +190,31 @@ public class GuiAutoCrafter extends GuiContainer {
 
         buttonList.clear();
 
-        // AE2-style tab buttons for Batch and Speed (like Priority button in Interface)
-        // Use actual item textures: Batch = Crafting Card, Speed = Capacity Card
-        ItemStack craftingCardStack = AEApi.instance().definitions().materials()
-                .cardCrafting().maybeStack(1).orElse(ItemStack.EMPTY);
-        ItemStack capacityCardStack = AEApi.instance().definitions().materials()
-                .cardCapacity().maybeStack(1).orElse(ItemStack.EMPTY);
+        // Batch and Speed buttons are now custom drawn (no GuiButton)
 
-        this.batchButton = new GuiTabButton(guiLeft + BATCH_BTN_X, guiTop + BATCH_BTN_Y,
-                craftingCardStack, I18n.format("gui.ae2powertools.crafter.batch.title"), itemRender);
-        this.speedButton = new GuiTabButton(guiLeft + SPEED_BTN_X, guiTop + SPEED_BTN_Y,
-                capacityCardStack, I18n.format("gui.ae2powertools.crafter.speed.title"), itemRender);
-        buttonList.add(batchButton);
-        buttonList.add(speedButton);
-
-        // Calculate overview modal position (centered on screen)
-        overviewLeft = guiTop;
+        // Calculate overview modal position (top-left aligned with main GUI)
+        overviewLeft = guiLeft;
         overviewTop = guiTop;
 
-        updateButtonVisibility();
+        // Request full state sync from server
+        requestStateSync();
     }
 
-    private void updateButtonVisibility() {
-        // Tab buttons visible when not in overview mode
-        batchButton.visible = !overviewMode;
-        speedButton.visible = !overviewMode;
-    }
-
-    @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        if (button == batchButton) {
-            openBatchDialog();
-        } else if (button == speedButton) {
-            openSpeedDialog();
-        }
+    /**
+     * Request a full state sync from the server.
+     * Called on GUI open and when switching to overview mode.
+     */
+    private void requestStateSync() {
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketRequestCrafterSync(
+                container.getTile().getPos()));
     }
 
     /**
      * Sets the current page and syncs to server for persistence.
+     * Updates local synced state immediately for responsive UI.
      */
     private void setCurrentPage(int page) {
+        syncedCurrentPage = page;  // Update local state immediately for instant response
         container.setCurrentEntryIndex(page);
         PowerToolsNetwork.INSTANCE.sendToServer(new PacketSetCrafterPage(
                 container.getTile().getPos(), page));
@@ -199,8 +236,13 @@ public class GuiAutoCrafter extends GuiContainer {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
 
-        // Update button visibility every frame to catch synced page changes
-        updateButtonVisibility();
+        // Detect when synced page changes from server and update container slots.
+        // This handles the case where the GUI opens before the page sync arrives.
+        int currentSyncedPage = container.getCurrentEntryIndex();
+        if (lastKnownPage != currentSyncedPage) {
+            lastKnownPage = currentSyncedPage;
+            container.setCurrentEntryIndex(currentSyncedPage);
+        }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -269,7 +311,7 @@ public class GuiAutoCrafter extends GuiContainer {
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         // Draw title (shifted right to make room for overview/back button on the left)
         String title = I18n.format("gui.ae2powertools.crafter.title");
-        fontRenderer.drawString(title, OVERVIEW_BTN_X + PAGE_BTN_SIZE + 4, 6, 0x404040);
+        fontRenderer.drawString(title, OVERVIEW_BTN_X + PAGE_BTN_SIZE + 4, 7, 0x404040);
 
         // Draw page indicator in recipe mode (not in overview)
         if (!overviewMode) {
@@ -283,15 +325,65 @@ public class GuiAutoCrafter extends GuiContainer {
     // ==================== CUSTOM BUTTONS ====================
 
     /**
-     * Draws custom buttons: Overview toggle and page navigation.
-     * Page navigation uses custom square buttons instead of vanilla GuiButton.
+     * Draws custom buttons: Overview toggle, page navigation, batch and speed.
+     * All buttons are custom drawn (not GuiButton) for consistent styling.
      */
     private void drawAE2Buttons(int mouseX, int mouseY) {
         // Overview button (top left) - small AE2 style button
         drawOverviewButton(mouseX, mouseY);
 
         // Page navigation buttons (only when not in overview mode)
-        if (!overviewMode) drawPageNavigationButtons(mouseX, mouseY);
+        if (!overviewMode) {
+            drawPageNavigationButtons(mouseX, mouseY);
+            drawBatchSpeedButtons(mouseX, mouseY);
+        }
+    }
+
+    /**
+     * Draws the batch and speed buttons using custom textures.
+     * Each texture is a single 22x22 image. Hover state is drawn as an overlay.
+     */
+    private void drawBatchSpeedButtons(int mouseX, int mouseY) {
+        // Reset GL state before drawing buttons to prevent state pollution
+        GlStateManager.disableLighting();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ZERO);
+
+        // Batch button
+        int batchX = guiLeft + BATCH_BTN_X;
+        int batchY = guiTop + BATCH_BTN_Y;
+        batchButtonHovered = mouseX >= batchX && mouseX < batchX + TAB_BTN_SIZE &&
+                             mouseY >= batchY && mouseY < batchY + TAB_BTN_SIZE;
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        mc.getTextureManager().bindTexture(BATCH_BUTTON_TEXTURE);
+        drawModalRectWithCustomSizedTexture(batchX, batchY, 0, 0, TAB_BTN_SIZE, TAB_BTN_SIZE, TAB_BTN_SIZE, TAB_BTN_SIZE);
+
+        // Draw hover overlay for batch button
+        if (batchButtonHovered) {
+            drawRect(batchX, batchY, batchX + TAB_BTN_SIZE, batchY + TAB_BTN_SIZE, 0x40FFFFFF);
+        }
+
+        // Speed button
+        int speedX = guiLeft + SPEED_BTN_X;
+        int speedY = guiTop + SPEED_BTN_Y;
+        speedButtonHovered = mouseX >= speedX && mouseX < speedX + TAB_BTN_SIZE &&
+                             mouseY >= speedY && mouseY < speedY + TAB_BTN_SIZE;
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        mc.getTextureManager().bindTexture(SPEED_BUTTON_TEXTURE);
+        drawModalRectWithCustomSizedTexture(speedX, speedY, 0, 0, TAB_BTN_SIZE, TAB_BTN_SIZE, TAB_BTN_SIZE, TAB_BTN_SIZE);
+
+        // Draw hover overlay for speed button
+        if (speedButtonHovered) {
+            drawRect(speedX, speedY, speedX + TAB_BTN_SIZE, speedY + TAB_BTN_SIZE, 0x40FFFFFF);
+        }
+
+        GlStateManager.disableBlend();
     }
 
     /**
@@ -378,7 +470,7 @@ public class GuiAutoCrafter extends GuiContainer {
     }
 
     /**
-     * Draws tooltips for custom buttons and AE2 tab buttons.
+     * Draws tooltips for custom buttons.
      */
     private void drawAE2ButtonTooltips(int mouseX, int mouseY) {
         List<String> tooltip = new ArrayList<>();
@@ -389,13 +481,13 @@ public class GuiAutoCrafter extends GuiContainer {
             tooltip.add(I18n.format("gui.ae2powertools.crafter.page.previous"));
         } else if (pageNextHovered) {
             tooltip.add(I18n.format("gui.ae2powertools.crafter.page.next"));
-        } else if (batchButton.isMouseOver()) {
+        } else if (batchButtonHovered) {
             tooltip.add(I18n.format("gui.ae2powertools.crafter.batch.title"));
             tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.batch.desc",
                     container.syncBatchSize));
             tooltip.add("");
             tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.batch.explanation"));
-        } else if (speedButton.isMouseOver()) {
+        } else if (speedButtonHovered) {
             tooltip.add(I18n.format("gui.ae2powertools.crafter.speed.title"));
             tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.speed.desc",
                     FormatUtil.formatTimeTicks(container.syncSpeedTicks)));
@@ -411,8 +503,7 @@ public class GuiAutoCrafter extends GuiContainer {
     // ==================== RECIPE VIEW ====================
 
     private void drawRecipeContent(int mouseX, int mouseY) {
-        CrafterEntry entry = container.getCurrentEntry();
-        if (entry == null) return;
+        int currentPage = getCurrentPage();
 
         // Don't update hover state if overview modal is open
         if (!overviewMode) {
@@ -420,81 +511,84 @@ public class GuiAutoCrafter extends GuiContainer {
             hoveredResult = false;
         }
 
-        // Draw recipe preview grid (3x3)
-        IAEItemStack[] inputGrid = entry.getInputGrid();
-        if (inputGrid != null) {
-            for (int row = 0; row < 3; row++) {
-                for (int col = 0; col < 3; col++) {
-                    int slotIndex = row * 3 + col;
-                    int x = guiLeft + RECIPE_GRID_X + col * 18;
-                    int y = guiTop + RECIPE_GRID_Y + row * 18;
+        // Only draw recipe items if we have display data (pattern present)
+        if (hasDisplayData(currentPage)) {
+            // Draw recipe preview grid (3x3) using synced input grid
+            IAEItemStack[] inputGrid = getSyncedInputGrid(currentPage);
+            if (inputGrid != null) {
+                for (int row = 0; row < 3; row++) {
+                    for (int col = 0; col < 3; col++) {
+                        int slotIndex = row * 3 + col;
+                        int x = guiLeft + RECIPE_GRID_X + col * 18;
+                        int y = guiTop + RECIPE_GRID_Y + row * 18;
 
-                    // Check hover (only if not in overview mode)
-                    if (!overviewMode && mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
-                        hoveredRecipeSlot = slotIndex;
-                    }
+                        // Check hover (only if not in overview mode)
+                        if (!overviewMode && mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
+                            hoveredRecipeSlot = slotIndex;
+                        }
 
-                    // Draw item
-                    if (inputGrid[slotIndex] != null) {
-                        drawItemStack(inputGrid[slotIndex].createItemStack(), x, y);
+                        // Draw item
+                        if (inputGrid[slotIndex] != null) {
+                            drawItemStack(inputGrid[slotIndex].createItemStack(), x, y);
+                        }
                     }
                 }
             }
-        }
 
-        // Draw recipe result - 22x22 slot, item centered (+3 offset for 16x16 in 22x22)
-        IAEItemStack outputItem = entry.getOutputItem();
-        if (outputItem != null) {
-            int slotX = guiLeft + RECIPE_RESULT_X;
-            int slotY = guiTop + RECIPE_RESULT_Y;
-            int itemX = slotX + 3;  // Center 16x16 item in 22x22 slot
-            int itemY = slotY + 3;
+            // Draw recipe result - 22x22 slot, item centered (+3 offset for 16x16 in 22x22)
+            IAEItemStack outputItem = getSyncedOutput(currentPage);
+            if (outputItem != null) {
+                int slotX = guiLeft + RECIPE_RESULT_X;
+                int slotY = guiTop + RECIPE_RESULT_Y;
+                int itemX = slotX + 3;  // Center 16x16 item in 22x22 slot
+                int itemY = slotY + 3;
 
-            // Hover detection covers full 22x22 slot area
-            if (!overviewMode && mouseX >= slotX && mouseX < slotX + RECIPE_RESULT_SIZE &&
-                    mouseY >= slotY && mouseY < slotY + RECIPE_RESULT_SIZE) {
-                hoveredResult = true;
+                // Hover detection covers full 22x22 slot area
+                if (!overviewMode && mouseX >= slotX && mouseX < slotX + RECIPE_RESULT_SIZE &&
+                        mouseY >= slotY && mouseY < slotY + RECIPE_RESULT_SIZE) {
+                    hoveredResult = true;
+                }
+
+                drawItemStack(outputItem.createItemStack(), itemX, itemY);
             }
 
-            drawItemStack(outputItem.createItemStack(), itemX, itemY);
+            // Draw catalyst ghost items using synced catalyst data
+            drawCatalystGhosts(currentPage, mouseX, mouseY);
+
+            // Draw speed info (under catalyst slots) using synced values
+            drawSpeedInfo(currentPage, guiLeft + SPEED_INFO_X, guiTop + SPEED_INFO_Y);
         }
 
-        // Draw catalyst ghost items
-        drawCatalystGhosts(entry, mouseX, mouseY);
-
-        // Draw speed info (under catalyst slots)
-        drawSpeedInfo(entry, guiLeft + SPEED_INFO_X, guiTop + SPEED_INFO_Y);
-
-        // Draw state indicator (under speed info)
-        // Use container's synced state for immediate display accuracy
-        drawStateIndicator(getCurrentPage(), guiLeft + STATE_INDICATOR_X, guiTop + STATE_INDICATOR_Y);
+        // ALWAYS draw state indicator - shows NO_PATTERN for empty entries
+        drawStateIndicator(currentPage, guiLeft + STATE_INDICATOR_X, guiTop + STATE_INDICATOR_Y);
     }
 
-    private void drawCatalystGhosts(CrafterEntry entry, int mouseX, int mouseY) {
-        if (!entry.hasValidRecipeInfo()) return;
-
-        CrafterRecipeInfo info = entry.getRecipeInfo();
-        if (info == null) return;
-
-        // Draw ghost items at their actual slot positions (1:1 mapping with crafting grid)
-        List<CrafterRecipeInfo.IngredientInfo> catalysts = info.getCatalystSlots();
+    /**
+     * Draws catalyst ghost items using synced data.
+     * Shows ghost items for empty catalyst slots based on the recipe requirements.
+     */
+    private void drawCatalystGhosts(int entryIndex, int mouseX, int mouseY) {
+        // Use synced catalyst info for immediate accuracy
+        List<CatalystInfo> catalysts = syncedCatalystInfo.get(entryIndex);
+        if (catalysts == null || catalysts.isEmpty()) return;
 
         // Collect positions that need ghost overlay rendering (drawn after all items)
         List<int[]> ghostOverlayPositions = new ArrayList<>();
 
-        for (CrafterRecipeInfo.IngredientInfo catalyst : catalysts) {
-            int slotIndex = catalyst.getSlotIndex();
+        for (CatalystInfo catalyst : catalysts) {
+            int slotIndex = catalyst.slotIndex;
             if (slotIndex < 0 || slotIndex >= CrafterEntry.CATALYST_SLOTS) continue;
 
-            ItemStack current = entry.getCatalystStack(slotIndex);
+            // Use synced catalyst inventory
+            ItemStack current = syncedCatalystInventory[entryIndex][slotIndex];
 
             // Position based on actual slot index, not iteration index
             int x = guiLeft + CATALYST_START_X + slotIndex * 18;
             int y = guiTop + CATALYST_START_Y;
 
-            if (current.isEmpty() && catalyst.getItem() != null) {
+            if ((current == null || current.isEmpty()) && catalyst.expectedItem != null) {
                 // Draw ghost item showing what's needed in this slot
-                drawItemStack(catalyst.getItem().createItemStack(), x, y);
+                drawItemStack(catalyst.expectedItem.createItemStack(), x, y);
 
                 // Record position for ghost overlay (drawn later in one batch)
                 ghostOverlayPositions.add(new int[]{x, y});
@@ -538,21 +632,22 @@ public class GuiAutoCrafter extends GuiContainer {
     /**
      * Draws speed/throughput info under the catalyst slots.
      * Shows estimated throughput like "~1.2k items/5h" based on current speed and batch size.
+     * Uses synced data for immediate accuracy.
      */
-    private void drawSpeedInfo(CrafterEntry entry, int x, int y) {
-        // Use hasDisplayData() to work with synced data on client
-        if (!entry.hasDisplayData()) return;
+    private void drawSpeedInfo(int entryIndex, int x, int y) {
+        // Use synced data for immediate accuracy
+        if (!hasDisplayData(entryIndex)) return;
 
-        // Get output count from synced data or recipeInfo
-        IAEItemStack output = entry.getOutputItem();
+        // Get output count from synced data
+        IAEItemStack output = getSyncedOutput(entryIndex);
         if (output == null) return;
 
-        // Calculate throughput using synced effective batch size
-        int speedTicks = container.syncSpeedTicks;
-        int batchSize = container.syncBatchSize;
+        // Calculate throughput using synced values
+        int speedTicks = getSyncedSpeedTicks();
+        int batchSize = getSyncedBatchSize();
         long outputCount = output.getStackSize();
 
-        long itemsPerCraft = container.syncEffectiveBatchSize * outputCount;
+        long itemsPerCraft = getSyncedEffectiveBatchSize() * outputCount;
         String itemsPerCraftStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(itemsPerCraft);
         String timePerOperation = FormatUtil.formatTimeTicks(speedTicks * batchSize);
         String throughput = I18n.format("gui.ae2powertools.crafter.crafts_per_operation",
@@ -563,11 +658,10 @@ public class GuiAutoCrafter extends GuiContainer {
 
     /**
      * Draws the state indicator (IDLE, MISSING_INPUT, etc.) at the given position.
-     * Uses the container's synced state for immediate accuracy, rather than
-     * reading from the tile entry which may have delayed sync.
+     * Uses packet-synced state for immediate accuracy.
      */
     private void drawStateIndicator(int entryIndex, int x, int y) {
-        CrafterState state = container.getSyncedEntryState(entryIndex);
+        CrafterState state = getSyncedState(entryIndex);
         int bgColor = state.getBackgroundColor();
         int textColor = state.getTextColor();
 
@@ -579,6 +673,8 @@ public class GuiAutoCrafter extends GuiContainer {
 
     private String getStateText(CrafterState state) {
         switch (state) {
+            case NO_PATTERN:
+                return I18n.format("gui.ae2powertools.crafter.state.no_pattern");
             case DISABLED:
                 return I18n.format("gui.ae2powertools.crafter.state.disabled");
             case IDLE:
@@ -599,10 +695,10 @@ public class GuiAutoCrafter extends GuiContainer {
     }
 
     private void drawRecipeTooltips(int mouseX, int mouseY) {
-        CrafterEntry entry = container.getCurrentEntry();
-        if (entry == null) return;
+        int currentPage = getCurrentPage();
+        if (!hasDisplayData(currentPage)) return;
 
-        IAEItemStack[] inputGrid = entry.getInputGrid();
+        IAEItemStack[] inputGrid = getSyncedInputGrid(currentPage);
 
         // Recipe grid tooltip
         if (hoveredRecipeSlot >= 0 && hoveredRecipeSlot < 9 && inputGrid != null) {
@@ -612,7 +708,7 @@ public class GuiAutoCrafter extends GuiContainer {
 
         // Result tooltip with toggle hint
         if (hoveredResult) {
-            IAEItemStack outputItem = entry.getOutputItem();
+            IAEItemStack outputItem = getSyncedOutput(currentPage);
             if (outputItem != null) {
                 List<String> tooltip = new ArrayList<>();
                 tooltip.addAll(outputItem.createItemStack().getTooltip(mc.player,
@@ -626,11 +722,15 @@ public class GuiAutoCrafter extends GuiContainer {
             }
         }
 
-        // Pattern slot tooltip
+        // Pattern slot tooltip - needs actual entry for the pattern stack
+        // Fall back to container here since pattern display is less critical
         int patternX = guiLeft + PATTERN_SLOT_X;
         int patternY = guiTop + PATTERN_SLOT_Y;
         if (mouseX >= patternX && mouseX < patternX + 16 && mouseY >= patternY && mouseY < patternY + 16) {
-            if (entry.hasPattern()) drawItemTooltip(entry.getPatternStack(), mouseX, mouseY);
+            CrafterEntry entry = container.getCurrentEntry();
+            if (entry != null && entry.hasPattern()) {
+                drawItemTooltip(entry.getPatternStack(), mouseX, mouseY);
+            }
         }
     }
 
@@ -641,14 +741,27 @@ public class GuiAutoCrafter extends GuiContainer {
      * This is a floating window that shows all 12 entries at once.
      */
     private void drawOverviewModal(int mouseX, int mouseY, float partialTicks) {
-        // Reset GL state for modal drawing
+        // Fully reset GL state before drawing modal.
+        // Item rendering from recipe view leaves various GL states enabled that cause
+        // texture bleeding (e.g., pattern slot texture leaking into 2nd overview row).
+        RenderHelper.disableStandardItemLighting();
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
+        GlStateManager.disableAlpha();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ZERO);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        // Draw modal background
+        // Draw modal background - bind texture AFTER GL state reset
         mc.getTextureManager().bindTexture(OVERVIEW_TEXTURE);
         drawTexturedModalRect(overviewLeft, overviewTop, 0, 0, OVERVIEW_MODAL_WIDTH, OVERVIEW_MODAL_HEIGHT);
+
+        // Re-enable alpha for subsequent drawing
+        GlStateManager.enableAlpha();
 
         // Draw close/back button (> arrow to go back to recipe view)
         // Same position as overview button in recipe view (top left)
@@ -662,7 +775,7 @@ public class GuiAutoCrafter extends GuiContainer {
 
         // Draw title (shifted right to make room for back button on the left)
         String title = I18n.format("gui.ae2powertools.crafter.overview");
-        fontRenderer.drawString(title, overviewLeft + OVERVIEW_BTN_X + PAGE_BTN_SIZE + 4, overviewTop + 6, 0x404040);
+        fontRenderer.drawString(title, overviewLeft + OVERVIEW_BTN_X + PAGE_BTN_SIZE + 4, overviewTop + 7, 0x404040);
 
         // Draw entries
         drawOverviewEntries(mouseX, mouseY);
@@ -672,14 +785,12 @@ public class GuiAutoCrafter extends GuiContainer {
 
     /**
      * Draws all entries in the overview modal.
+     * Uses packet-synced data for immediate accuracy.
      */
     private void drawOverviewEntries(int mouseX, int mouseY) {
         hoveredOverviewRow = -1;
 
         for (int i = 0; i < TileAutoCrafter.ENTRY_COUNT; i++) {
-            CrafterEntry entry = container.getTile().getEntry(i);
-            if (entry == null) continue;
-
             int rowX = overviewLeft + OVERVIEW_ROW_X;
             int rowY = overviewTop + OVERVIEW_ROW_Y + i * OVERVIEW_ROW_HEIGHT;
 
@@ -689,8 +800,8 @@ public class GuiAutoCrafter extends GuiContainer {
                 hoveredOverviewRow = i;
             }
 
-            // Draw background based on state (use synced state for immediate accuracy)
-            CrafterState state = container.getSyncedEntryState(i);
+            // Draw background based on state (use packet-synced state)
+            CrafterState state = getSyncedState(i);
             int bgColor = state.getBackgroundColor();
             if ((bgColor & 0xFF000000) != 0) {
                 drawRect(rowX, rowY, rowX + OVERVIEW_ROW_WIDTH, rowY + OVERVIEW_ROW_HEIGHT, bgColor);
@@ -701,25 +812,33 @@ public class GuiAutoCrafter extends GuiContainer {
                 drawRect(rowX, rowY, rowX + OVERVIEW_ROW_WIDTH, rowY + OVERVIEW_ROW_HEIGHT, 0x40FFFFFF);
             }
 
-            // Draw item preview (uses synced data on client)
-            if (entry.hasDisplayData()) {
-                IAEItemStack outputItem = entry.getOutputItem();
+            // Draw item preview using synced data
+            // Note: Reset GL state before each item render to prevent texture bleeding from recipe view
+            if (hasDisplayData(i)) {
+                IAEItemStack outputItem = getSyncedOutput(i);
                 if (outputItem != null) {
+                    // Reset GL state completely to prevent texture bleeding
+                    GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
                     GlStateManager.enableDepth();
+                    GlStateManager.enableRescaleNormal();
                     drawItemStack(outputItem.createItemStack(), rowX + 1, rowY + 1);
+                    GlStateManager.disableRescaleNormal();
                     GlStateManager.disableDepth();
+                    // Rebind overview texture after item rendering to restore state
+                    mc.getTextureManager().bindTexture(OVERVIEW_TEXTURE);
+                    GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
                 }
             }
 
             // Draw entry info with metrics
-            String info = getEntryOverviewInfo(entry, i);
+            String info = getEntryOverviewInfo(i);
             fontRenderer.drawString(info, rowX + 20, rowY + 5, state.getTextColor());
 
-            // Draw metrics on the right side if entry has data (uses hasDisplayData on client)
-            if (entry.hasDisplayData() && entry.getMetricsTotal() > 0) {
+            // Draw metrics on the right side if entry has data
+            if (hasDisplayData(i) && getSyncedMetricsTotal(i) > 0) {
                 String metrics = I18n.format("gui.ae2powertools.crafter.metrics_format",
-                        String.format("%.0f", entry.getOccupancy()),
-                        String.format("%.0f", entry.getErrorRate()));
+                        String.format("%.0f", getSyncedOccupancy(i)),
+                        String.format("%.0f", getSyncedErrorRate(i)));
                 int metricsWidth = fontRenderer.getStringWidth(metrics);
                 // Use contrasting colors: white with shadow for colored backgrounds, gray for idle
                 int metricsColor = state == CrafterState.IDLE ? 0x707070 : 0xFFFFFF;
@@ -733,11 +852,11 @@ public class GuiAutoCrafter extends GuiContainer {
         }
     }
 
-    private String getEntryOverviewInfo(CrafterEntry entry, int index) {
-        // Use hasDisplayData() since hasPattern() doesn't work on client
-        if (!entry.hasDisplayData()) return I18n.format("gui.ae2powertools.crafter.empty_slot", index + 1);
+    private String getEntryOverviewInfo(int index) {
+        // Use synced data
+        if (!hasDisplayData(index)) return I18n.format("gui.ae2powertools.crafter.empty_slot", index + 1);
 
-        IAEItemStack output = entry.getOutputItem();
+        IAEItemStack output = getSyncedOutput(index);
         String itemName = output != null ? output.createItemStack().getDisplayName() : "???";
 
         // Truncate name if too long to leave room for metrics
@@ -745,7 +864,7 @@ public class GuiAutoCrafter extends GuiContainer {
         int availableWidth = OVERVIEW_ROW_WIDTH - 70;
         String truncated = fontRenderer.trimStringToWidth(itemName, availableWidth);
         if (!truncated.equals(itemName)) {
-            itemName = truncated.substring(0, Math.max(0, truncated.length() - 2)) + "..";
+            itemName = truncated.substring(0, Math.max(0, truncated.length() - 2)) + "...";
         }
 
         return itemName;
@@ -754,21 +873,20 @@ public class GuiAutoCrafter extends GuiContainer {
     private void drawOverviewTooltips(int mouseX, int mouseY) {
         if (hoveredOverviewRow < 0 || hoveredOverviewRow >= TileAutoCrafter.ENTRY_COUNT) return;
 
-        CrafterEntry entry = container.getTile().getEntry(hoveredOverviewRow);
-        if (entry == null) return;
+        int entryIndex = hoveredOverviewRow;
 
         // Check if hovering over metrics area (right side of row)
         int rowX = overviewLeft + OVERVIEW_ROW_X;
         int metricsX = rowX + OVERVIEW_ROW_WIDTH - 60; // Approximate metrics start position
         boolean hoveringMetrics = mouseX >= metricsX;
 
-        IAEItemStack output = entry.getOutputItem();
+        IAEItemStack output = getSyncedOutput(entryIndex);
 
         List<String> tooltip = new ArrayList<>();
 
-        // Empty slot tooltip (uses synced data on client)
-        if (!entry.hasDisplayData()) {
-            tooltip.add(I18n.format("gui.ae2powertools.crafter.empty_slot", hoveredOverviewRow + 1));
+        // Empty slot tooltip using synced data
+        if (!hasDisplayData(entryIndex)) {
+            tooltip.add(I18n.format("gui.ae2powertools.crafter.empty_slot", entryIndex + 1));
             tooltip.add("");
             tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.click_to_view"));
             GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, width, height, -1, fontRenderer);
@@ -777,38 +895,36 @@ public class GuiAutoCrafter extends GuiContainer {
 
         if (output == null) return;
 
-        if (hoveringMetrics && entry.getLastRequestedBatchSize() > 0) {
-            // Show metrics explanation when hovering the metrics area
-            tooltip.add(TextFormatting.GOLD + I18n.format("gui.ae2powertools.crafter.metrics_title"));
-            tooltip.add("");
-
-            int intervalTicks = container.syncSpeedTicks * container.syncBatchSize;
-            String intervalFormatted = FormatUtil.formatTimeTicks(intervalTicks);
-
+        if (hoveringMetrics && getSyncedMetricsTotal(entryIndex) > 0) {
             // Occupancy explanation
-            String occupancy = String.format("%.1f%%", entry.getOccupancy());
-            tooltip.add(TextFormatting.GREEN + I18n.format("gui.ae2powertools.crafter.occupancy") + ": " + occupancy);
+            String occupancy = String.format("%.1f%%", getSyncedOccupancy(entryIndex));
+            tooltip.add(TextFormatting.GREEN + I18n.format("gui.ae2powertools.crafter.occupancy", occupancy));
             tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.occupancy_desc"));
-            tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.crafts_per_operation",
-                    entry.getLastRequestedBatchSize(), intervalFormatted));
             tooltip.add("");
 
             // Error rate explanation
-            String errorRate = String.format("%.1f%%", entry.getErrorRate());
-            tooltip.add((entry.getErrorRate() > 10 ? TextFormatting.RED : TextFormatting.YELLOW) 
-                      + I18n.format("gui.ae2powertools.crafter.error_rate") + ": " + errorRate);
+            TextFormatting errorColor = TextFormatting.GREEN;
+            double errorRate = getSyncedErrorRate(entryIndex);
+            if (errorRate > 10) {
+                errorColor = TextFormatting.RED;
+            } else if (errorRate > 0) {
+                errorColor = TextFormatting.YELLOW;
+            }
+
+            String errorRateStr = String.format("%.1f%%", errorRate);
+            tooltip.add(errorColor + I18n.format("gui.ae2powertools.crafter.error_rate", errorRateStr));
             tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.error_rate_desc"));
         } else {
             // Show detailed tooltip for the entry
             tooltip.add(output.createItemStack().getDisplayName());
             tooltip.add("");
 
-            // Status (use synced state for immediate accuracy)
+            // Status using packet-synced state
             tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.state") + ": " 
-                    + TextFormatting.RESET + getStateText(container.getSyncedEntryState(hoveredOverviewRow)));
+                    + TextFormatting.RESET + getStateText(getSyncedState(entryIndex)));
 
-            // Error details if any
-            List<String> errorDetails = entry.getErrorDetails();
+            // Error details using synced data
+            List<String> errorDetails = getSyncedErrorDetails(entryIndex);
             if (!errorDetails.isEmpty()) {
                 tooltip.add("");
                 tooltip.add(TextFormatting.RED + I18n.format("gui.ae2powertools.crafter.issues") + ":");
@@ -816,29 +932,33 @@ public class GuiAutoCrafter extends GuiContainer {
             }
 
             // Metrics summary with explanations
-            if (entry.getMetricsTotal() > 0) {
-                tooltip.add("");
-                tooltip.add(TextFormatting.GOLD + I18n.format("gui.ae2powertools.crafter.metrics_title"));
-
+            if (getSyncedMetricsTotal(entryIndex) > 0) {
                 tooltip.add("");
 
                 // Occupancy
-                String occupancy = String.format("%.1f%%", entry.getOccupancy());
-                tooltip.add(TextFormatting.GREEN + I18n.format("gui.ae2powertools.crafter.occupancy") + ": " + occupancy);
+                String occupancy = String.format("%.1f%%", getSyncedOccupancy(entryIndex));
+                tooltip.add(TextFormatting.GREEN + I18n.format("gui.ae2powertools.crafter.occupancy", occupancy));
                 tooltip.add(TextFormatting.DARK_GRAY + "  " + I18n.format("gui.ae2powertools.crafter.occupancy_desc"));
 
                 tooltip.add("");
 
                 // Error rate
-                String errorRate = String.format("%.1f%%", entry.getErrorRate());
-                TextFormatting errorColor = entry.getErrorRate() > 10 ? TextFormatting.RED : TextFormatting.YELLOW;
-                tooltip.add(errorColor + I18n.format("gui.ae2powertools.crafter.error_rate") + ": " + errorRate);
+                TextFormatting errorColor = TextFormatting.GREEN;
+                double errorRate = getSyncedErrorRate(entryIndex);
+                if (errorRate > 10) {
+                    errorColor = TextFormatting.RED;
+                } else if (errorRate > 0) {
+                    errorColor = TextFormatting.YELLOW;
+                }
+
+                String errorRateStr = String.format("%.1f%%", errorRate);
+                tooltip.add(errorColor + I18n.format("gui.ae2powertools.crafter.error_rate", errorRateStr));
                 tooltip.add(TextFormatting.DARK_GRAY + "  " + I18n.format("gui.ae2powertools.crafter.error_rate_desc"));
             }
 
             tooltip.add("");
-            tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.click_to_view"));
-            tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.right_click_toggle"));
+            tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.crafter.click_to_view"));
+            tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.crafter.right_click_toggle"));
         }
 
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, width, height, -1, fontRenderer);
@@ -851,7 +971,6 @@ public class GuiAutoCrafter extends GuiContainer {
         // Escape closes overview modal
         if (overviewMode && keyCode == Keyboard.KEY_ESCAPE) {
             overviewMode = false;
-            updateButtonVisibility();
             return;
         }
 
@@ -866,11 +985,10 @@ public class GuiAutoCrafter extends GuiContainer {
             return;
         }
 
-        // Custom button handling (overview toggle, page navigation)
+        // Custom button handling (overview toggle, page navigation, batch/speed)
         if (mouseButton == 0) {
             if (overviewBtnHovered) {
                 overviewMode = true;
-                updateButtonVisibility();
                 return;
             }
 
@@ -882,6 +1000,17 @@ public class GuiAutoCrafter extends GuiContainer {
 
             if (pageNextHovered && getCurrentPage() < TileAutoCrafter.ENTRY_COUNT - 1) {
                 setCurrentPage(getCurrentPage() + 1);
+                return;
+            }
+
+            // Batch/Speed buttons
+            if (batchButtonHovered) {
+                openBatchDialog();
+                return;
+            }
+
+            if (speedButtonHovered) {
+                openSpeedDialog();
                 return;
             }
         }
@@ -906,7 +1035,6 @@ public class GuiAutoCrafter extends GuiContainer {
         // Close button click
         if (mouseButton == 0 && overviewCloseBtnHovered) {
             overviewMode = false;
-            updateButtonVisibility();
             return;
         }
 
@@ -914,7 +1042,6 @@ public class GuiAutoCrafter extends GuiContainer {
         if (mouseX < overviewLeft || mouseX >= overviewLeft + OVERVIEW_MODAL_WIDTH ||
                 mouseY < overviewTop || mouseY >= overviewTop + OVERVIEW_MODAL_HEIGHT) {
             overviewMode = false;
-            updateButtonVisibility();
             return;
         }
 
@@ -924,7 +1051,6 @@ public class GuiAutoCrafter extends GuiContainer {
                 // Left-click: go to that page and close modal
                 setCurrentPage(hoveredOverviewRow);
                 overviewMode = false;
-                updateButtonVisibility();
             } else if (mouseButton == 1) {
                 // Right-click: toggle enabled
                 CrafterEntry entry = container.getTile().getEntry(hoveredOverviewRow);
@@ -949,10 +1075,8 @@ public class GuiAutoCrafter extends GuiContainer {
         // In recipe mode, scroll through pages
         if (scroll > 0 && getCurrentPage() > 0) {
             setCurrentPage(getCurrentPage() - 1);
-            updateButtonVisibility();
         } else if (scroll < 0 && getCurrentPage() < TileAutoCrafter.ENTRY_COUNT - 1) {
             setCurrentPage(getCurrentPage() + 1);
-            updateButtonVisibility();
         }
     }
 
@@ -976,5 +1100,207 @@ public class GuiAutoCrafter extends GuiContainer {
                 ? ITooltipFlag.TooltipFlags.ADVANCED : ITooltipFlag.TooltipFlags.NORMAL);
 
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, width, height, -1, fontRenderer);
+    }
+
+    // ==================== PACKET-BASED STATE SYNC ====================
+
+    /**
+     * Handles incoming state sync packet from server.
+     * This is called by the packet handler when data arrives.
+     */
+    public void handleStateSync(NBTTagCompound data) {
+        // Global settings
+        syncedSpeedTicks = data.getInteger("speedTicks");
+        syncedBatchSize = data.getInteger("batchSize");
+        syncedEffectiveBatchSize = data.getInteger("effectiveBatchSize");
+        syncedCurrentPage = data.getInteger("currentPage");
+
+        // Update container's page to match
+        if (container.getCurrentEntryIndex() != syncedCurrentPage) {
+            container.setCurrentEntryIndex(syncedCurrentPage);
+            lastKnownPage = syncedCurrentPage;
+        }
+
+        // Parse entries
+        NBTTagList entriesList = data.getTagList("entries", 10);
+        for (int i = 0; i < Math.min(entriesList.tagCount(), TileAutoCrafter.ENTRY_COUNT); i++) {
+            NBTTagCompound entryTag = entriesList.getCompoundTagAt(i);
+
+            // State
+            int stateOrdinal = entryTag.getInteger("state");
+            if (stateOrdinal >= 0 && stateOrdinal < CrafterState.values().length) {
+                syncedStates[i] = CrafterState.values()[stateOrdinal];
+            } else {
+                syncedStates[i] = CrafterState.NO_PATTERN;
+            }
+
+            // Metrics
+            syncedMetricsTotal[i] = entryTag.getLong("metricsTotal");
+            long metricsError = entryTag.getLong("metricsError");
+            long metricsTotalActualCrafted = entryTag.getLong("metricsTotalActualCrafted");
+            long metricsTotalMaxPossible = entryTag.getLong("metricsTotalMaxPossible");
+
+            // Calculate rates
+            syncedErrorRate[i] = syncedMetricsTotal[i] > 0 
+                    ? (metricsError * 100.0) / syncedMetricsTotal[i] : 0.0;
+            syncedOccupancy[i] = metricsTotalMaxPossible > 0 
+                    ? (metricsTotalActualCrafted * 100.0) / metricsTotalMaxPossible : 0.0;
+
+            // Display data
+            syncedHasDisplayData[i] = entryTag.getBoolean("hasDisplayData");
+
+            if (syncedHasDisplayData[i]) {
+                // Output item
+                if (entryTag.hasKey("output")) {
+                    ItemStack outputStack = new ItemStack(entryTag.getCompoundTag("output"));
+                    syncedOutputItems[i] = AEItemStack.fromItemStack(outputStack);
+                } else {
+                    syncedOutputItems[i] = null;
+                }
+
+                // Input grid
+                if (entryTag.hasKey("inputGrid")) {
+                    NBTTagList gridList = entryTag.getTagList("inputGrid", 10);
+                    for (int j = 0; j < Math.min(gridList.tagCount(), 9); j++) {
+                        NBTTagCompound slotTag = gridList.getCompoundTagAt(j);
+                        if (!slotTag.isEmpty()) {
+                            ItemStack gridStack = new ItemStack(slotTag);
+                            syncedInputGrids[i][j] = AEItemStack.fromItemStack(gridStack);
+                        } else {
+                            syncedInputGrids[i][j] = null;
+                        }
+                    }
+                }
+
+                // Catalyst info (expected items for ghost rendering)
+                syncedCatalystInfo.get(i).clear();
+                if (entryTag.hasKey("catalysts")) {
+                    NBTTagList catalystList = entryTag.getTagList("catalysts", 10);
+                    for (int j = 0; j < catalystList.tagCount(); j++) {
+                        NBTTagCompound catTag = catalystList.getCompoundTagAt(j);
+                        int slotIndex = catTag.getInteger("slot");
+                        IAEItemStack expectedItem = null;
+                        if (catTag.hasKey("item")) {
+                            ItemStack itemStack = new ItemStack(catTag.getCompoundTag("item"));
+                            expectedItem = AEItemStack.fromItemStack(itemStack);
+                        }
+                        syncedCatalystInfo.get(i).add(new CatalystInfo(slotIndex, expectedItem));
+                    }
+                }
+
+                // Catalyst inventory (actual items in slots)
+                if (entryTag.hasKey("catalystInventory")) {
+                    NBTTagList catalystInvList = entryTag.getTagList("catalystInventory", 10);
+                    for (int j = 0; j < Math.min(catalystInvList.tagCount(), CrafterEntry.CATALYST_SLOTS); j++) {
+                        NBTTagCompound slotTag = catalystInvList.getCompoundTagAt(j);
+                        if (!slotTag.isEmpty()) {
+                            syncedCatalystInventory[i][j] = new ItemStack(slotTag);
+                        } else {
+                            syncedCatalystInventory[i][j] = ItemStack.EMPTY;
+                        }
+                    }
+                }
+            } else {
+                syncedOutputItems[i] = null;
+                for (int j = 0; j < 9; j++) syncedInputGrids[i][j] = null;
+                syncedCatalystInfo.get(i).clear();
+                for (int j = 0; j < CrafterEntry.CATALYST_SLOTS; j++) {
+                    syncedCatalystInventory[i][j] = ItemStack.EMPTY;
+                }
+            }
+
+            // Error details
+            syncedErrorDetails.get(i).clear();
+            if (entryTag.hasKey("errors")) {
+                NBTTagList errorList = entryTag.getTagList("errors", 10);
+                for (int j = 0; j < errorList.tagCount(); j++) {
+                    NBTTagCompound errorTag = errorList.getCompoundTagAt(j);
+                    syncedErrorDetails.get(i).add(errorTag.getString("msg"));
+                }
+            }
+        }
+
+        hasSyncedData = true;
+    }
+
+    // ==================== SYNCED DATA ACCESSORS ====================
+
+    /** Gets the synced state for an entry. */
+    private CrafterState getSyncedState(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return CrafterState.NO_PATTERN;  // Fallback before first packet arrives
+        }
+        return syncedStates[entryIndex];
+    }
+
+    /** Gets whether an entry has display data. */
+    private boolean hasDisplayData(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return container.getTile().getEntry(entryIndex).hasDisplayData();
+        }
+        return syncedHasDisplayData[entryIndex];
+    }
+
+    /** Gets the synced output item for an entry. */
+    private IAEItemStack getSyncedOutput(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return container.getTile().getEntry(entryIndex).getOutputItem();
+        }
+        return syncedOutputItems[entryIndex];
+    }
+
+    /** Gets the synced input grid for an entry. */
+    private IAEItemStack[] getSyncedInputGrid(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return container.getTile().getEntry(entryIndex).getInputGrid();
+        }
+        return syncedInputGrids[entryIndex];
+    }
+
+    /** Gets the synced error details for an entry. */
+    private List<String> getSyncedErrorDetails(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return container.getTile().getEntry(entryIndex).getErrorDetails();
+        }
+        return syncedErrorDetails.get(entryIndex);
+    }
+
+    /** Gets the synced occupancy for an entry. */
+    private double getSyncedOccupancy(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return container.getTile().getEntry(entryIndex).getOccupancy();
+        }
+        return syncedOccupancy[entryIndex];
+    }
+
+    /** Gets the synced error rate for an entry. */
+    private double getSyncedErrorRate(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return container.getTile().getEntry(entryIndex).getErrorRate();
+        }
+        return syncedErrorRate[entryIndex];
+    }
+
+    /** Gets the synced metrics total for an entry. */
+    private long getSyncedMetricsTotal(int entryIndex) {
+        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return container.getTile().getEntry(entryIndex).getMetricsTotal();
+        }
+        return syncedMetricsTotal[entryIndex];
+    }
+
+    /** Gets synced speed ticks. */
+    private int getSyncedSpeedTicks() {
+        return hasSyncedData ? syncedSpeedTicks : container.syncSpeedTicks;
+    }
+
+    /** Gets synced batch size. */
+    private int getSyncedBatchSize() {
+        return hasSyncedData ? syncedBatchSize : container.syncBatchSize;
+    }
+
+    /** Gets synced effective batch size. */
+    private int getSyncedEffectiveBatchSize() {
+        return hasSyncedData ? syncedEffectiveBatchSize : container.syncEffectiveBatchSize;
     }
 }

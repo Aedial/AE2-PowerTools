@@ -8,6 +8,19 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.5.0-beta3] - 2026-03-02
+### Added
+- Add proper textures for Batch and Speed buttons in the AutoCrafter GUI.
+- Add "No pattern" state for entries without a pattern, instead of just "Disabled".
+
+### Fixed
+- Fix the auto-crafting state being stale in many cases due to sync issues (AE2 syncing is not made for real time).
+- Fix recipes stopping at max int items on the network.
+
+### Changed
+- Change "Idle" state to "Running normally".
+
+
 ## [1.5.0-beta2] - 2026-03-01
 ### Fixed
 - Fix lang files names due to .mcmeta addition.

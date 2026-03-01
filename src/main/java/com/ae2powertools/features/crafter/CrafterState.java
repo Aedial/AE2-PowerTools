@@ -7,14 +7,20 @@ package com.ae2powertools.features.crafter;
  */
 public enum CrafterState {
     /**
-     * Recipe is disabled by user (no pattern or manually disabled).
+     * Entry has no pattern set.
+     */
+    NO_PATTERN(0x00000000, 0x808080),
+
+    /**
+     * Recipe is disabled by user (pattern exists but manually disabled).
      */
     DISABLED(0x40303040, 0x808080),
 
     /**
      * Recipe is idle, waiting for the next scheduled run.
+     * Slight green background to indicate everything is working.
      */
-    IDLE(0x00000000, 0x707070),
+    IDLE(0x3040A040, 0x40A040),
 
     /**
      * Missing reusable/catalyst items in internal inventory.

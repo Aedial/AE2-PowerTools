@@ -3,6 +3,7 @@ package com.ae2powertools.features.crafter;
 import javax.annotation.Nonnull;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Container;
@@ -21,6 +22,7 @@ import appeng.container.slot.SlotFake;
 import appeng.util.Platform;
 
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
+import com.ae2powertools.network.PowerToolsNetwork;
 
 
 /**
@@ -31,6 +33,13 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
     private final TileAutoCrafter tile;
     private final InventoryPlayer playerInv;
+
+    /**
+     * Tick counter for periodic tile sync while GUI is open.
+     * This ensures metrics data (occupancy, error rate) sync in real-time.
+     */
+    private int tickCounter = 0;
+    private static final int SYNC_INTERVAL = 10; // Sync tile data every 10 ticks (0.5 sec)
 
     /**
      * Currently viewed entry index (0-11).
@@ -59,36 +68,6 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     @GuiSync(4)
     public int syncEffectiveBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
 
-    /**
-     * Synced entry states (0-11). Each is the ordinal of CrafterState.
-     * These are synced via container packets for immediate GUI updates,
-     * rather than relying on tile block updates which may be delayed.
-     */
-    @GuiSync(10)
-    public int syncEntryState0 = CrafterState.DISABLED.ordinal();
-    @GuiSync(11)
-    public int syncEntryState1 = CrafterState.DISABLED.ordinal();
-    @GuiSync(12)
-    public int syncEntryState2 = CrafterState.DISABLED.ordinal();
-    @GuiSync(13)
-    public int syncEntryState3 = CrafterState.DISABLED.ordinal();
-    @GuiSync(14)
-    public int syncEntryState4 = CrafterState.DISABLED.ordinal();
-    @GuiSync(15)
-    public int syncEntryState5 = CrafterState.DISABLED.ordinal();
-    @GuiSync(16)
-    public int syncEntryState6 = CrafterState.DISABLED.ordinal();
-    @GuiSync(17)
-    public int syncEntryState7 = CrafterState.DISABLED.ordinal();
-    @GuiSync(18)
-    public int syncEntryState8 = CrafterState.DISABLED.ordinal();
-    @GuiSync(19)
-    public int syncEntryState9 = CrafterState.DISABLED.ordinal();
-    @GuiSync(20)
-    public int syncEntryState10 = CrafterState.DISABLED.ordinal();
-    @GuiSync(21)
-    public int syncEntryState11 = CrafterState.DISABLED.ordinal();
-
     // Slots for the current entry
     private SlotPattern patternSlot;
     private SlotCatalyst[] catalystSlots;
@@ -109,7 +88,6 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         if (Platform.isServer()) {
             this.syncSpeedTicks = tile.getSpeedTicks();
             this.syncBatchSize = tile.getBatchSize();
-            syncEntryStatesFromTile();
         }
 
         // Get initial page from tile
@@ -150,65 +128,31 @@ public class ContainerAutoCrafter extends AEBaseContainer {
             this.syncBatchSize = tile.getBatchSize();
             this.syncEffectiveBatchSize = tile.getEffectiveMaxBatchSize();
 
-            // Sync all entry states every tick to ensure GUI shows correct state
-            syncEntryStatesFromTile();
-
             int newPage = tile.getCurrentPage();
             if (newPage != this.syncCurrentPage) {
                 this.syncCurrentPage = newPage;
                 updateSlotsForCurrentPage();
             }
+
+            // Periodically send full state packet for reliable sync.
+            // This replaces the old markForUpdate() approach with packet-based sync.
+            tickCounter++;
+            if (tickCounter >= SYNC_INTERVAL) {
+                tickCounter = 0;
+                sendStatePacketToPlayer();
+            }
         }
     }
 
-    // FIXME: temporary mess
     /**
-     * Syncs the entry states from the tile to the GuiSync fields.
-     * This is called on the server to populate state values that will
-     * be sent to the client via container sync.
+     * Sends a full state sync packet to the player viewing this container.
+     * This provides reliable, immediate sync for metrics and other data.
      */
-    private void syncEntryStatesFromTile() {
-        syncEntryState0 = tile.getEntry(0).getState().ordinal();
-        syncEntryState1 = tile.getEntry(1).getState().ordinal();
-        syncEntryState2 = tile.getEntry(2).getState().ordinal();
-        syncEntryState3 = tile.getEntry(3).getState().ordinal();
-        syncEntryState4 = tile.getEntry(4).getState().ordinal();
-        syncEntryState5 = tile.getEntry(5).getState().ordinal();
-        syncEntryState6 = tile.getEntry(6).getState().ordinal();
-        syncEntryState7 = tile.getEntry(7).getState().ordinal();
-        syncEntryState8 = tile.getEntry(8).getState().ordinal();
-        syncEntryState9 = tile.getEntry(9).getState().ordinal();
-        syncEntryState10 = tile.getEntry(10).getState().ordinal();
-        syncEntryState11 = tile.getEntry(11).getState().ordinal();
-    }
-
-    /**
-     * Gets the synced state for a specific entry index.
-     * This is used by the client GUI to get the state from the
-     * container's synced fields rather than the tile (which may be stale).
-     */
-    public CrafterState getSyncedEntryState(int index) {
-        int ordinal;
-        switch (index) {
-            case 0: ordinal = syncEntryState0; break;
-            case 1: ordinal = syncEntryState1; break;
-            case 2: ordinal = syncEntryState2; break;
-            case 3: ordinal = syncEntryState3; break;
-            case 4: ordinal = syncEntryState4; break;
-            case 5: ordinal = syncEntryState5; break;
-            case 6: ordinal = syncEntryState6; break;
-            case 7: ordinal = syncEntryState7; break;
-            case 8: ordinal = syncEntryState8; break;
-            case 9: ordinal = syncEntryState9; break;
-            case 10: ordinal = syncEntryState10; break;
-            case 11: ordinal = syncEntryState11; break;
-            default: ordinal = CrafterState.DISABLED.ordinal();
+    private void sendStatePacketToPlayer() {
+        if (playerInv.player instanceof EntityPlayerMP) {
+            PacketCrafterStateSync syncPacket = PacketCrafterStateSync.fromTile(tile);
+            PowerToolsNetwork.INSTANCE.sendTo(syncPacket, (EntityPlayerMP) playerInv.player);
         }
-
-        CrafterState[] states = CrafterState.values();
-        if (ordinal < 0 || ordinal >= states.length) return CrafterState.DISABLED;
-
-        return states[ordinal];
     }
 
     public TileAutoCrafter getTile() {

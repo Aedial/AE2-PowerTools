@@ -232,9 +232,9 @@ gui.ae2powertools.crafter.speed.desc=Current: %s
 gui.ae2powertools.crafter.speed.explanation=Time between operations (higher = lower throughput)
 
 # GUI - States
+gui.ae2powertools.crafter.state.no_pattern=No Pattern
 gui.ae2powertools.crafter.state.disabled=Disabled
-gui.ae2powertools.crafter.state.idle=Idle - Ready
-gui.ae2powertools.crafter.state.running=Running
+gui.ae2powertools.crafter.state.idle=Running normally
 gui.ae2powertools.crafter.state.missing_catalyst=Missing Catalyst Items
 gui.ae2powertools.crafter.state.missing_input=Missing Input Items
 gui.ae2powertools.crafter.state.no_output_space=No Output Space
@@ -243,9 +243,8 @@ gui.ae2powertools.crafter.state.holding_output=Holding Output (waiting for space
 
 # GUI - Metrics
 gui.ae2powertools.crafter.state=Status
-gui.ae2powertools.crafter.occupancy=Occupancy
-gui.ae2powertools.crafter.error_rate=Error Rate
-gui.ae2powertools.crafter.metrics_title=Metrics
+gui.ae2powertools.crafter.occupancy=Occupancy: %s
+gui.ae2powertools.crafter.error_rate=Error Rate: %s
 gui.ae2powertools.crafter.metrics_format=%s%% | %s%%
 gui.ae2powertools.crafter.occupancy_desc=Percentage of requested batch actually crafted (because of resource constraints)
 gui.ae2powertools.crafter.error_rate_desc=Proportion of operations where recipe couldn't run (error state) out of total attempts

@@ -221,8 +221,14 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         for (int i = 0; i < entries.size(); i++) {
             CrafterEntry entry = entries.get(i);
 
-            // Skip disabled or empty entries
-            if (!entry.isEnabled() || entry.isEmpty()) {
+            // Skip empty entries (no pattern) - distinct from disabled
+            if (entry.isEmpty()) {
+                updateEntryState(entry, CrafterState.NO_PATTERN);
+                continue;
+            }
+
+            // Skip disabled entries
+            if (!entry.isEnabled()) {
                 updateEntryState(entry, CrafterState.DISABLED);
                 continue;
             }
@@ -349,7 +355,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             CrafterEntry entry = entries.get(i);
 
             // Skip disabled or empty entries
-            if (!entry.isEnabled() || entry.isEmpty()) {
+            if (entry.isEmpty()) {
+                updateEntryState(entry, CrafterState.NO_PATTERN);
+                continue;
+            }
+            if (!entry.isEnabled()) {
                 updateEntryState(entry, CrafterState.DISABLED);
                 continue;
             }
@@ -1165,7 +1175,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         if (patternStack == null || patternStack.isEmpty()) {
             entry.setRecipeInfo(null);
-            entry.setState(CrafterState.DISABLED);
+            entry.setState(CrafterState.NO_PATTERN);
             needsSync = true;
             return;
         }
@@ -1549,7 +1559,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         entry.setPatternStack(null);
         entry.setRecipeInfo(null);
         entry.setEnabled(true);
-        entry.setState(CrafterState.DISABLED);
+        entry.setState(CrafterState.NO_PATTERN);
         entry.clearPendingOutputs();
 
         for (int i = 0; i < CrafterEntry.CATALYST_SLOTS; i++) entry.setCatalystStack(i, ItemStack.EMPTY);

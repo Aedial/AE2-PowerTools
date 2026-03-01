@@ -140,9 +140,9 @@ public class CrafterEntry {
         for (int i = 0; i < CATALYST_SLOTS; i++) this.catalystInventory[i] = ItemStack.EMPTY;
 
         this.enabled = true;
-        this.state = CrafterState.DISABLED;
+        this.state = CrafterState.NO_PATTERN;
         this.pendingOutputs = new ArrayList<>();
-        this.targetQuantity = Integer.MAX_VALUE;
+        this.targetQuantity = Long.MAX_VALUE;
         this.errorDetails = new ArrayList<>();
         this.lastRequestedBatchSize = 0;
         this.lastActualBatchSize = 0;
@@ -202,7 +202,7 @@ public class CrafterEntry {
         this.patternStack = patternStack;
         if (patternStack == null || patternStack.isEmpty()) {
             this.recipeInfo = null;
-            this.state = CrafterState.DISABLED;
+            this.state = CrafterState.NO_PATTERN;
         }
     }
 
@@ -250,7 +250,12 @@ public class CrafterEntry {
             this.state = CrafterState.DISABLED;
         } else if (this.state == CrafterState.DISABLED) {
             // Re-enabling an entry should reset to IDLE so it gets processed
-            this.state = CrafterState.IDLE;
+            // (unless it has no pattern, in which case validateAllEntries will set NO_PATTERN)
+            if (hasPattern()) {
+                this.state = CrafterState.IDLE;
+            } else {
+                this.state = CrafterState.NO_PATTERN;
+            }
         }
     }
 
@@ -517,7 +522,7 @@ public class CrafterEntry {
         }
 
         targetQuantity = tag.getLong("targetQty");
-        if (targetQuantity == 0) targetQuantity = Integer.MAX_VALUE;
+        if (targetQuantity == 0) targetQuantity = Long.MAX_VALUE;
 
         lastCraftTick = tag.getLong("lastCraft");
 
