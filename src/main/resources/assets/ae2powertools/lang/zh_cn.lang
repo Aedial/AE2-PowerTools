@@ -232,9 +232,9 @@ gui.ae2powertools.crafter.speed.desc=当前：%s
 gui.ae2powertools.crafter.speed.explanation=操作间隔时间（数值越高 = 吞吐量越低）
 
 # GUI - States
+gui.ae2powertools.crafter.state.no_pattern=无样板
 gui.ae2powertools.crafter.state.disabled=已禁用
-gui.ae2powertools.crafter.state.idle=空闲 - 就绪
-gui.ae2powertools.crafter.state.running=运行中
+gui.ae2powertools.crafter.state.idle=正常运行中
 gui.ae2powertools.crafter.state.missing_catalyst=缺失催化剂类物品
 gui.ae2powertools.crafter.state.missing_input=缺失输入物品
 gui.ae2powertools.crafter.state.no_output_space=无输出空间
@@ -243,9 +243,8 @@ gui.ae2powertools.crafter.state.holding_output=暂存输出（等待空间）
 
 # GUI - Metrics
 gui.ae2powertools.crafter.state=状态
-gui.ae2powertools.crafter.occupancy=占用率
-gui.ae2powertools.crafter.error_rate=错误率
-gui.ae2powertools.crafter.metrics_title=指标
+gui.ae2powertools.crafter.occupancy=占用率：
+gui.ae2powertools.crafter.error_rate=错误率：
 gui.ae2powertools.crafter.metrics_format=%s%% | %s%%
 gui.ae2powertools.crafter.occupancy_desc=实际完成量占请求批量的百分比（受资源限制影响）
 gui.ae2powertools.crafter.error_rate_desc=配方无法执行（错误状态）的操作占总尝试次数的比例
