@@ -902,7 +902,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * @param crafts Number of individual crafts to perform
      */
     private boolean extractInputs(CrafterEntry entry, CrafterRecipeInfo info, int crafts) {
-
+        // First simulate all extractions
         List<IAEItemStack> toExtract = new ArrayList<>();
 
         for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
