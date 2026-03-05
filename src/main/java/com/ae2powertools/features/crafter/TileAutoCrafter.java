@@ -490,10 +490,16 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Pre-initialize the shared resource pool with all items needed by all candidates.
-     * Fetches the storage list ONCE and lookups are done against that cached list.
+     * Fetches the AE2 storage list once and reuses it for all lookups.
      *
-     * @param candidates List of all candidates wanting to craft
-     * @return Map of ItemStackKey to available quantity in network
+     * <p>This supports the crafter's two matching modes:</p>
+     * <ul>
+     *   <li><b>Strict-NBT</b>: uses {@code storageList.findPrecise(...)} for lookups.</li>
+     *   <li><b>Ignore-NBT</b>: builds a one-time {@code (Item, metadata)} index and uses it for lookups.</li>
+     * </ul>
+     *
+     * @param candidates list of all candidates wanting to craft
+     * @return map of {@link ItemStackKey} to the currently available quantity in the network for that key
      */
     private Map<ItemStackKey, Long> initializeSharedPool(List<CraftCandidate> candidates) {
         Map<ItemStackKey, Long> pool = new HashMap<>();
@@ -502,27 +508,39 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         IItemList<IAEItemStack> storageList = getNetworkStorageList();
         if (storageList == null) return pool;
 
-        // Collect all unique items needed by all candidates
+        // Built lazily: only constructed if we encounter at least one ignore-NBT candidate.
+        Map<ItemMetaKey, Long> ignoreNbtIndex = null;
+
+        // Walk all candidates and all consumed ingredients.
         for (CraftCandidate candidate : candidates) {
             boolean ignoreNbt = candidate.entry.isIgnoreNbt();
+
+            // Build index once for ignore-NBT candidates.
+            if (ignoreNbt && ignoreNbtIndex == null) {
+                ignoreNbtIndex = buildIgnoreNbtAvailabilityIndex(storageList);
+            }
 
             for (CrafterRecipeInfo.IngredientInfo ingredient : candidate.info.getConsumedItems()) {
                 IAEItemStack item = ingredient.getItem();
                 if (item == null) continue;
 
+                // Key includes matching mode (strict vs ignore-NBT).
                 ItemStackKey key = new ItemStackKey(item, ignoreNbt);
-                if (!pool.containsKey(key)) {
 
-                    long available;
-                    if (ignoreNbt) {
-                        available = getNetworkQuantityIgnoringNbt(item, storageList);
-                    } else {
-                        IAEItemStack found = storageList.findPrecise(item);
-                        available = found != null ? found.getStackSize() : 0L;
-                    }
+                // If already cached, skip repeated lookup.
+                if (pool.containsKey(key)) continue;
 
-                    pool.put(key, available);
+                long available;
+                if (ignoreNbt) {
+                    // O(1) indexed lookup by item+meta.
+                    available = getNetworkQuantityIgnoringNbtIndexed(item, ignoreNbtIndex);
+                } else {
+                    // Exact AE2 lookup (strict type/NBT behavior).
+                    IAEItemStack found = storageList.findPrecise(item);
+                    available = found != null ? found.getStackSize() : 0L;
                 }
+
+                pool.put(key, available);
             }
         }
 
@@ -530,28 +548,81 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     /**
-     * Allocate resources fairly among competing entries.
-     * 
-     * Fair allocation algorithm:
-     * 1. For each contested resource, divide available items equally among candidates that need it
-     * 2. Each candidate converts their item share to crafts (share ÷ items_per_craft)
-     * 3. A candidate's final crafts is the minimum across all its required resources
-     * 
-     * This ensures that if two entries fight for the same resource, each gets an equal
-     * share of items.
-     * 
-     * @param candidates List of entries wanting to craft (with their requested batch sizes)
-     * @param pool Shared resource pool (pre-initialized via initializeSharedPool)
-     * @param effectiveMaxBatchSize The pre-calculated effective max batch size
-     * @return List of simulations with fairly allocated craft counts
+     * Builds an availability index for ignore-NBT matching from an AE2 storage list.
+     *
+     * <p>Each entry in the storage list is converted to an {@link ItemStack} and grouped by
+     * {@code (Item, metadata)}. The index value is the sum of {@link IAEItemStack#getStackSize()}
+     * for all stored stacks in that bucket.</p>
+     *
+     * @param storageList AE2 storage list to aggregate; may be {@code null}
+     * @return a map of {@code (Item, metadata) -> total available quantity}. Returns an empty map if
+     *         {@code storageList} is {@code null}.
+     */
+    private Map<ItemMetaKey, Long> buildIgnoreNbtAvailabilityIndex(@Nullable IItemList<IAEItemStack> storageList) {
+        Map<ItemMetaKey, Long> index = new HashMap<>();
+        if (storageList == null) return index;
+
+        for (IAEItemStack stored : storageList) {
+            if (stored == null || stored.getStackSize() <= 0) continue;
+
+            ItemStack storedStack = stored.createItemStack();
+            if (storedStack.isEmpty()) continue;
+
+            // Group all NBT variants under same item+meta bucket.
+            ItemMetaKey key = new ItemMetaKey(storedStack.getItem(), storedStack.getMetadata());
+            index.merge(key, stored.getStackSize(), Long::sum);
+        }
+
+        return index;
+    }
+
+    /**
+     * Allocates shared network inputs across multiple crafting candidates and returns the resulting craft counts.
+     *
+     * <p>This method operates on the pre-initialized availability {@code pool} (see {@link #initializeSharedPool(List)}).
+     * It does not extract items; it only decides how many crafts each candidate is allowed to attempt and then deducts
+     * the corresponding reservations from {@code pool} via {@link #deductFromPool(CrafterRecipeInfo, Map, int, boolean)}.</p>
+     *
+     * <h3>Algorithm</h3>
+     * <ol>
+     *   <li>For every consumed ingredient of every candidate, compute that candidate's demand for
+     *       {@code effectiveMaxBatchSize} crafts and group candidates by {@link ItemStackKey}.</li>
+     *   <li>For each resource key:
+     *     <ul>
+     *       <li>If {@code totalDemand <= available}, allocate each candidate exactly its computed demand.</li>
+     *       <li>If {@code totalDemand > available}, allocate {@code floor(available / userCount)} items to each user.</li>
+     *     </ul>
+     *   </li>
+     *   <li>For each candidate, convert allocated item counts into a craft count per ingredient using
+     *       {@link #calculateCraftsFromItems(CrafterRecipeInfo.IngredientInfo, long)} and take the minimum across
+     *       all consumed ingredients (the bottleneck).</li>
+     *   <li>Store batch tracking telemetry on the entry, then:
+     *     <ul>
+     *       <li>If {@code finalCrafts > 0}, reserve items by deducting from {@code pool} and return a {@link CraftSimulation}.</li>
+     *       <li>If {@code finalCrafts == 0}, record error details and set the entry state to {@link CrafterState#MISSING_INPUT}.</li>
+     *     </ul>
+     *   </li>
+     * </ol>
+     *
+     * <p>The allocation step uses equal per-user sharing for contested resources and does not redistribute any remainder
+     * from integer division.</p>
+     *
+     * @param candidates entries that are eligible to craft this tick (already filtered for pattern/state/recipe validity)
+     * @param pool shared availability pool, mutated by this method to reflect reservations
+     * @param effectiveMaxBatchSize maximum crafts to attempt per candidate before allocation (config * user batch * upgrades)
+     * @return simulations containing the final allocated craft count for each candidate with {@code finalCrafts > 0}
      */
     private List<CraftSimulation> allocateResourcesFairly(List<CraftCandidate> candidates,
                                                           Map<ItemStackKey, Long> pool,
                                                           int effectiveMaxBatchSize) {
-        // Step 1: For each resource, count how many candidates need it and check if contested
-        // A resource is contested if total demand exceeds supply
+        // Step 1: For each resource, count how many candidates need it and compute total demand
+        // A resource is contested if total demand exceeds supply.
         Map<ItemStackKey, List<CraftCandidate>> resourceUsers = new HashMap<>();
         Map<ItemStackKey, Long> totalDemand = new HashMap<>();
+
+        // Resource -> (candidate -> that candidate's demand)
+        // This avoids recomputing demand later with repeated ingredient searches.
+        Map<ItemStackKey, Map<CraftCandidate, Long>> demandPerCandidate = new HashMap<>();
 
         for (CraftCandidate candidate : candidates) {
 
@@ -562,15 +633,18 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (item == null) continue;
 
                 ItemStackKey key = new ItemStackKey(item, ignoreNbt);
+                long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
 
                 resourceUsers.computeIfAbsent(key, k -> new ArrayList<>()).add(candidate);
-                long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
                 totalDemand.merge(key, needed, Long::sum);
+                demandPerCandidate.computeIfAbsent(key, k -> new HashMap<>()).put(candidate, needed);
             }
         }
 
-        // Step 2: For each contested resource, calculate equal item share per candidate
-        // Key: resource -> candidate index -> allocated items
+        // Step 2: For each resource, allocate items to candidates
+        // - If not contested (total demand <= available), allocate each candidate exactly what they need
+        // - If contested (total demand > available), divide items equally among all users
+        // Key: resource -> candidate -> allocated items
         Map<ItemStackKey, Map<CraftCandidate, Long>> itemAllocations = new HashMap<>();
 
         for (Map.Entry<ItemStackKey, List<CraftCandidate>> entry : resourceUsers.entrySet()) {
@@ -583,16 +657,14 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             if (demand <= available) {
                 // Not contested - each candidate gets what they need
-                for (CraftCandidate user : users) {
-                    CrafterRecipeInfo.IngredientInfo ing = findIngredient(user.info, key, user.entry.isIgnoreNbt());
-                    if (ing != null) {
-                        allocations.put(user, calculateItemsNeededForCrafts(ing, effectiveMaxBatchSize));
-                    }
-                }
+                Map<CraftCandidate, Long> perCandidateDemand = demandPerCandidate.get(key);
+                if (perCandidateDemand != null) allocations.putAll(perCandidateDemand);
             } else {
                 // Contested - divide equally among users
-                long sharePerUser = available / users.size();
-                for (CraftCandidate user : users) allocations.put(user, sharePerUser);
+                long sharePerUser = users.isEmpty() ? 0L : (available / users.size());
+                for (CraftCandidate user : users) {
+                    allocations.put(user, sharePerUser);
+                }
             }
 
             itemAllocations.put(key, allocations);
@@ -616,8 +688,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 Map<CraftCandidate, Long> allocations = itemAllocations.get(key);
                 if (allocations == null) continue;
 
-                Long allocated = allocations.get(candidate);
-                if (allocated == null) allocated = 0L;
+                long allocated = allocations.getOrDefault(candidate, 0L);
 
                 // Convert item allocation to crafts
                 int craftsFromAllocation = calculateCraftsFromItems(ingredient, allocated);
@@ -625,20 +696,20 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (craftsFromAllocation < finalCrafts) {
                     long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
                     if (allocated < needed) {
-                        limitingFactors.add(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.limited_by",
+                        limitingFactors.add(I18n.translateToLocalFormatted(
+                                "gui.ae2powertools.crafter.error.limited_by",
                                 item.createItemStack().getDisplayName(), allocated, needed));
                     }
                 }
                 finalCrafts = Math.min(finalCrafts, craftsFromAllocation);
             }
 
-            // Update batch size tracking for occupancy calculation
+            // Keep telemetry data updated (used by occupancy/metrics UI).
             candidate.entry.setBatchSizeTracking(effectiveMaxBatchSize, finalCrafts);
 
             if (finalCrafts > 0) {
-
+                // Deduct from shared pool
                 deductFromPool(candidate.info, pool, finalCrafts, candidate.entry.isIgnoreNbt());
-
                 simulations.add(new CraftSimulation(candidate.entry, candidate.info, finalCrafts));
 
                 // If crafts were reduced, add info about why
@@ -648,7 +719,12 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             } else {
                 // No crafts possible - add all limiting factors as errors
                 for (String factor : limitingFactors) candidate.entry.addErrorDetail(factor);
-                if (limitingFactors.isEmpty()) candidate.entry.addErrorDetail(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.no_items_in_network"));
+
+                if (limitingFactors.isEmpty()) {
+                    candidate.entry.addErrorDetail(I18n.translateToLocalFormatted(
+                            "gui.ae2powertools.crafter.error.no_items_in_network"));
+                }
+
                 updateEntryState(candidate.entry, CrafterState.MISSING_INPUT);
                 // Record as error (no crafts possible)
                 candidate.entry.recordMetrics(true, 0, 0);
@@ -738,10 +814,27 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     /**
-     * Deduct items from the shared pool after allocating crafts to an entry.
-     * 
-     * For most items: deduct 1 item per craft.
-     * For DURABILITY items: deduct based on how many items are actually needed.
+     * Deducts reserved inputs from the shared availability pool after an entry has been allocated
+     * a number of crafts.
+     *
+     * <p>The deduction is performed per consumed ingredient:</p>
+     * <ul>
+     *   <li><b>Non-durability ingredients</b>: deducts {@code crafts} items (1 item per craft).</li>
+     *   <li><b>DURABILITY ingredients</b>: deducts the number of items required to supply
+     *       {@code crafts * durabilityPerCraft} durability, computed using the template item's
+     *       {@code maxDamage} with ceiling division.</li>
+     * </ul>
+     *
+     * <p><b>Cross-reservation rule:</b> when {@code ignoreNbt} is {@code false} (strict matching),
+     * this method also deducts the same amount from the corresponding ignore-NBT bucket
+     * ({@code new ItemStackKey(item, true)}). This keeps the pooled model consistent by ensuring
+     * that items reserved for strict entries are not simultaneously considered available to
+     * ignore-NBT entries.</p>
+     *
+     * @param info recipe info whose consumed ingredients will be deducted
+     * @param pool shared availability pool to mutate
+     * @param crafts number of crafts allocated to the entry
+     * @param ignoreNbt whether the allocation was for an ignore-NBT entry
      */
     private void deductFromPool(CrafterRecipeInfo info, Map<ItemStackKey, Long> pool, int crafts, boolean ignoreNbt) {
         for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
@@ -772,11 +865,34 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             }
 
             pool.put(key, Math.max(0, current - itemsToDeduct));
+
+            // If this was a strict-NBT allocation, also reserve those items from the base (ignore-NBT) pool
+            // so ignore-NBT entries cannot starve strict entries under scarcity.
+            if (!ignoreNbt) {
+                ItemStackKey baseKey = new ItemStackKey(item, true);
+                long baseCurrent = pool.getOrDefault(baseKey, 0L);
+                pool.put(baseKey, Math.max(0, baseCurrent - itemsToDeduct));
+            }
         }
     }
 
     /**
-     * Key for ItemStack identity in maps, using including NBT matching.
+     * Map key that defines how an {@link IAEItemStack} is grouped for shared-pool lookups.
+     *
+     * <p>The key always distinguishes by {@code ignoreNbt} first. Two keys are never equal if their
+     * {@code ignoreNbt} flags differ.</p>
+     *
+     * <p>Equality then always requires the same {@code Item} and metadata (as obtained from
+     * {@link IAEItemStack#createItemStack()}).</p>
+     *
+     * <ul>
+     *   <li>If {@code ignoreNbt} is {@code true}, equality stops at {@code (Item, metadata)}.</li>
+     *   <li>If {@code ignoreNbt} is {@code false}, equality additionally requires
+     *       {@link IAEItemStack#isSameType(IAEItemStack)} to be {@code true}.</li>
+     * </ul>
+     *
+     * <p>This allows the shared pool to keep separate buckets for strict matching vs ignore-NBT matching,
+     * even when the base {@code Item + metadata} are the same.</p>
      */
     private static class ItemStackKey {
         private final IAEItemStack item;
@@ -808,14 +924,48 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         @Override
         public int hashCode() {
             ItemStack stack = item.createItemStack();
-            int h = stack.getItem().hashCode() ^ (stack.getMetadata() * 31);
-
+            int h = stack.getItem().hashCode();
+            h = 31 * h + stack.getMetadata();
             h = 31 * h + (ignoreNbt ? 1 : 0);
 
             if (!ignoreNbt && stack.hasTagCompound()) {
                 h = 31 * h + stack.getTagCompound().hashCode();
             }
 
+            return h;
+        }
+    }
+
+    /**
+     * Minimal map key for ignore-NBT indexing.
+     *
+     * <p>Represents an item solely by {@code (Item, metadata)} so that all NBT variants of the same base
+     * item are aggregated into one bucket.</p>
+     *
+     * <p>Equality uses reference equality for {@link net.minecraft.item.Item} and value equality for
+     * the metadata.</p>
+     */
+    private static final class ItemMetaKey {
+        private final net.minecraft.item.Item item;
+        private final int meta;
+
+        ItemMetaKey(net.minecraft.item.Item item, int meta) {
+            this.item = item;
+            this.meta = meta;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof ItemMetaKey)) return false;
+            ItemMetaKey other = (ItemMetaKey) obj;
+            return this.item == other.item && this.meta == other.meta;
+        }
+
+        @Override
+        public int hashCode() {
+            int h = item != null ? item.hashCode() : 0;
+            h = 31 * h + meta;
             return h;
         }
     }
@@ -1217,6 +1367,144 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         }
 
         return total;
+    }
+
+    /**
+     * Extracts items from the AE2 network while ignoring NBT, matching only by {@code Item + metadata}.
+     *
+     * <p>The request is normalized via {@link IAEItemStack#createItemStack()}. Any stored stack whose
+     * {@code Item} and metadata match the normalized request is treated as an acceptable source,
+     * regardless of NBT differences.</p>
+     *
+     * <h3>Behavior</h3>
+     * <ul>
+     *   <li><b>SIMULATE</b>: iterates {@link IMEMonitor#getStorageList()} and sums {@link IAEItemStack#getStackSize()}
+     *       across all matching stacks until the requested amount is reached or the list is exhausted.</li>
+     *   <li><b>MODULATE</b>: first collects copies of matching stacks into a snapshot
+     *       (bounded once enough total quantity is represented), then optionally sorts the snapshot by size
+     *       (largest-first), and finally extracts from the monitor until the request is satisfied or the
+     *       snapshot is exhausted.</li>
+     * </ul>
+     *
+     * <p>The MODULATE path performs extraction based on a pre-extraction snapshot. This keeps iteration and
+     * extraction separate and ensures the set and order of candidates are determined before any items are removed.</p>
+     *
+     * @param request requested stack; only {@code Item} and metadata are used (NBT is ignored)
+     * @param mode {@link Actionable#SIMULATE} to check availability, {@link Actionable#MODULATE} to extract
+     * @return <p>{@code true} if the requested amount is available (SIMULATE) or was fully extracted (MODULATE);</p>
+     *         <p>{@code false} if the network/storage list cannot be accessed or extraction did not obtain the full amount</p>
+     */
+    private boolean extractFromNetworkIgnoringNbt(IAEItemStack request, Actionable mode) {
+        if (request == null || request.getStackSize() <= 0) return true;
+
+        try {
+            // Step 1: Resolve network inventory
+            IGrid grid = gridProxy.getGrid();
+            if (grid == null) return false;
+
+            IStorageGrid storage = grid.getCache(IStorageGrid.class);
+            if (storage == null) return false;
+
+            IMEMonitor<IAEItemStack> inv = storage.getInventory(
+                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+
+            IItemList<IAEItemStack> list = inv.getStorageList();
+            if (list == null) return false;
+
+            // Step 2: Normalize request to the base identity (Item + Metadata)
+            ItemStack wanted = request.createItemStack();
+            if (wanted.isEmpty()) return false;
+
+            net.minecraft.item.Item wantedItem = wanted.getItem();
+            int wantedMeta = wanted.getMetadata();
+
+            // Step 3: SIMULATE path - just count matching availability across all NBT variants
+            if (mode == Actionable.SIMULATE) {
+                long available = 0L;
+
+                for (IAEItemStack stored : list) {
+                    if (stored == null || stored.getStackSize() <= 0) continue;
+
+                    ItemStack storedStack = stored.createItemStack();
+                    if (storedStack.isEmpty()) continue;
+
+                    if (storedStack.getItem() != wantedItem) continue;
+                    if (storedStack.getMetadata() != wantedMeta) continue;
+
+                    available += stored.getStackSize();
+                    if (available >= request.getStackSize()) return true;
+                }
+
+                return available >= request.getStackSize();
+            }
+
+            // Step 4: MODULATE path - snapshot matching entries before extracting to avoid CME
+            List<IAEItemStack> snapshot = new ArrayList<>();
+            long snapshotCount = 0L;
+            for (IAEItemStack stored : list) {
+                if (stored == null || stored.getStackSize() <= 0) continue;
+
+                ItemStack storedStack = stored.createItemStack();
+                if (storedStack.isEmpty()) continue;
+
+                if (storedStack.getItem() != wantedItem) continue;
+                if (storedStack.getMetadata() != wantedMeta) continue;
+
+                snapshot.add(stored.copy());
+                snapshotCount += stored.getStackSize();
+                if (snapshotCount >= request.getStackSize()) break;
+            }
+
+            // Step 5: Prefer draining larger stacks first
+            if (snapshot.size() > 1) {
+                snapshot.sort((a, b) -> Long.compare(b.getStackSize(), a.getStackSize()));
+            }
+
+            // Step 6: Extract until satisfied
+            long remaining = request.getStackSize();
+
+            for (IAEItemStack stored : snapshot) {
+                if (stored == null || stored.getStackSize() <= 0) continue;
+
+                long toTake = Math.min(remaining, stored.getStackSize());
+
+                IAEItemStack takeReq = stored.copy();
+                takeReq.setStackSize(toTake);
+
+                IAEItemStack extracted = inv.extractItems(takeReq, Actionable.MODULATE, actionSource);
+                long got = extracted != null ? extracted.getStackSize() : 0;
+
+                remaining -= got;
+                if (remaining <= 0) return true;
+            }
+
+            return remaining <= 0;
+        } catch (GridAccessException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns the aggregated available quantity for {@code (Item, metadata)} while ignoring NBT,
+     * using a prebuilt index.
+     *
+     * <p>The lookup key is derived from {@code template.createItemStack()} and uses only
+     * {@code Item} and metadata.</p>
+     *
+     * @param template AE item template identifying the {@code Item} and metadata to query (NBT is ignored)
+     * @param index prebuilt ignore-NBT availability index; may be {@code null}
+     * @return total available quantity for the matching {@code Item + metadata}, or {@code 0} if
+     *         {@code template} cannot be resolved to a non-empty {@link ItemStack} or {@code index} is {@code null}
+     */
+    private long getNetworkQuantityIgnoringNbtIndexed(IAEItemStack template, @Nullable Map<ItemMetaKey, Long> index) {
+        if (template == null || index == null) return 0L;
+
+        // Step 1: Normalize to base identity (Item + Metadata)
+        ItemStack wanted = template.createItemStack();
+        if (wanted.isEmpty()) return 0L;
+
+        // Step 2: O(1) aggregated lookup
+        return index.getOrDefault(new ItemMetaKey(wanted.getItem(), wanted.getMetadata()), 0L);
     }
 
     // ==================== FAKE PLAYER ====================
@@ -2035,97 +2323,5 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     public void validate() {
         super.validate();
         gridProxy.validate();
-    }
-
-    /**
-     * Extracts items from the AE2 network ignoring NBT (matches by item + meta only).
-     * Uses the network inventory list to pull from any NBT variant of the same base item.
-     *
-     * For SIMULATE: returns true if enough items exist.
-     * For MODULATE: actually extracts items (best-effort).
-     */
-    private boolean extractFromNetworkIgnoringNbt(IAEItemStack request, Actionable mode) {
-        if (request == null || request.getStackSize() <= 0) return true;
-
-        try {
-            IGrid grid = gridProxy.getGrid();
-            if (grid == null) return false;
-
-            IStorageGrid storage = grid.getCache(IStorageGrid.class);
-            if (storage == null) return false;
-
-            IMEMonitor<IAEItemStack> inv = storage.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-
-            IItemList<IAEItemStack> list = inv.getStorageList();
-            if (list == null) return false;
-
-            ItemStack wanted = request.createItemStack();
-            if (wanted.isEmpty()) return false;
-
-            net.minecraft.item.Item wantedItem = wanted.getItem();
-            int wantedMeta = wanted.getMetadata();
-
-            // IMPORTANT:
-            // We must NOT iterate the live AE2 ItemList iterator while extracting, because extraction
-            // mutates the underlying list and will trigger ConcurrentModificationException.
-            //
-            // Strategy:
-            // - SIMULATE: just count available items (no extraction / no mutation)
-            // - MODULATE: snapshot matching stacks first, then extract using the snapshot
-            if (mode == Actionable.SIMULATE) {
-                long available = 0L;
-
-                for (IAEItemStack stored : list) {
-                    if (stored == null || stored.getStackSize() <= 0) continue;
-
-                    ItemStack storedStack = stored.createItemStack();
-                    if (storedStack.isEmpty()) continue;
-
-                    if (storedStack.getItem() != wantedItem) continue;
-                    if (storedStack.getMetadata() != wantedMeta) continue;
-
-                    available += stored.getStackSize();
-                    if (available >= request.getStackSize()) return true;
-                }
-
-                return available >= request.getStackSize();
-            }
-
-            // MODULATE path: snapshot matching entries before extracting to avoid CME
-            List<IAEItemStack> snapshot = new ArrayList<>();
-            for (IAEItemStack stored : list) {
-                if (stored == null || stored.getStackSize() <= 0) continue;
-
-                ItemStack storedStack = stored.createItemStack();
-                if (storedStack.isEmpty()) continue;
-
-                if (storedStack.getItem() != wantedItem) continue;
-                if (storedStack.getMetadata() != wantedMeta) continue;
-
-                snapshot.add(stored.copy());
-            }
-
-            long remaining = request.getStackSize();
-
-            for (IAEItemStack stored : snapshot) {
-                if (stored == null || stored.getStackSize() <= 0) continue;
-
-                long toTake = Math.min(remaining, stored.getStackSize());
-
-                IAEItemStack takeReq = stored.copy();
-                takeReq.setStackSize(toTake);
-
-                IAEItemStack extracted = inv.extractItems(takeReq, Actionable.MODULATE, actionSource);
-                long got = extracted != null ? extracted.getStackSize() : 0;
-
-                remaining -= got;
-                if (remaining <= 0) return true;
-            }
-
-            return remaining <= 0;
-        } catch (GridAccessException e) {
-            return false;
-        }
     }
 }
