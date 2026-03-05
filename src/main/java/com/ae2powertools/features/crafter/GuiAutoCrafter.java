@@ -530,7 +530,9 @@ public class GuiAutoCrafter extends GuiContainer {
             tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.speed.explanation"));
         } else if (ignoreNbtBtnHovered) {
             boolean on = isIgnoreNbtEnabled(getCurrentPage());
-            tooltip.add(I18n.format("gui.ae2powertools.crafter.ignore_nbt") + ": " + (on ? "ON" : "OFF"));
+            tooltip.add(I18n.format(on
+                    ? "gui.ae2powertools.crafter.nbt_matching.ignored"
+                    : "gui.ae2powertools.crafter.nbt_matching.strict"));
             tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.ignore_nbt.desc"));
         }
 

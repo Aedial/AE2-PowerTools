@@ -219,8 +219,9 @@ gui.ae2powertools.crafter.page=Page %d/%d
 gui.ae2powertools.crafter.empty_slot=Slot %d - Empty
 gui.ae2powertools.crafter.click_to_view=Left-click to view
 gui.ae2powertools.crafter.right_click_toggle=Right-click to toggle
-gui.ae2powertools.crafter.ignore_nbt=Ignore input item's NBT
-gui.ae2powertools.crafter.ignore_nbt.desc=Match items by item+meta only (ignore nbt data)
+gui.ae2powertools.crafter.nbt_matching.strict=NBT Matching: Strict
+gui.ae2powertools.crafter.nbt_matching.ignored=NBT Matching: Ignored
+gui.ae2powertools.crafter.ignore_nbt.desc=Ignores NBT when matching ME inputs (item + metadata only).
 
 
 # GUI - Batch
