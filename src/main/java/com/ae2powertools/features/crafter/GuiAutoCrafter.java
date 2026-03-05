@@ -114,6 +114,13 @@ public class GuiAutoCrafter extends GuiContainer {
     private boolean overviewBtnHovered = false;
     private boolean overviewCloseBtnHovered = false;
 
+    // Ignore NBT toggle button
+    private static final int IGNORE_NBT_BTN_X = 150;
+    private static final int IGNORE_NBT_BTN_Y = STATE_INDICATOR_Y;
+
+    // Hover state for Ignore NBT button
+    private boolean ignoreNbtBtnHovered = false;
+
     // Hovered elements
     private int hoveredRecipeSlot = -1;
     private int hoveredOverviewRow = -1;
@@ -144,6 +151,7 @@ public class GuiAutoCrafter extends GuiContainer {
     private final double[] syncedOccupancy = new double[TileAutoCrafter.ENTRY_COUNT];
     private final double[] syncedErrorRate = new double[TileAutoCrafter.ENTRY_COUNT];
     private final List<List<String>> syncedErrorDetails = new ArrayList<>();
+    private final boolean[] syncedIgnoreNbt = new boolean[TileAutoCrafter.ENTRY_COUNT];
 
     // Catalyst info per entry (slot index -> expected item)
     private final List<List<CatalystInfo>> syncedCatalystInfo = new ArrayList<>();
@@ -336,6 +344,7 @@ public class GuiAutoCrafter extends GuiContainer {
         if (!overviewMode) {
             drawPageNavigationButtons(mouseX, mouseY);
             drawBatchSpeedButtons(mouseX, mouseY);
+            drawIgnoreNbtButton(mouseX, mouseY);
         }
     }
 
@@ -470,6 +479,32 @@ public class GuiAutoCrafter extends GuiContainer {
     }
 
     /**
+     * Draws the per-entry Ignore NBT toggle button.
+     * This is a small square vanilla-style button that toggles fuzzy NBT matching for the current recipe entry.
+     */
+    private void drawIgnoreNbtButton(int mouseX, int mouseY) {
+        int x = guiLeft + IGNORE_NBT_BTN_X;
+        int y = guiTop + IGNORE_NBT_BTN_Y;
+
+        int page = getCurrentPage();
+
+        // Only enable if this entry has a recipe/pattern to act on
+        boolean enabled = hasDisplayData(page);
+
+        ignoreNbtBtnHovered = enabled
+                && mouseX >= x && mouseX < x + PAGE_BTN_SIZE
+                && mouseY >= y && mouseY < y + PAGE_BTN_SIZE;
+
+        // Draw button with "N" label (NBT)
+        drawSquareButton(x, y, PAGE_BTN_SIZE, "N", enabled, ignoreNbtBtnHovered);
+
+        // Visual ON indicator (subtle green overlay)
+        if (enabled && isIgnoreNbtEnabled(page)) {
+            drawRect(x + 1, y + 1, x + PAGE_BTN_SIZE - 1, y + PAGE_BTN_SIZE - 1, 0x3000FF00);
+        }
+    }
+
+    /**
      * Draws tooltips for custom buttons.
      */
     private void drawAE2ButtonTooltips(int mouseX, int mouseY) {
@@ -493,6 +528,10 @@ public class GuiAutoCrafter extends GuiContainer {
                     FormatUtil.formatTimeTicks(container.syncSpeedTicks)));
             tooltip.add("");
             tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.speed.explanation"));
+        } else if (ignoreNbtBtnHovered) {
+            boolean on = isIgnoreNbtEnabled(getCurrentPage());
+            tooltip.add(I18n.format("gui.ae2powertools.crafter.ignore_nbt") + ": " + (on ? "ON" : "OFF"));
+            tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.ignore_nbt.desc"));
         }
 
         if (!tooltip.isEmpty()) {
@@ -1013,6 +1052,14 @@ public class GuiAutoCrafter extends GuiContainer {
                 openSpeedDialog();
                 return;
             }
+
+            // Ignore NBT toggle button
+            if (ignoreNbtBtnHovered) {
+                int page = getCurrentPage();
+                PowerToolsNetwork.INSTANCE.sendToServer(new PacketToggleCrafterIgnoreNbt(
+                        container.getTile().getPos(), page));
+                return;
+            }
         }
 
         // Handle result right-click to disable
@@ -1133,6 +1180,9 @@ public class GuiAutoCrafter extends GuiContainer {
             } else {
                 syncedStates[i] = CrafterState.NO_PATTERN;
             }
+
+            // Per-entry ignore NBT setting
+            syncedIgnoreNbt[i] = entryTag.getBoolean("ignoreNbt");
 
             // Metrics
             syncedMetricsTotal[i] = entryTag.getLong("metricsTotal");
@@ -1302,5 +1352,15 @@ public class GuiAutoCrafter extends GuiContainer {
     /** Gets synced effective batch size. */
     private int getSyncedEffectiveBatchSize() {
         return hasSyncedData ? syncedEffectiveBatchSize : container.syncEffectiveBatchSize;
+    }
+
+    /** Gets whether Ignore NBT is enabled for an entry. */
+    private boolean isIgnoreNbtEnabled(int entryIndex) {
+        if (hasSyncedData && entryIndex >= 0 && entryIndex < TileAutoCrafter.ENTRY_COUNT) {
+            return syncedIgnoreNbt[entryIndex];
+        }
+
+        CrafterEntry entry = container.getTile().getEntry(entryIndex);
+        return entry != null && entry.isIgnoreNbt();
     }
 }

@@ -68,6 +68,12 @@ public class CrafterEntry {
      */
     private long targetQuantity;
 
+    /**
+     * If true, consumed inputs for this entry are matched in the ME network ignoring NBT (item + meta only).
+     * This does NOT affect catalyst slot validation.
+     */
+    private boolean ignoreNbt;
+
     // ==================== ERROR DETAILS ====================
 
     /**
@@ -149,6 +155,7 @@ public class CrafterEntry {
         this.lastCraftTick = 0;
         this.metricsTotal = 0;
         this.metricsError = 0;
+        this.ignoreNbt = false;
     }
 
     /**
@@ -471,6 +478,7 @@ public class CrafterEntry {
         tag.setInteger("state", state.ordinal());
         tag.setLong("targetQty", targetQuantity);
         tag.setLong("lastCraft", lastCraftTick);
+        tag.setBoolean("ignoreNbt", ignoreNbt);
 
         // Save pending outputs as a list
         if (!pendingOutputs.isEmpty()) {
@@ -525,6 +533,7 @@ public class CrafterEntry {
         if (targetQuantity == 0) targetQuantity = Long.MAX_VALUE;
 
         lastCraftTick = tag.getLong("lastCraft");
+        ignoreNbt = tag.getBoolean("ignoreNbt");
 
         // Load pending outputs
         pendingOutputs.clear();
@@ -615,5 +624,15 @@ public class CrafterEntry {
 
         // Fall back to synced data (client-side)
         return syncedInputGrid;
+    }
+
+    // --- Ignore NBT ---
+
+    public boolean isIgnoreNbt() {
+        return ignoreNbt;
+    }
+
+    public void setIgnoreNbt(boolean ignoreNbt) {
+        this.ignoreNbt = ignoreNbt;
     }
 }

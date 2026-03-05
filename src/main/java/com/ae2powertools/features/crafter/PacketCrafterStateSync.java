@@ -66,6 +66,9 @@ public class PacketCrafterStateSync implements IMessage {
             entryTag.setInteger("state", entry.getState().ordinal());
             entryTag.setBoolean("enabled", entry.isEnabled());
 
+            // Per-entry ignore NBT setting
+            entryTag.setBoolean("ignoreNbt", entry.isIgnoreNbt());
+
             // Metrics
             entryTag.setLong("metricsTotal", entry.getMetricsTotal());
             entryTag.setLong("metricsError", entry.getMetricsError());

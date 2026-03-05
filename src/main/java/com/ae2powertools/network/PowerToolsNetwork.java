@@ -13,6 +13,7 @@ import com.ae2powertools.features.crafter.PacketSetCrafterBatch;
 import com.ae2powertools.features.crafter.PacketSetCrafterPage;
 import com.ae2powertools.features.crafter.PacketSetCrafterSpeed;
 import com.ae2powertools.features.crafter.PacketToggleCrafterEntry;
+import com.ae2powertools.features.crafter.PacketToggleCrafterIgnoreNbt;
 
 
 /**
@@ -50,5 +51,6 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketReturnToCrafterGui.Handler.class, PacketReturnToCrafterGui.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketRequestCrafterSync.Handler.class, PacketRequestCrafterSync.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketCrafterStateSync.Handler.class, PacketCrafterStateSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketToggleCrafterIgnoreNbt.Handler.class, PacketToggleCrafterIgnoreNbt.class, packetId++, Side.SERVER);
     }
 }
