@@ -1,6 +1,9 @@
 # Misc
 *.zip
 TODO.md
+*.patch
+.venv
+__pycache__/
 
 # Gradle
 .gradle/
@@ -8,13 +11,13 @@ build/
 out/
 bin/
 
-# Gradle Wrapper - keep the wrapper jar
-!gradle/wrapper/gradle-wrapper.jar
-
-# ForgeGradle
+# ForgeGradle / RetroFuturaGradle
 run/
 logs/
 crash-reports/
+
+# RFG auto-generated Tags class (built from tags.properties)
+src/main/java/com/cellterminal/Tags.java
 
 # Eclipse
 .classpath
@@ -47,3 +50,43 @@ nbdist/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Linux
+*~
+.directory
+
+# Minecraft
+options.txt
+optionsof.txt
+servers.dat
+usercache.json
+usernamecache.json
+realms_persistence.json
+screenshots/
+saves/
+resourcepacks/
+mods/
+*.log
+
+# Compiled class files
+*.class
+
+# Package files
+*.jar
+# But keep the Gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+# And keep local deobf jars if you use them
+!libs/*-deobf.jar
+
+# Virtual machine crash logs
+hs_err_pid*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+
+# Sensitive data (if you add local credentials)
+gradle-local.properties
+local.properties
