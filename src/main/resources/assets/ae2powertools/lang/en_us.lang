@@ -200,6 +200,7 @@ gui.ae2powertools.maintainer.error.cancelled=Crafting was cancelled
 gui.ae2powertools.maintainer.error.no_space=No space for crafted items
 gui.ae2powertools.maintainer.error.missing_resources=Not enough items to start crafting
 gui.ae2powertools.maintainer.error.calculation_timeout=Job calculation timed out (recipe too complex)
+gui.ae2powertools.maintainer.error.cpu_retry_limit=CPU wait retry limit exceeded
 
 # =====================================================
 # AE2 AutoCrafter
