@@ -12,7 +12,6 @@ import com.google.common.collect.ImmutableSet;
 
 import io.netty.buffer.ByteBuf;
 
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ITickable;
@@ -28,7 +27,6 @@ import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
-import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
@@ -81,6 +79,19 @@ public class TileBetterLevelMaintainer extends AEBaseTile
      * 10 seconds to allow rapid scrolling without spamming reschedules.
      */
     private static final int SCHEDULE_DEBOUNCE_TICKS = 10 * 20;
+
+    /**
+     * Maximum number of concurrent job calculations allowed.
+     * Limits server load when many entries need crafting simultaneously.
+     * Complex crafting trees can be expensive to calculate.
+     */
+    private static final int MAX_CONCURRENT_CALCULATIONS = 2;
+
+    /**
+     * Maximum number of times a task can retry waiting for CPU before giving up.
+     * Prevents tasks from being stuck indefinitely in the wait queue.
+     */
+    private static final int MAX_CPU_RETRY_COUNT = 10;
 
     private final AENetworkProxy gridProxy;
     private final IActionSource actionSource;
@@ -299,6 +310,15 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 return;
             }
 
+            // Limit concurrent calculations to prevent lag from complex crafting trees.
+            // Tasks beyond the limit will be picked up in the next check cycle.
+            int activeCalculations = countActiveCalculations();
+            if (activeCalculations >= MAX_CONCURRENT_CALCULATIONS) {
+                // Too many calculations running, skip this entry for now.
+                // It will be picked up in the next checkCraftingNeeds cycle.
+                return;
+            }
+
             // Begin crafting job calculation
             entry.setState(MaintainerState.SCHEDULED);
             Future<ICraftingJob> future = craftingGrid.beginCraftingJob(
@@ -315,6 +335,18 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         } catch (GridAccessException e) {
             entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_network");
         }
+    }
+
+    /**
+     * Counts the number of tasks currently calculating crafting jobs.
+     */
+    private int countActiveCalculations() {
+        int count = 0;
+        for (MaintainerTask task : activeTasks) {
+            if (task.isCalculating()) count++;
+        }
+
+        return count;
     }
 
     /**
@@ -440,8 +472,10 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             ICraftingLink link = craftingGrid.submitJob(job, this, null, false, actionSource);
 
             if (link == null) {
-                // No CPU available right now, mark as waiting
+                // No CPU available right now, mark as waiting and cache the job
+                // so we can retry without expensive recalculation
                 task.setWaitingForCpu(true);
+                task.setCachedJob(job);
                 task.incrementCpuRetryCount();
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
                 needsSync = true;
@@ -451,6 +485,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
             // Successfully submitted - task stays in activeTasks to track completion
             task.setCraftingLink(link);
+            task.setCachedJob(null);  // Clear cached job after successful submission
             task.setWaitingForCpu(false);
             entry.setState(MaintainerState.RUNNING);
             entry.clearError();
@@ -470,6 +505,9 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     /**
      * Retries submitting tasks that are waiting for a free CPU.
      * Tasks waiting for CPU are in activeTasks with waitingForCpu flag set.
+     *
+     * Only processes ONE task per tick to avoid flooding the system with calculations.
+     * Uses cached job if available to avoid expensive recalculation.
      */
     private void processCpuWaitQueue() {
         try {
@@ -479,31 +517,63 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             boolean hasFreeCpu = craftingGrid.getCpus().stream().anyMatch(cpu -> !cpu.isBusy());
             if (!hasFreeCpu) return;
 
-            // Find tasks waiting for CPU and reschedule them
-            // We need to remove and reschedule because the old job calculation is stale
+            // Find ONE task waiting for CPU to process this tick
+            // Also clean up cancelled tasks while iterating
+            MaintainerTask taskToProcess = null;
             Iterator<MaintainerTask> iter = activeTasks.iterator();
-            List<Integer> entriesToReschedule = new ArrayList<>();
 
             while (iter.hasNext()) {
                 MaintainerTask task = iter.next();
                 if (!task.isWaitingForCpu()) continue;
 
+                // Clean up cancelled tasks
                 if (task.isCancelled()) {
                     iter.remove();
                     continue;
                 }
 
-                // Collect entry indices to reschedule after iteration
-                entriesToReschedule.add(task.getEntryIndex());
-                iter.remove();
+                // Check retry limit to prevent infinite loops
+                if (task.getCpuRetryCount() >= MAX_CPU_RETRY_COUNT) {
+                    MaintainerEntry entry = entries.get(task.getEntryIndex());
+                    if (entry != null) {
+                        entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cpu_retry_limit");
+                        entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
+                    }
+
+                    task.cancel();
+                    iter.remove();
+                    needsSync = true;
+                    continue;
+                }
+
+                taskToProcess = task;
+                break;  // Only process one per tick
             }
 
-            // Reschedule collected entries
-            for (int entryIndex : entriesToReschedule) {
-                MaintainerEntry entry = entries.get(entryIndex);
-                if (entry != null && entry.hasRecipe() && entry.isEnabled()) {
-                    scheduleCrafting(entryIndex, entry);
+            if (taskToProcess == null) return;
+
+            // If we have a cached job, try to resubmit it directly
+            ICraftingJob cachedJob = taskToProcess.getCachedJob();
+            if (cachedJob != null) {
+                // Try to submit the cached job
+                taskToProcess.setWaitingForCpu(false);
+                if (submitCraftingJob(taskToProcess, cachedJob)) {
+                    // Permanent failure - remove task
+                    activeTasks.remove(taskToProcess);
                 }
+
+                // else: task stays in activeTasks (either running or waiting again)
+                return;
+            }
+
+            // No cached job - need to reschedule for calculation
+            // This only happens for tasks that were created waiting for CPU from the start
+            int entryIndex = taskToProcess.getEntryIndex();
+            activeTasks.remove(taskToProcess);
+
+            MaintainerEntry entry = entries.get(entryIndex);
+            if (entry != null && entry.hasRecipe() && entry.isEnabled()) {
+                scheduleCrafting(entryIndex, entry);
             }
 
         } catch (GridAccessException e) {

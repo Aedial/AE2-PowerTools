@@ -47,6 +47,13 @@ public class MaintainerTask {
     private ICraftingLink craftingLink;
 
     /**
+     * The calculated crafting job, cached for retry when waiting for CPU.
+     * This avoids expensive recalculation when we just need to retry submission.
+     */
+    @Nullable
+    private ICraftingJob cachedJob;
+
+    /**
      * Whether this task is waiting for a free CPU.
      */
     private boolean waitingForCpu;
@@ -105,6 +112,15 @@ public class MaintainerTask {
 
     public void setCraftingLink(@Nullable ICraftingLink craftingLink) {
         this.craftingLink = craftingLink;
+    }
+
+    @Nullable
+    public ICraftingJob getCachedJob() {
+        return cachedJob;
+    }
+
+    public void setCachedJob(@Nullable ICraftingJob cachedJob) {
+        this.cachedJob = cachedJob;
     }
 
     public boolean isWaitingForCpu() {

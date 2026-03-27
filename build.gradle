@@ -1,103 +1,623 @@
-buildscript {
-    repositories {
-        jcenter()
-        maven { url = "https://maven.minecraftforge.net" }
-        maven { url = "https://files.minecraftforge.net/maven" } // legacy fallback
-        mavenCentral()
-        maven { url = "https://plugins.gradle.org/m2/" }
-    }
-    dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-        classpath 'gradle.plugin.com.matthewprenger:CurseGradle:1.2.0'
-    }
+import com.gtnewhorizons.retrofuturagradle.mcp.InjectTagsTask
+import org.jetbrains.changelog.Changelog
+import org.jetbrains.gradle.ext.Gradle
+
+import com.gtnewhorizons.retrofuturagradle.MinecraftExtension
+import com.gtnewhorizons.retrofuturagradle.mcp.MCPTasks
+import com.gtnewhorizons.retrofuturagradle.minecraft.MinecraftTasks
+import com.gtnewhorizons.retrofuturagradle.minecraft.RunMinecraftTask
+import com.gtnewhorizons.retrofuturagradle.util.Distribution
+import de.undercouch.gradle.tasks.download.DownloadExtension
+import org.apache.commons.io.FileUtils
+
+import javax.inject.Inject
+
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.3'
+    id 'com.gtnewhorizons.retrofuturagradle' version '2.0.2'
+    id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
+    id 'com.modrinth.minotaur' version '2.+' apply false
+    id 'org.jetbrains.changelog' version '2.5.0'
+    id 'de.undercouch.download' version '5.6.0' apply false
 }
 
-apply plugin: 'net.minecraftforge.gradle.forge'
+apply from: 'gradle/scripts/helpers.gradle'
 
-version = "1.5.0"
-group = "com.ae2powertools"
-archivesBaseName = "ae2-powertools"
+// Early Assertions
+assertProperty 'mod_version'
+assertProperty 'root_package'
+assertProperty 'mod_id'
+assertProperty 'mod_name'
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+assertSubProperties 'use_tags', 'tag_class_name'
+assertSubProperties 'use_access_transformer', 'access_transformer_locations'
+assertSubProperties 'use_mixins', 'mixin_booter_version', 'mixin_refmap'
+assertSubProperties 'is_coremod', 'coremod_includes_mod', 'coremod_plugin_class_name'
+assertSubProperties 'use_asset_mover', 'asset_mover_version'
 
-minecraft {
-    version = "1.12.2-14.23.5.2847"
-    runDir = "run"
-    mappings = "stable_39"
+setDefaultProperty 'use_modern_java_syntax', false, false
+setDefaultProperty 'generate_sources_jar', true, false
+setDefaultProperty 'generate_javadocs_jar', true, false
+setDefaultProperty 'mapping_channel', true, 'stable'
+setDefaultProperty 'mapping_version', true, '39'
+setDefaultProperty 'use_dependency_at_files', true, true
+setDefaultProperty 'minecraft_username', true, 'Developer'
+setDefaultProperty 'extra_jvm_args', false, ''
+setDefaultProperty 'extra_tweak_classes', false, ''
+setDefaultProperty 'change_minecraft_sources', false, false
+
+version = propertyString('mod_version')
+group = propertyString('root_package')
+
+base {
+    archivesName.set(propertyString('mod_id'))
 }
 
-repositories {
-    mavenCentral()
-    jcenter()
-    maven { url 'https://maven.minecraftforge.net' }
-    maven { url 'https://maven.blamejared.com' }
-    maven { url 'https://cursemaven.com' }
+tasks.decompressDecompiledSources.enabled !propertyBool('change_minecraft_sources')
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(propertyBool('use_modern_java_syntax') ? 16 : 8))
+        // Azul covers the most platforms for Java 8 toolchains, crucially including MacOS arm64
+        vendor.set(JvmVendorSpec.AZUL)
+    }
+    if (propertyBool('generate_sources_jar')) {
+        withSourcesJar()
+    }
+    if (propertyBool('generate_javadocs_jar')) {
+        withJavadocJar()
+    }
 }
 
 configurations {
-    deobfCompile
+    embed
+
+    create("runtimeOnlyNonPublishable") {
+        description = "Runtime only dependencies that are not published alongside the jar"
+        canBeConsumed = false
+        canBeResolved = false
+    }
+    create("devOnlyNonPublishable") {
+        description = "Runtime and compiletime dependencies that are not published alongside the jar (compileOnly + runtimeOnlyNonPublishable)"
+        canBeConsumed = false
+        canBeResolved = false
+    }
+
+    compileOnly.extendsFrom(devOnlyNonPublishable)
+    runtimeOnlyNonPublishable.extendsFrom(devOnlyNonPublishable)
+    runtimeClasspath.extendsFrom(runtimeOnlyNonPublishable)
+    testRuntimeClasspath.extendsFrom(runtimeOnlyNonPublishable)
+
+    implementation.extendsFrom(embed)
+}
+
+minecraft {
+    mcVersion.set('1.12.2')
+
+    mcpMappingChannel.set(propertyString('mapping_channel'))
+    mcpMappingVersion.set(propertyString('mapping_version'))
+
+    useDependencyAccessTransformers.set(propertyBool('use_dependency_at_files'))
+
+    username.set(propertyString('minecraft_username'))
+    
+    // Add any additional tweaker classes here
+    extraTweakClasses.addAll(propertyStringList('extra_tweak_classes'))
+
+    // Add various JVM arguments here for runtime
+    def args = ['-ea:' + group]
+    if (propertyBool('use_mixins')) {
+        args << '-Dmixin.hotSwap=true'
+        args << '-Dmixin.checks.interfaces=true'
+        args << '-Dmixin.debug.export=true'
+    }
+    extraRunJvmArguments.addAll(args)
+    extraRunJvmArguments.addAll(propertyStringList('extra_jvm_args'))
+
+    if (propertyBool('use_tags')) {
+        if (file('tags.properties').exists()) {
+            Properties props = new Properties().tap {  it.load(file('tags.properties').newInputStream()); it }
+            if (!props.isEmpty()) {
+                injectedTags.set(props.collectEntries { k, v -> [(k): interpolate(v)] })
+            }
+        }
+    }
+}
+
+repositories {
+    maven {
+        name 'CleanroomMC Maven'
+        url 'https://maven.cleanroommc.com'
+    }
 }
 
 dependencies {
-    deobfCompile "curse.maven:ae2-extended-life-570458:5378163"
-    deobfCompile "curse.maven:jei-238222:4538010"
+    if (propertyBool('use_modern_java_syntax')) {
+        annotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
+        // Workaround for https://github.com/bsideup/jabel/issues/174
+        annotationProcessor 'net.java.dev.jna:jna-platform:5.13.0'
+        compileOnly ('com.github.bsideup.jabel:jabel-javac-plugin:1.0.0') {
+            transitive = false
+        }
+        // Allow jdk.unsupported classes like sun.misc.Unsafe, workaround for JDK-8206937 and fixes crashes in tests
+        patchedMinecraft 'me.eigenraven.java8unsupported:java-8-unsupported-shim:1.0.0'
+        // Include for tests
+        testAnnotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
+        testCompileOnly('com.github.bsideup.jabel:jabel-javac-plugin:1.0.0') {
+            transitive = false // We only care about the 1 annotation class
+        }
+    }
+    if (propertyBool('use_asset_mover')) {
+        implementation "com.cleanroommc:assetmover:${propertyString('asset_mover_version')}"
+    }
+    if (propertyBool('use_mixins')) {
+        String mixin = modUtils.enableMixins("zone.rong:mixinbooter:${propertyString('mixin_booter_version')}", propertyString('mixin_refmap'))
+        api (mixin) {
+            transitive = false
+        }
+        annotationProcessor 'org.ow2.asm:asm-debug-all:5.2'
+        annotationProcessor 'com.google.guava:guava:32.1.2-jre'
+        annotationProcessor 'com.google.code.gson:gson:2.8.9'
+        annotationProcessor (mixin) {
+            transitive = false
+        }
+    }
+    if (propertyBool('enable_junit_testing')) {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.7.1'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+}
+
+apply from: 'gradle/scripts/dependencies.gradle'
+
+// Adds Access Transformer files to tasks
+if (propertyBool('use_access_transformer')) {
+    for (def location : propertyStringList('access_transformer_locations')) {
+        def fileLocation = file("${projectDir}/src/main/resources/${location}")
+        if (fileLocation.exists()) {
+            tasks.deobfuscateMergedJarToSrg.accessTransformerFiles.from(fileLocation)
+            tasks.srgifyBinpatchedJar.accessTransformerFiles.from(fileLocation)
+        } else {
+            throw new GradleException("Access Transformer file [$fileLocation] does not exist!")
+        }
+    }
 }
 
 processResources {
-    inputs.property "version", project.version
-    inputs.property "mcversion", project.minecraft.version
 
-    from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
-        expand 'version': project.version, 'mcversion': project.minecraft.version
+    inputs.property 'mod_id', propertyString('mod_id')
+    inputs.property 'mod_name', propertyString('mod_name')
+    inputs.property 'mod_version', propertyString('mod_version')
+    inputs.property 'mod_description', propertyString('mod_description')
+    inputs.property 'mod_authors', "${propertyStringList('mod_authors', ',').join(', ')}"
+    inputs.property 'mod_credits', propertyString('mod_credits')
+    inputs.property 'mod_url', propertyString('mod_url')
+    inputs.property 'mod_update_json', propertyString('mod_update_json')
+    inputs.property 'mod_logo_path', propertyString('mod_logo_path')
+    inputs.property 'mixin_refmap', propertyString('mixin_refmap')
+    inputs.property 'mixin_package', propertyString('mixin_package')
+    inputs.property 'mixin_configs', propertyStringList('mixin_configs').join(' ')
+
+    def filterList = ['mcmod.info', 'pack.mcmeta']
+    filterList.addAll(propertyStringList('mixin_configs').collect(config -> "mixins.${config}.json" as String))
+
+    filesMatching(filterList) { fcd ->
+        fcd.expand(
+                'mod_id': propertyString('mod_id'),
+                'mod_name': propertyString('mod_name'),
+                'mod_version': propertyString('mod_version'),
+                'mod_description': propertyString('mod_description'),
+                'mod_authors': "${propertyStringList('mod_authors', ',').join(', ')}",
+                'mod_credits': propertyString('mod_credits'),
+                'mod_url': propertyString('mod_url'),
+                'mod_update_json': propertyString('mod_update_json'),
+                'mod_logo_path': propertyString('mod_logo_path'),
+                'mixin_refmap': propertyString('mixin_refmap'),
+                'mixin_package': propertyString('mixin_package')
+        )
+    }
+    
+    if (propertyBool('use_access_transformer')) {
+        rename '(.+_at.cfg)', 'META-INF/$1'
     }
 
-    // Ensure all other resources are still copied (models, lang, textures, etc.)
-    from(sourceSets.main.resources.srcDirs) {
-        exclude 'mcmod.info'
+}
+
+jar {
+    manifest {
+        def attribute_map = [:]
+        if (propertyBool('is_coremod')) {
+            attribute_map['FMLCorePlugin'] = propertyString('coremod_plugin_class_name')
+            if (propertyBool('coremod_includes_mod')) {
+                attribute_map['FMLCorePluginContainsFMLMod'] = true
+                def currentTasks = gradle.startParameter.taskNames
+                if (currentTasks[0] == 'build' || currentTasks[0] == 'prepareObfModsFolder' || currentTasks[0] == 'runObfClient') {
+                    attribute_map['ForceLoadAsMod'] = true
+                }
+            }
+        }
+        if (propertyBool('use_access_transformer')) {
+            attribute_map['FMLAT'] = propertyString('access_transformer_locations')
+        }
+        attributes(attribute_map)
+    }
+    // Add all embedded dependencies into the jar
+    from(provider{ configurations.embed.collect {it.isDirectory() ? it : zipTree(it)} })
+
+    // Include the API classes in the final JAR (src/api/java is compiled to a separate sourceSet)
+    from sourceSets.api.output
+}
+
+// Include the API sources in the sources JAR
+tasks.named('sourcesJar').configure {
+    from sourceSets.api.allJava
+}
+idea {
+    module {
+        inheritOutputDirs = true
+    }
+    project {
+        settings {
+            runConfigurations {
+                "1. Run Client"(Gradle) {
+                    taskNames = ["runClient"]
+                }
+                if (propertyBool('enable_java17_run_tasks')) {
+                    '1a. Run Hotswap Client (Java 17)'(Gradle) {
+                        taskNames = ['runClient17']
+                        envs=[HOTSWAP:"true"]
+                    }
+                    '1b. Run Hotswap Client (Java 21)'(Gradle) {
+                        taskNames = ['runClient21']
+                        envs=[HOTSWAP:"true"]
+                    }
+                }
+                "2. Run Server"(Gradle) {
+                    taskNames = ["runServer"]
+                }
+                if (propertyBool('enable_java17_run_tasks')) {
+                    '2a. Run Hotswap Server (Java 17)'(Gradle) {
+                        taskNames = ['runServer17']
+                        envs=[HOTSWAP:"true"]
+                    }
+                    '2b. Run Hotswap Server (Java 21)'(Gradle) {
+                        taskNames = ['runServer21']
+                        envs=[HOTSWAP:"true"]
+                    }
+                }
+                "3. Run Obfuscated Client"(Gradle) {
+                    taskNames = ["runObfClient"]
+                }
+                "4. Run Obfuscated Server"(Gradle) {
+                    taskNames = ["runObfServer"]
+                }
+            }
+            compiler.javac {
+                afterEvaluate {
+                    javacAdditionalOptions = "-encoding utf8"
+                    moduleJavacAdditionalOptions = [
+                            (project.name + ".main"): tasks.compileJava.options.compilerArgs.collect { '"' + it + '"' }.join(' ')
+                    ]
+                }
+            }
+        }
     }
 }
 
-// --------------------
-// CurseForge publishing
-// --------------------
-// Configure CurseGradle only if a project id is provided via -PcurseforgeProjectId or env CURSEFORGE_PROJECT_ID
-def cfProjectId = (project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PROJECT_ID'))
-if (cfProjectId) {
-    apply plugin: 'com.matthewprenger.cursegradle'
+compileTestJava {
+    sourceCompatibility = targetCompatibility = 8
+}
 
-    def cfReleaseType = (project.findProperty('curseforgeReleaseType') ?: 'release')
-    def cfChangelog = (project.findProperty('curseforgeChangelog') ?: '')
-    def cfApiKey = (System.getenv('CURSEFORGE_TOKEN') ?: '')
-
-    curseforge {
-        apiKey = cfApiKey
-
-        project {
-            id = cfProjectId.toString()
-            releaseType = cfReleaseType.toString()
-
-            addGameVersion '1.12.2'
-
-            mainArtifact(jar) {
-                displayName = "AE2 PowerTools ${project.version}"
-                changelog = cfChangelog
-                changelogType = 'markdown'
-            }
-
-            // Declare relations for CurseForge page
-            relations {
-                // Required: AE2UEL
-                requiredDependency 'ae2-extended-life'
-            }
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(8)
+    })
+    if (propertyBool('show_testing_output')) {
+        testLogging {
+            showStandardStreams = true
         }
+    }
+}
 
-        // Ensure the uploaded artifact is reobfuscated for release
-        afterEvaluate {
-            tasks.findAll { it.name.startsWith('curseforge') }.each { t ->
-                t.dependsOn 'reobfJar'
+String parserChangelog() {
+    if (!file('CHANGELOG.md').exists()) {
+        throw new GradleException('publish_with_changelog is true, but CHANGELOG.md does not exist in the workspace!')
+    }
+    String parsedChangelog = changelog.renderItem(
+            changelog.get(propertyString('mod_version')).withHeader(false).withEmptySections(false),
+            Changelog.OutputType.MARKDOWN)
+    if (parsedChangelog.isEmpty()) {
+        throw new GradleException('publish_with_changelog is true, but the changelog for the latest version is empty!')
+    }
+    return parsedChangelog
+}
+
+tasks.register('generateMixinJson') {
+    group 'cleanroom helpers'
+    def missingConfig = propertyStringList('mixin_configs').findAll(config -> !file("src/main/resources/mixins.${config}.json").exists())
+    onlyIf {
+        if (propertyBool('use_mixins') && propertyBool('generate_mixins_json')) {
+            return !missingConfig.empty
+        }
+        return false
+    }
+    doLast {
+        for (String mixinConfig : missingConfig) {
+            def file = file("src/main/resources/mixins.${mixinConfig}.json")
+            file << """{\n\t"package": "",\n\t"required": true,\n\t"refmap": "${propertyString('mixin_refmap')}",\n\t"target": "@env(DEFAULT)",\n\t"minVersion": "0.8.5",\n\t"compatibilityLevel": "JAVA_8",\n\t"mixins": [],\n\t"server": [],\n\t"client": []\n}"""
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    if (propertyBool('use_modern_java_syntax')) {
+        if (it.name in ['compileMcLauncherJava', 'compilePatchedMcJava']) {
+            return
+        }
+        sourceCompatibility = 17
+        options.release.set(8)
+        javaCompiler.set(javaToolchains.compilerFor {
+            languageVersion.set(JavaLanguageVersion.of(16))
+            vendor.set(JvmVendorSpec.AZUL)
+        })
+    }
+}
+
+tasks.register('cleanroomAfterSync') {
+    group 'cleanroom helpers'
+    dependsOn 'injectTags', 'generateMixinJson'
+}
+
+if (propertyBool('use_modern_java_syntax')) {
+    tasks.withType(Javadoc).configureEach {
+        sourceCompatibility = 17
+    }
+}
+
+tasks.named('injectTags', InjectTagsTask).configure {
+    onlyIf {
+        return propertyBool('use_tags') && !it.getTags().get().isEmpty()
+    }
+    it.outputClassName.set(propertyString('tag_class_name'))
+}
+
+tasks.named('prepareObfModsFolder').configure {
+    finalizedBy 'prioritizeCoremods'
+}
+
+tasks.register('prioritizeCoremods') {
+    dependsOn 'prepareObfModsFolder'
+    doLast {
+        fileTree('run/obfuscated').forEach {
+            if (it.isFile() && it.name =~ '(mixinbooter|configanytime)(-)([0-9])+\\.+([0-9])+(.jar)') {
+                it.renameTo(new File(it.parentFile, "!${it.name}"))
             }
         }
     }
 }
+
+idea.project.settings {
+    taskTriggers {
+        afterSync 'cleanroomAfterSync'
+    }
+}
+
+apply from: 'gradle/scripts/publishing.gradle'
+apply from: 'gradle/scripts/extra.gradle'
+
+
+if (propertyBool('enable_java17_run_tasks')) {
+
+    apply plugin: 'de.undercouch.download'
+
+    ext.java17Toolchain = (JavaToolchainSpec spec) -> {
+        spec.languageVersion.set(JavaLanguageVersion.of(17))
+        spec.vendor.set(JvmVendorSpec.matching("jetbrains"))
+    }
+    ext.java21Toolchain = (JavaToolchainSpec spec) -> {
+        spec.languageVersion.set(JavaLanguageVersion.of(21))
+        spec.vendor.set(JvmVendorSpec.matching("jetbrains"))
+    }
+
+    ext.java17DependenciesCfg = configurations.create("java17Dependencies") {
+        extendsFrom(configurations.getByName("runtimeClasspath")) // Ensure consistent transitive dependency resolution
+        canBeConsumed = false
+    }
+    ext.java17PatchDependenciesCfg = configurations.create("java17PatchDependencies") {
+        canBeConsumed = false
+    }
+
+    dependencies {
+        if (propertyString('mod_id') != 'lwjgl3ify') {
+            java17Dependencies("io.github.twilightflower:lwjgl3ify:1.0.1")
+            java17PatchDependencies("io.github.twilightflower:lwjgl3ify:1.0.1:forgePatches") {
+                transitive = false
+            }
+        }
+    }
+
+    ext.java17JvmArgs = [
+            "-Dfile.encoding=UTF-8",
+            "-Djava.system.class.loader=com.gtnewhorizons.retrofuturabootstrap.RfbSystemClassLoader",
+            "-Djava.security.manager=allow",
+            "--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED",
+            "--add-opens", "java.base/java.net=ALL-UNNAMED",
+            "--add-opens", "java.base/java.nio=ALL-UNNAMED",
+            "--add-opens", "java.base/java.io=ALL-UNNAMED",
+            "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+            "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+            "--add-opens", "java.base/java.text=ALL-UNNAMED",
+            "--add-opens", "java.base/java.util=ALL-UNNAMED",
+            "--add-opens", "java.base/jdk.internal.reflect=ALL-UNNAMED",
+            "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED",
+            "--add-opens", "jdk.naming.dns/com.sun.jndi.dns=ALL-UNNAMED,java.naming",
+            "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
+            "--add-opens", "java.desktop/sun.awt.image=ALL-UNNAMED",
+            "--add-opens", "java.desktop/com.sun.imageio.plugins.png=ALL-UNNAMED",
+            "--add-opens", "jdk.dynalink/jdk.dynalink.beans=ALL-UNNAMED",
+            "--add-opens", "java.sql.rowset/javax.sql.rowset.serial=ALL-UNNAMED"
+    ]
+
+    ext.hotswapJvmArgs = [
+            // DCEVM advanced hot reload
+            "-XX:+AllowEnhancedClassRedefinition",
+            "-XX:HotswapAgent=fatjar"
+    ]
+
+    ext.setupHotswapAgent17 = tasks.register("setupHotswapAgent17", SetupHotswapAgentTask, t -> {
+        t.setTargetForToolchain(java17Toolchain)
+    })
+
+    ext.setupHotswapAgent21 = tasks.register("setupHotswapAgent21", SetupHotswapAgentTask, t -> {
+        t.setTargetForToolchain(java21Toolchain)
+    })
+
+    def runClient17Task = tasks.register("runClient17", RunHotswappableMinecraftTask, Distribution.CLIENT, "runClient")
+    runClient17Task.configure {
+        dependsOn(setupHotswapAgent17)
+        setup(project)
+        javaLauncher = project.javaToolchains.launcherFor(project.java17Toolchain)
+    }
+
+    def runServer17Task = tasks.register("runServer17", RunHotswappableMinecraftTask, Distribution.DEDICATED_SERVER, "runServer")
+    runServer17Task.configure {
+        dependsOn(setupHotswapAgent17)
+        setup(project)
+        javaLauncher = project.javaToolchains.launcherFor(project.java17Toolchain)
+    }
+
+    def runClient21Task = tasks.register("runClient21", RunHotswappableMinecraftTask, Distribution.CLIENT, "runClient")
+    runClient21Task.configure {
+        dependsOn(setupHotswapAgent21)
+        setup(project)
+        javaLauncher = project.javaToolchains.launcherFor(project.java21Toolchain)
+    }
+
+    def runServer21Task = tasks.register("runServer21", RunHotswappableMinecraftTask, Distribution.DEDICATED_SERVER, "runServer")
+    runServer21Task.configure {
+        dependsOn(setupHotswapAgent21)
+        setup(project)
+        javaLauncher = project.javaToolchains.launcherFor(project.java21Toolchain)
+    }
+}
+
+abstract class RunHotswappableMinecraftTask extends RunMinecraftTask {
+
+    // IntelliJ doesn't seem to allow pre-set commandline arguments, so we also support an env variable
+    private boolean enableHotswap = Boolean.valueOf(System.getenv("HOTSWAP"))
+
+    public final Distribution side
+    public final String superTask
+
+    @Input
+    boolean getEnableHotswap() {
+        return enableHotswap
+    }
+
+    @Option(option = "hotswap", description = "Enables HotSwapAgent for enhanced class reloading under a debugger")
+    boolean setEnableHotswap(boolean enable) {
+        enableHotswap = enable
+    }
+
+    @Inject
+    RunHotswappableMinecraftTask(Distribution side, String superTask, org.gradle.api.invocation.Gradle gradle) {
+        super(side, gradle)
+
+        this.side = side
+        this.superTask = superTask
+        setGroup("Modded Minecraft")
+        setDescription("Runs the modded " + side.name().toLowerCase(Locale.ROOT) + " using modern Java and lwjgl3ify")
+        this.getLwjglVersion().set(3)
+    }
+
+    void setup(Project project) {
+        final MinecraftExtension minecraft = project.getExtensions().getByType(MinecraftExtension.class)
+        final MCPTasks mcpTasks = project.getExtensions().getByType(MCPTasks.class)
+        final MinecraftTasks mcTasks = project.getExtensions().getByType(MinecraftTasks.class)
+
+        this.getExtraJvmArgs().addAll((List<String>) project.property("java17JvmArgs"))
+        if (getEnableHotswap()) {
+            this.getExtraJvmArgs().addAll((List<String>) project.property("hotswapJvmArgs"))
+        }
+
+        this.classpath(project.property("java17PatchDependenciesCfg"))
+        this.classpath(mcpTasks.getTaskPackageMcLauncher())
+        this.classpath(mcpTasks.getTaskPackagePatchedMc())
+        this.classpath(mcpTasks.getPatchedConfiguration())
+        this.classpath(project.getTasks().named("jar"))
+        this.classpath(project.property("java17DependenciesCfg"))
+
+        super.setup(project)
+
+        dependsOn(
+                mcpTasks.getLauncherSources().getClassesTaskName(),
+                mcTasks.getTaskDownloadVanillaAssets(),
+                mcpTasks.getTaskPackagePatchedMc(),
+                "jar"
+        )
+
+        getMainClass().set((side == Distribution.CLIENT) ? "GradleStart" : "GradleStartServer")
+        getUsername().set(minecraft.getUsername())
+        getUserUUID().set(minecraft.getUserUUID())
+        if (side == Distribution.DEDICATED_SERVER) {
+            getExtraArgs().add("nogui")
+        }
+
+        systemProperty("gradlestart.bouncerClient", "com.gtnewhorizons.retrofuturabootstrap.Main")
+        systemProperty("gradlestart.bouncerServer", "com.gtnewhorizons.retrofuturabootstrap.Main")
+
+        if (project.use_mixins.toBoolean()) {
+            this.extraJvmArgs.addAll(project.provider(() -> {
+                def mixinCfg = project.configurations.detachedConfiguration(project.dependencies.create(project.mixinProviderSpec))
+                mixinCfg.canBeConsumed = false
+                mixinCfg.canBeResolved = true
+                mixinCfg.transitive = false
+                enableHotswap ? ["-javaagent:" + mixinCfg.singleFile.absolutePath] : []
+            }))
+        }
+    }
+}
+
+abstract class SetupHotswapAgentTask extends DefaultTask {
+
+    @OutputFile
+    abstract RegularFileProperty getTargetFile()
+
+    void setTargetForToolchain(Action<JavaToolchainSpec> spec) {
+        getTargetFile().set(project.javaToolchains.launcherFor(spec).map {
+            it.metadata.installationPath.file("lib/hotswap/hotswap-agent.jar")
+        })
+    }
+
+    @Inject
+    SetupHotswapAgentTask() {
+        setGroup("GT Buildscript")
+        setDescription("Installs a recent version of HotSwapAgent into the Java runtime directory")
+        onlyIf("Run only if not already installed", t -> !((SetupHotswapAgentTask) t).getTargetFile().getAsFile().get().exists())
+    }
+
+    @TaskAction
+    void installHSA() {
+        final String url = 'https://github.com/HotswapProjects/HotswapAgent/releases/download/RELEASE-2.0.3/hotswap-agent-2.0.3.jar'
+        final File target = getTargetFile().getAsFile().get()
+        final File parent = target.getParentFile()
+        FileUtils.forceMkdir(parent)
+        final DownloadExtension download = getProject().getExtensions().findByType(DownloadExtension.class)
+        download.run(ds -> {
+            try {
+                ds.src(url)
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e)
+            }
+            ds.dest(target)
+            ds.overwrite(false)
+            ds.tempAndMove(true)
+        })
+    }
+}
+

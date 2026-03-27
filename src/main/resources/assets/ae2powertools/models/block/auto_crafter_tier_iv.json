@@ -2,6 +2,7 @@
     "credit": "AE2 AutoCrafter - Tier IV variant",
     "parent": "ae2powertools:block/auto_crafter",
     "textures": {
-        "storage": "ae2powertools:blocks/storage_t4"
+        "storage": "ae2powertools:blocks/storage_t4",
+        "storage_assembler": "ae2powertools:blocks/storage_assembler_t4"
     }
 }

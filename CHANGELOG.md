@@ -8,6 +8,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.5.1] - 2026-03-27
+### Fixed
+- Try to mitigate high CPU load in some edge cases of the Better Level Maintainer by adding some caching, throttling, and retry limits.
+
+
+## [1.5.0-beta4] - 2026-03-09
+### Fixed
+- Fix the textures for the AutoCrafter.
+
+
 ## [1.5.0-beta3] - 2026-03-02
 ### Added
 - Add proper textures for Batch and Speed buttons in the AutoCrafter GUI.

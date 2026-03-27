@@ -14,6 +14,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
@@ -79,6 +80,34 @@ public class BlockAutoCrafter extends Block {
         }
 
         return state;
+    }
+
+    // === Render Layer Configuration for Transparency ===
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public BlockRenderLayer getRenderLayer() {
+        // Primary layer for item rendering - CUTOUT_MIPPED for binary transparency
+        return BlockRenderLayer.CUTOUT_MIPPED;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public boolean canRenderInLayer(IBlockState state, BlockRenderLayer layer) {
+        // Render in both CUTOUT_MIPPED (binary transparency for frame) and TRANSLUCENT (alpha blending for colored overlay)
+        return layer == BlockRenderLayer.CUTOUT_MIPPED || layer == BlockRenderLayer.TRANSLUCENT;
+    }
+
+    @Override
+    public boolean isOpaqueCube(IBlockState state) {
+        // Required for transparency - tells Minecraft this block has transparent parts
+        return false;
+    }
+
+    @Override
+    public boolean isFullCube(IBlockState state) {
+        // The block is visually a full cube, but has transparent textures
+        return false;
     }
 
     @Override
