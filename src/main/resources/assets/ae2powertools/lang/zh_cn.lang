@@ -200,6 +200,7 @@ gui.ae2powertools.maintainer.error.cancelled=合成已取消
 gui.ae2powertools.maintainer.error.no_space=无空间用于存储合成产物
 gui.ae2powertools.maintainer.error.missing_resources=开始合成所需的物品不足
 gui.ae2powertools.maintainer.error.calculation_timeout=任务计算超时（配方过于复杂）
+gui.ae2powertools.maintainer.error.cpu_retry_limit=已超出CPU等待重试限制
 
 # =====================================================
 # AE2 AutoCrafter
