@@ -77,6 +77,8 @@ if (propertyBool('publish_to_curseforge')) {
                     requiredDependency 'ae2-extended-life'
                     // Optional: JEI
                     optionalDependency 'jei'
+                    // Optional: NAE2
+                    optionalDependency 'nae2'
                 }
             }
             options {

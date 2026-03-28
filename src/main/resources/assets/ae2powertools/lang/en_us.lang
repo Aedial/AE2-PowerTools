@@ -201,6 +201,7 @@ gui.ae2powertools.maintainer.error.no_space=No space for crafted items
 gui.ae2powertools.maintainer.error.missing_resources=Not enough items to start crafting
 gui.ae2powertools.maintainer.error.calculation_timeout=Job calculation timed out (recipe too complex)
 gui.ae2powertools.maintainer.error.cpu_retry_limit=CPU wait retry limit exceeded
+gui.ae2powertools.maintainer.error.extraction_failed=Items visible but not extractable (check external storage)
 
 # =====================================================
 # AE2 AutoCrafter
@@ -257,6 +258,10 @@ gui.ae2powertools.crafter.crafts_per_operation=%s items / %s
 gui.ae2powertools.crafter.error.not_pattern=Item is not a crafting pattern
 gui.ae2powertools.crafter.error.invalid_pattern=Invalid or corrupt pattern
 gui.ae2powertools.crafter.error.processing_pattern=Only crafting patterns are supported, not processing patterns
+
+# GUI - Warnings (tooltips)
+gui.ae2powertools.crafter.warning.processing_pattern_title=WARNING: Processing Pattern!
+gui.ae2powertools.crafter.warning.processing_pattern_desc=AutoCrafter only accepts Crafting Patterns.
 gui.ae2powertools.crafter.error.need_have=%s (need %d, have %d)
 gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network

@@ -1,12 +1,15 @@
 package com.ae2powertools.features.crafter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.ClickType;
-import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -18,9 +21,10 @@ import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
 import appeng.container.slot.AppEngSlot;
-import appeng.container.slot.SlotFake;
 import appeng.util.Platform;
 
+import com.ae2powertools.features.crafter.pmt.PMTManager;
+import com.ae2powertools.features.crafter.pmt.PMTSlot;
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
 import com.ae2powertools.network.PowerToolsNetwork;
 
@@ -28,6 +32,9 @@ import com.ae2powertools.network.PowerToolsNetwork;
 /**
  * Container for the AE2 AutoCrafter GUI.
  * Manages the pattern slot and catalyst inventory for a single recipe entry.
+ * 
+ * When NAE2 is installed and the player has a Pattern Multi-Tool in their inventory,
+ * this container adds PMT slots for convenient pattern storage access.
  */
 public class ContainerAutoCrafter extends AEBaseContainer {
 
@@ -73,10 +80,19 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     private SlotCatalyst[] catalystSlots;
     private SlotUpgrade[] upgradeSlots;
 
+    // Pattern Multi-Tool support
+    private PMTManager pmtManager;
+    private final List<PMTSlot> pmtSlots = new ArrayList<>();
+
     // Upgrade slots
     private static final int UPGRADE_START_X = 187;
     private static final int UPGRADE_START_Y = 8;
     private static final int UPGRADE_SLOT_SIZE = 18;
+
+    // PMT slot layout
+    private static final int PMT_OFFSET_X = -86 - 4;  // Left of main GUI
+    private static final int PMT_OFFSET_Y = 26;       // Aligned with recipe area
+    private static final int PMT_SLOT_MARGIN = 8;     // Margin from panel edge
 
     public ContainerAutoCrafter(InventoryPlayer playerInv, TileAutoCrafter tile) {
         super(playerInv, tile, null);
@@ -117,6 +133,52 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
         // Player inventory (starting at y=167)
         this.bindPlayerInventory(playerInv, 0, 167);
+
+        // Initialize Pattern Multi-Tool slots if NAE2 is loaded and player has PMT
+        initializePMTSlots();
+    }
+
+    /**
+     * Initializes Pattern Multi-Tool slots if NAE2 is loaded and player has a PMT.
+     * Creates 36 PMT slots (4 columns x 9 rows), with columns enabled based on capacity upgrades.
+     */
+    private void initializePMTSlots() {
+        // Find PMT in player inventory
+        this.pmtManager = PMTManager.findPMT(playerInv.player);
+        if (pmtManager == null) return;
+
+        IItemHandler pmtInventory = pmtManager.getPatternInventory();
+
+        // Add PMT slots: 4 columns x 9 rows
+        // Slots are positioned to the left of the main GUI
+        // NAE2 uses column-major indexing: col * ROWS + row
+        for (int row = 0; row < PMTManager.ROWS; row++) {
+            for (int col = 0; col < PMTManager.COLUMNS; col++) {
+                // NAE2 uses column-major ordering, so slot index = col * ROWS + row
+                int slotIndex = col * PMTManager.ROWS + row;
+                int x = PMT_OFFSET_X + PMT_SLOT_MARGIN + col * 18;
+                int y = PMT_OFFSET_Y + PMT_SLOT_MARGIN + row * 18;
+
+                PMTSlot slot = new PMTSlot(pmtInventory, pmtManager, slotIndex, x, y, col, playerInv);
+                addSlotToContainer(slot);
+                pmtSlots.add(slot);
+            }
+        }
+    }
+
+    /**
+     * Gets the PMT manager, or null if PMT is not available.
+     */
+    @Nullable
+    public PMTManager getPMTManager() {
+        return pmtManager;
+    }
+
+    /**
+     * Gets the list of PMT slots, empty if PMT is not available.
+     */
+    public List<PMTSlot> getPMTSlots() {
+        return pmtSlots;
     }
 
     @Override
@@ -264,6 +326,16 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         if (clickType == ClickType.QUICK_MOVE) {
             if (entry.hasPattern()) {
                 ItemStack pattern = entry.getPatternStack().copy();
+
+                // Try PMT first if available
+                if (pmtManager != null && tryInsertIntoPMT(pattern)) {
+                    entry.setPatternStack(null);
+                    tile.simulatePattern(syncCurrentPage, null);
+                    tile.markDirty();
+                    return ItemStack.EMPTY;
+                }
+
+                // Fall back to player inventory
                 entry.setPatternStack(null);
                 tile.simulatePattern(syncCurrentPage, null);
 
@@ -533,6 +605,60 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         return ItemStack.EMPTY;
     }
 
+    /**
+     * Tries to insert a pattern into the Pattern Multi-Tool inventory.
+     * First attempts to merge with existing matching patterns, then finds an empty slot.
+     * Only uses enabled columns (based on capacity upgrades).
+     * 
+     * @param pattern The pattern to insert
+     * @return true if successfully inserted, false otherwise
+     */
+    private boolean tryInsertIntoPMT(ItemStack pattern) {
+        if (pmtManager == null || pattern.isEmpty()) return false;
+
+        IItemHandler pmtInventory = pmtManager.getPatternInventory();
+        int firstEmptySlot = -1;
+
+        // First pass: try to merge with existing matching patterns
+        for (int col = 0; col < PMTManager.COLUMNS; col++) {
+            if (!pmtManager.isColumnEnabled(col)) continue;
+
+            for (int row = 0; row < PMTManager.ROWS; row++) {
+                int slotIndex = col * PMTManager.ROWS + row;
+                ItemStack existing = pmtInventory.getStackInSlot(slotIndex);
+
+                if (existing.isEmpty()) {
+                    // Track first empty slot for later
+                    if (firstEmptySlot < 0) firstEmptySlot = slotIndex;
+                    continue;
+                }
+
+                // Check if we can merge (same item, metadata, NBT, and has room)
+                if (ItemStack.areItemsEqual(existing, pattern) &&
+                    ItemStack.areItemStackTagsEqual(existing, pattern) &&
+                    existing.getCount() < existing.getMaxStackSize()) {
+
+                    ItemStack remaining = pmtInventory.insertItem(slotIndex, pattern, false);
+                    if (remaining.isEmpty()) {
+                        pmtManager.saveChanges();
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Second pass: use first empty slot if no merge was possible
+        if (firstEmptySlot >= 0) {
+            ItemStack remaining = pmtInventory.insertItem(firstEmptySlot, pattern, false);
+            if (remaining.isEmpty()) {
+                pmtManager.saveChanges();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private boolean isValidPattern(ItemStack stack) {
         if (stack.isEmpty()) return false;
         if (!(stack.getItem() instanceof ICraftingPatternItem)) return false;
@@ -564,8 +690,29 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         ItemStack stack = slot.getStack();
         ItemStack original = stack.copy();
 
+        // Handle PMT slot shift-click (transfer to crafter pattern slot)
+        if (slot instanceof PMTSlot) {
+            PMTSlot pmtSlot = (PMTSlot) slot;
+            if (!pmtSlot.isSlotEnabled()) return ItemStack.EMPTY;
+            
+            // Try to transfer pattern to crafter's pattern slot
+            if (isValidPattern(stack)) {
+                CrafterEntry entry = getCurrentEntry();
+                if (entry != null && !entry.hasPattern()) {
+                    ItemStack toInsert = stack.splitStack(1);
+                    entry.setPatternStack(toInsert);
+                    tile.simulatePattern(syncCurrentPage, toInsert);
+                    tile.markDirty();
+                    // Update PMT inventory
+                    if (pmtManager != null) pmtManager.saveChanges();
+                    return original;
+                }
+            }
+            return ItemStack.EMPTY;
+        }
+
         // From player inventory
-        if (slotIndex >= SLOT_PLAYER_START) {
+        if (slotIndex >= SLOT_PLAYER_START && slotIndex < SLOT_PLAYER_START + 36) {
             // Try pattern slot first
             if (isValidPattern(stack)) {
                 CrafterEntry entry = getCurrentEntry();
@@ -634,6 +781,16 @@ public class ContainerAutoCrafter extends AEBaseContainer {
             CrafterEntry entry = getCurrentEntry();
             if (entry != null && entry.hasPattern()) {
                 ItemStack pattern = entry.getPatternStack().copy();
+
+                // Try PMT first if available
+                if (pmtManager != null && tryInsertIntoPMT(pattern)) {
+                    entry.setPatternStack(null);
+                    tile.simulatePattern(syncCurrentPage, null);
+                    tile.markDirty();
+                    return pattern;
+                }
+
+                // Fall back to player inventory
                 if (player.inventory.addItemStackToInventory(pattern)) {
                     entry.setPatternStack(null);
                     tile.simulatePattern(syncCurrentPage, null);

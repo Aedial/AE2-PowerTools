@@ -49,4 +49,7 @@ dependencies {
 
     // ---- Optional: JEI ----
     devOnlyNonPublishable rfg.deobf("curse.maven:jei-238222:3043174")
+
+    // ---- Optional: Baubles (for PMT baubles slot support) ----
+    compileOnly rfg.deobf("curse.maven:baubles-227083:2518667")
 }

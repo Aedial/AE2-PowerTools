@@ -9,8 +9,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [1.5.1] - 2026-03-27
+### Added
+- Add Pattern Multi-Tool integration for AutoCrafter when NAE2 is installed. The PMT panel appears to the left of the GUI, providing convenient pattern storage access.
+
 ### Fixed
 - Try to mitigate high CPU load in some edge cases of the Better Level Maintainer by adding some caching, throttling, and retry limits.
+- Fix some errors potentially being interpreted as not enough CPU space (because AE2 doesn't provide accurate error reporting).
 
 
 ## [1.5.0-beta4] - 2026-03-09
