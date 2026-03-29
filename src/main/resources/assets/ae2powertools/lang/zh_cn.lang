@@ -200,6 +200,8 @@ gui.ae2powertools.maintainer.error.cancelled=合成已取消
 gui.ae2powertools.maintainer.error.no_space=无空间用于存储合成产物
 gui.ae2powertools.maintainer.error.missing_resources=开始合成所需的物品不足
 gui.ae2powertools.maintainer.error.calculation_timeout=任务计算超时（配方过于复杂）
+gui.ae2powertools.maintainer.error.cpu_retry_limit=已超出CPU等待重试限制
+gui.ae2powertools.maintainer.error.extraction_failed=物品可见但无法提取（请检查外部存储）
 
 # =====================================================
 # AE2 AutoCrafter
@@ -256,6 +258,10 @@ gui.ae2powertools.crafter.crafts_per_operation=%s 物品 / %s
 gui.ae2powertools.crafter.error.not_pattern=物品不是合成样板
 gui.ae2powertools.crafter.error.invalid_pattern=样板无效或损坏
 gui.ae2powertools.crafter.error.processing_pattern=仅支持合成样板，不支持处理样板
+
+# GUI - Warnings (tooltips)
+gui.ae2powertools.crafter.warning.processing_pattern_title=警告：处理样板！
+gui.ae2powertools.crafter.warning.processing_pattern_desc=自动合成器仅接受合成样板。
 gui.ae2powertools.crafter.error.need_have=%s（需要%d，现有%d）
 gui.ae2powertools.crafter.error.limited_by=受限于%s（分配%d，需要%d）
 gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
