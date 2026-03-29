@@ -472,7 +472,24 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             ICraftingLink link = craftingGrid.submitJob(job, this, null, false, actionSource);
 
             if (link == null) {
-                // No CPU available right now, mark as waiting and cache the job
+                // submitJob returned null - this could be CPU starvation OR extraction failure.
+                // Re-check CPU availability to distinguish the two cases. Since Minecraft is
+                // single-threaded, CPU state cannot change between submitJob and this check.
+                boolean hasFreeCpuWithStorage = craftingGrid.getCpus().stream()
+                        .anyMatch(cpu -> !cpu.isBusy() && cpu.getAvailableStorage() >= jobBytes);
+
+                if (hasFreeCpuWithStorage) {
+                    // A suitable CPU exists but submitJob still failed - this means extraction
+                    // failed during commit (e.g., items visible but not extractable).
+                    // This is a permanent failure for this cycle - wait for next scheduled run.
+                    entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.extraction_failed");
+                    entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
+                    needsSync = true;
+
+                    return true;  // Permanent failure - remove task, wait for next cycle
+                }
+
+                // No suitable CPU available - mark as waiting and cache the job
                 // so we can retry without expensive recalculation
                 task.setWaitingForCpu(true);
                 task.setCachedJob(job);

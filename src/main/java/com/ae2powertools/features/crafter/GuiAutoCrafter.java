@@ -7,12 +7,12 @@ import java.util.List;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -27,6 +27,9 @@ import appeng.util.ReadableNumberConverter;
 import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.features.crafter.pmt.PMTManager;
+import com.ae2powertools.features.crafter.pmt.PMTRenderer;
+import com.ae2powertools.features.crafter.pmt.PMTSlot;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.FormatUtil;
 
@@ -37,6 +40,9 @@ import com.ae2powertools.util.FormatUtil;
  * 
  * Modal system: Overview is drawn on top of the recipe view when overviewMode=true.
  * Upgrade slots and Batch/Speed buttons remain accessible in both modes.
+ * 
+ * When NAE2 is installed and the player has a Pattern Multi-Tool, displays the PMT
+ * panel to the left of the main GUI for convenient pattern storage access.
  */
 @SideOnly(Side.CLIENT)
 public class GuiAutoCrafter extends GuiContainer {
@@ -98,6 +104,11 @@ public class GuiAutoCrafter extends GuiContainer {
     // Overview/back button position (top LEFT, before title) - same position for both modes
     private static final int OVERVIEW_BTN_X = 5;
     private static final int OVERVIEW_BTN_Y = 5;
+
+    // Pattern Multi-Tool panel offsets (when NAE2 is installed and player has PMT)
+    // Positions the PMT panel to the left of the main GUI
+    private static final int PMT_OFFSET_X = -86 - 4;
+    private static final int PMT_OFFSET_Y = 25;
 
     private final ContainerAutoCrafter container;
 
@@ -246,6 +257,10 @@ public class GuiAutoCrafter extends GuiContainer {
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
+        // Draw PMT slot hover highlights manually
+        // Vanilla's drawScreen doesn't draw hover for disabled slots, so we need to handle it
+        drawPMTSlotHovers(mouseX, mouseY);
+
         // Draw overview modal on top if visible
         if (overviewMode) {
             drawOverviewModal(mouseX, mouseY, partialTicks);
@@ -253,21 +268,99 @@ public class GuiAutoCrafter extends GuiContainer {
             return;  // Modal blocks other interactions
         }
 
-        renderHoveredToolTip(mouseX, mouseY);
+        renderHoveredToolTipWithPatternWarning(mouseX, mouseY);
         drawRecipeTooltips(mouseX, mouseY);
         drawAE2ButtonTooltips(mouseX, mouseY);
+    }
+
+    /**
+     * Custom tooltip rendering that adds processing pattern warnings.
+     * Processing patterns are incompatible with the AutoCrafter, so we warn the player
+     * on ALL processing patterns visible in the GUI (inventory, PMT, crafter slots).
+     */
+    private void renderHoveredToolTipWithPatternWarning(int mouseX, int mouseY) {
+        if (mc.player.inventory.getItemStack().isEmpty() && getSlotUnderMouse() != null) {
+            Slot slot = getSlotUnderMouse();
+            ItemStack stack = slot.getStack();
+
+            if (!stack.isEmpty()) {
+                List<String> tooltip = stack.getTooltip(mc.player, mc.gameSettings.advancedItemTooltips
+                        ? ITooltipFlag.TooltipFlags.ADVANCED : ITooltipFlag.TooltipFlags.NORMAL);
+
+                // Add processing pattern warning if applicable
+                PMTRenderer.addProcessingPatternWarning(stack, tooltip);
+
+                GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, width, height, -1, fontRenderer);
+                return;
+            }
+        }
+
+        // Fallback to default behavior
+        renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    /**
+     * Draws hover highlights for PMT slots.
+     * 
+     * Vanilla's drawScreen skips hover highlighting for disabled slots, but we want
+     * to show hover for both.
+     */
+    private void drawPMTSlotHovers(int mouseX, int mouseY) {
+        PMTManager pmtManager = container.getPMTManager();
+        if (pmtManager == null || !pmtManager.hasPMT()) return;
+
+        for (Slot slot : container.inventorySlots) {
+            if (!(slot instanceof PMTSlot)) continue;
+
+            PMTSlot pmtSlot = (PMTSlot) slot;
+            int slotX = guiLeft + slot.xPos;
+            int slotY = guiTop + slot.yPos;
+
+            // Check if mouse is over this slot and it's not enabled
+            if (mouseX >= slotX && mouseX < slotX + 16 &&
+                mouseY >= slotY && mouseY < slotY + 16 &&
+                !pmtSlot.isSlotEnabled()) {
+
+                GlStateManager.disableLighting();
+                GlStateManager.disableDepth();
+                GlStateManager.colorMask(true, true, true, false);
+
+                // Normal white hover (same as vanilla)
+                drawRect(slotX, slotY, slotX + 16, slotY + 16, 0x80FFFFFF);
+
+                GlStateManager.colorMask(true, true, true, true);
+                GlStateManager.enableDepth();
+                GlStateManager.enableLighting();
+
+                // Only one slot can be hovered at a time
+                break;
+            }
+        }
     }
 
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
+        // Draw Pattern Multi-Tool panel (if player has PMT)
+        PMTManager pmtManager = container.getPMTManager();
+        PMTRenderer.drawBackground(this, pmtManager, guiLeft, guiTop, PMT_OFFSET_X, PMT_OFFSET_Y);
+
+        // Reset GL state after PMT drawing
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+
         // Always draw recipe texture as base
         mc.getTextureManager().bindTexture(RECIPE_TEXTURE);
         drawTexturedModalRect(guiLeft, guiTop, 0, 0, GUI_WIDTH, GUI_HEIGHT);
 
+        // Draw PMT slot backgrounds (pattern icons for empty slots)
+        PMTRenderer.drawSlotBackgrounds(this, pmtManager, guiLeft, guiTop);
+
         // Draw upgrade slot icons (for empty slots)
         drawUpgradeSlotIcons();
+
+        // Draw pattern slot icon (for empty slot)
+        drawPatternSlotIcon();
 
         // Draw recipe content (always visible, upgrade slots always accessible)
         drawRecipeContent(mouseX, mouseY);
@@ -307,6 +400,35 @@ public class GuiAutoCrafter extends GuiContainer {
         }
     }
 
+    /**
+     * Draws the pattern slot background icon when the pattern slot is empty.
+     * Uses AE2's states.png texture for the "insert pattern" icon.
+     * Applies 0.4f opacity to match AE2's grayed-out style for empty slots.
+     */
+    private void drawPatternSlotIcon() {
+        // Check if the current entry has a pattern
+        int currentPage = getCurrentPage();
+        ItemStack patternStack = container.getTile().getEntry(currentPage).getPatternStack();
+        if (patternStack != null && !patternStack.isEmpty()) return;
+
+        // Pattern icon position in states.png: BACKGROUND_PATTERN = row 9, col 16
+        final int PATTERN_ICON_U = 15 * 16;
+        final int PATTERN_ICON_V = 8 * 16;
+        final float ICON_OPACITY = 0.4f;
+
+        mc.getTextureManager().bindTexture(AE2_STATES);
+
+        int x = guiLeft + PATTERN_SLOT_X;
+        int y = guiTop + PATTERN_SLOT_Y;
+
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, ICON_OPACITY);
+        drawTexturedModalRect(x, y, PATTERN_ICON_U, PATTERN_ICON_V, 16, 16);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);  // Reset color
+        GlStateManager.disableBlend();
+    }
+
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         // Draw title (shifted right to make room for overview/back button on the left)
@@ -320,6 +442,47 @@ public class GuiAutoCrafter extends GuiContainer {
             int centerX = (PAGE_LEFT_X + 12 + PAGE_RIGHT_X) / 2 - pageWidth / 2;
             fontRenderer.drawString(pageText, centerX, PAGE_LEFT_Y + 2, 0x404040);
         }
+
+        // Draw PMT slot count overlays (AE2 handles item rendering via getStack()/getDisplayStack())
+        PMTManager pmtManager = container.getPMTManager();
+        PMTRenderer.drawSlotOverlays(this, pmtManager);
+    }
+
+    /**
+     * Override drawSlot to handle PMTSlot rendering specially.
+     * For PMTSlots, we render the pattern OUTPUT instead of the encoded pattern item.
+     * This is normally done by AEBaseGui, but since we extend GuiContainer directly,
+     * we need to do it ourselves.
+     * 
+     * IMPORTANT: We must NOT call super.drawSlot for PMTSlots at all, as it may
+     * trigger unexpected validation rendering from parent classes.
+     */
+    @Override
+    public void drawSlot(Slot slotIn) {
+        if (!(slotIn instanceof PMTSlot)) {
+            super.drawSlot(slotIn);
+            return;
+        }
+
+        PMTSlot pmtSlot = (PMTSlot) slotIn;
+        int x = slotIn.xPos;
+        int y = slotIn.yPos;
+
+        // Get the display stack (pattern output) instead of the actual stack
+        ItemStack displayStack = pmtSlot.getDisplayStack();
+
+        // For disabled slots, don't render any item
+        if (!pmtSlot.isSlotEnabled()) return;
+
+        // For empty enabled slots, we don't render anything (slot is just empty)
+        if (displayStack.isEmpty()) return;
+
+        // Render the display stack (output item) at the slot position
+        GlStateManager.enableDepth();
+        RenderHelper.enableGUIStandardItemLighting();
+        this.itemRender.renderItemAndEffectIntoGUI(mc.player, displayStack, x, y);
+        // Don't render vanilla stack count - we do it ourselves in drawSlotOverlays
+        RenderHelper.disableStandardItemLighting();
     }
 
     // ==================== CUSTOM BUTTONS ====================
@@ -1303,4 +1466,24 @@ public class GuiAutoCrafter extends GuiContainer {
     private int getSyncedEffectiveBatchSize() {
         return hasSyncedData ? syncedEffectiveBatchSize : container.syncEffectiveBatchSize;
     }
+
+    // ==================== CLICK OUTSIDE HANDLING ====================
+
+    /**
+     * Checks if the player clicked outside the GUI area.
+     * Extended to include the Pattern Multi-Tool panel when player has PMT.
+     */
+    @Override
+    protected boolean hasClickedOutside(int mouseX, int mouseY, int guiLeft, int guiTop) {
+        // Check if clicked inside the PMT panel
+        PMTManager pmtManager = container.getPMTManager();
+        if (pmtManager != null && pmtManager.hasPMT()) {
+            if (PMTRenderer.isMouseInsidePanel(mouseX, mouseY, guiLeft, guiTop, PMT_OFFSET_X, PMT_OFFSET_Y)) {
+                return false;
+            }
+        }
+
+        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop);
+    }
+
 }

@@ -35,13 +35,14 @@ Supports:
 - **Acceleration Cards** for AE2 Molecular Assemblers
 
 ### AutoCrafter
-A powerful automation block that automatically crafts items using patterns from your AE2 network.
+A powerful automation block that automatically crafts items using patterns from your AE2 network. Think of it as a RFTools Crafter with 12 recipe slots and a whole AE2 Network as both input and output.
 
 **Features:**
 - **12 Recipe Slots**: Configure up to 12 different recipes
-- **Pattern Support**: Insert any AE2 crafting pattern to define the recipe
-- **Recipe Preview**: Visual 3x3 input grid showing required ingredients and output
-- **Catalyst Inventory**: 9-slot internal inventory per recipe for reusable/duplication items, or intermediary tools with durability (if the last recipe didn't completely consume them)
+- **Pattern Support**: Insert any AE2 crafting pattern to define the recipe (does not work with PROCESSING patterns, for obvious reasons).
+- **Pattern Multi-Tool support**: If you have the Pattern Multi-Tool in your inventory/baubles, you can access its patterns directly from the AutoCrafter GUI. The x2/x3/+1 buttons do not work as they make no sense for CRAFTING patterns.
+- **Recipe Preview**: Visual 3x3 input grid showing required ingredients and output.
+- **Catalyst Inventory**: 9-slot internal inventory per recipe for reusable/duplication items, or intermediary tools with durability (if the last recipe didn't completely consume them).
 - **Performance Optimization**: Caches recipe simulations and only recalculates when necessary (when recipe changes)
 - **Batch Crafting**: Configure how many items to craft per operation, while decreasing the crafting speed accordingly. A batch size of 50x means 50x the inputs, for 50x the output, but it will run 1/50th of the speed, so it will still consume the same amount of resources per second, just in bigger bursts. This is ideal if you want to run less frequently, while still getting the same overall throughput. A Crafter Speed Upgrade card (tier I/II/III/IV) can be used to increase this batch size even further, without speed penalty (the batch size is increased instead of the speed to avoid spamming the network, which causes lag). The base batch per operation can be set in config.
 - **Speed Control**: Set crafting interval from 1 second to days (1s, 1m, 1h, 1d increments). Note: this explicitly slows down crafting. You may want to use "Batch size" instead, to craft more items per operation without slowing down the overall crafting speed.
@@ -67,6 +68,8 @@ A powerful automation block that automatically crafts items using patterns from 
 6. Configure speed (base crafting interval) via the Speed button
 7. Toggle entries on/off by clicking the state indicator
 8. Use page navigation or Overview button to switch between recipes
+9. Add drives to hold the input/output items
+10. Add interfaces to interact with your main AE2 network, like you would do a normal crafter
 
 **Tips:**
 - Use larger batch size to avoid querying the network too often. Do note a very large batch size may cause resource shortages or crafting failures if the network can't keep up with the demand, but the recipes should automatically scale down the batch size if resources are insufficient.
