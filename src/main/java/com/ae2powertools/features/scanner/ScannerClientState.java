@@ -13,6 +13,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.ae2powertools.client.PowerToolsClientConfig;
+
 
 /**
  * Client-side state for scanner overlay and rendering.
@@ -30,6 +32,16 @@ public class ScannerClientState {
         UNLOADED_CHUNKS,
         CHOKEPOINTS,
         MISSING_CHANNELS
+    }
+
+    /**
+     * Sort order within dimension categories.
+     */
+    public enum SortMode {
+        /** Sort by distance first, then name. */
+        DISTANCE,
+        /** Sort by name/description first, then distance. */
+        NAME
     }
 
     /**
@@ -265,6 +277,34 @@ public class ScannerClientState {
             this.connectedPos = connectedPos;
             this.connectedDescription = connectedDescription;
         }
+    }
+
+    // ========== Sort Mode Management ==========
+
+    /**
+     * Get sort mode for a specific tab.
+     */
+    public static SortMode getSortMode(Tab tab) {
+        return PowerToolsClientConfig.scanner.getSortMode(tab.ordinal()) == 1
+            ? SortMode.NAME : SortMode.DISTANCE;
+    }
+
+    /**
+     * Get sort mode for the currently active tab.
+     */
+    public static SortMode getCurrentSortMode() {
+        return getSortMode(getCurrentTab());
+    }
+
+    public static void setSortMode(Tab tab, SortMode mode) {
+        PowerToolsClientConfig.scanner.setSortMode(tab.ordinal(), mode.ordinal());
+        invalidateSortCache();
+    }
+
+    public static void toggleCurrentSortMode() {
+        Tab tab = getCurrentTab();
+        SortMode current = getSortMode(tab);
+        setSortMode(tab, current == SortMode.DISTANCE ? SortMode.NAME : SortMode.DISTANCE);
     }
 
     // ========== Device ID Management ==========
@@ -821,7 +861,7 @@ public class ScannerClientState {
     // ========== Sorted/Grouped Access ==========
 
     /**
-     * Get loop locations sorted by dimension (current first), then distance.
+     * Get loop locations sorted by dimension (current first), then by sort mode.
      */
     public static List<LoopLocationClient> getSortedLoopLocations() {
         DeviceScanState state = getActiveState();
@@ -834,12 +874,18 @@ public class ScannerClientState {
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
+                SortMode sortMode = getSortMode(Tab.LOOPS);
 
                 state.sortedLoopLocations.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
                     boolean bCurrentDim = b.dimension == playerDim;
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
                     if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
+
+                    if (sortMode == SortMode.NAME) {
+                        int nameCompare = a.description.compareToIgnoreCase(b.description);
+                        if (nameCompare != 0) return nameCompare;
+                    }
 
                     return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
                 });
@@ -850,7 +896,7 @@ public class ScannerClientState {
     }
 
     /**
-     * Get chunk locations sorted by dimension (current first), then distance.
+     * Get chunk locations sorted by dimension (current first), then by sort mode.
      */
     public static List<ChunkLocationClient> getSortedChunkLocations() {
         DeviceScanState state = getActiveState();
@@ -863,12 +909,22 @@ public class ScannerClientState {
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
+                SortMode sortMode = getSortMode(Tab.UNLOADED_CHUNKS);
 
                 state.sortedChunkLocations.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
                     boolean bCurrentDim = b.dimension == playerDim;
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
                     if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
+
+                    if (sortMode == SortMode.NAME) {
+                        // Chunks have no name; sort by coordinates instead
+                        int cmpX = Integer.compare(a.chunkX, b.chunkX);
+                        if (cmpX != 0) return cmpX;
+
+                        int cmpZ = Integer.compare(a.chunkZ, b.chunkZ);
+                        if (cmpZ != 0) return cmpZ;
+                    }
 
                     return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
                 });
@@ -879,7 +935,7 @@ public class ScannerClientState {
     }
 
     /**
-     * Get missing device locations sorted by dimension (current first), then by display name.
+     * Get missing device locations sorted by dimension (current first), then by sort mode.
      */
     public static List<MissingDeviceClient> getSortedMissingDevices() {
         DeviceScanState state = getActiveState();
@@ -892,6 +948,7 @@ public class ScannerClientState {
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
+                SortMode sortMode = getSortMode(Tab.MISSING_CHANNELS);
 
                 state.sortedMissingDevices.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
@@ -899,11 +956,18 @@ public class ScannerClientState {
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
                     if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
 
-                    // Sort by display name, then by distance
-                    int nameCompare = a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
-                    if (nameCompare != 0) return nameCompare;
+                    if (sortMode == SortMode.NAME) {
+                        int nameCompare = a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
+                        if (nameCompare != 0) return nameCompare;
 
-                    return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
+                        return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
+                    }
+
+                    // Distance first, then name as tiebreaker
+                    int distCompare = Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
+                    if (distCompare != 0) return distCompare;
+
+                    return a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
                 });
             }
         }
@@ -912,7 +976,8 @@ public class ScannerClientState {
     }
 
     /**
-     * Get chokepoint locations sorted by dimension (current first), then by excess channels (worst first).
+     * Get chokepoint locations sorted by dimension (current first), then severity,
+     * with sort mode controlling secondary ordering (name vs distance).
      */
     public static List<ChokeLocationClient> getSortedChokeLocations() {
         DeviceScanState state = getActiveState();
@@ -925,6 +990,7 @@ public class ScannerClientState {
             if (mc.player != null) {
                 int playerDim = mc.player.dimension;
                 BlockPos playerPos = mc.player.getPosition();
+                SortMode sortMode = getSortMode(Tab.CHOKEPOINTS);
 
                 state.sortedChokeLocations.sort((a, b) -> {
                     boolean aCurrentDim = a.dimension == playerDim;
@@ -932,11 +998,16 @@ public class ScannerClientState {
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
                     if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
 
-                    // Sort by excess channels (most severe first)
+                    // Severity is always the primary sort factor (most severe first)
                     int excessCompare = Integer.compare(b.getExcessChannels(), a.getExcessChannels());
                     if (excessCompare != 0) return excessCompare;
 
-                    // Then by distance
+                    // Sort mode controls secondary ordering within same severity
+                    if (sortMode == SortMode.NAME) {
+                        int nameCompare = a.description.compareToIgnoreCase(b.description);
+                        if (nameCompare != 0) return nameCompare;
+                    }
+
                     return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
                 });
             }

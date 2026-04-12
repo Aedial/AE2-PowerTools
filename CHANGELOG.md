@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.5.2] - 2026-03-30
+### Added
+- Add sorting options for the Network Health Scanner display lists, allowing sorting by distance or name. Chokepoints still sort by excess channels by default, sorting by distance/name as a tiebreaker. Sorting preference is saved per-tab.
+
+
 ## [1.5.1] - 2026-03-27
 ### Added
 - Add Pattern Multi-Tool integration for AutoCrafter when NAE2 is installed. The PMT panel appears to the left of the GUI, providing convenient pattern storage access.
