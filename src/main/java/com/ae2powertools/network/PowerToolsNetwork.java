@@ -13,6 +13,8 @@ import com.ae2powertools.features.crafter.PacketSetCrafterBatch;
 import com.ae2powertools.features.crafter.PacketSetCrafterPage;
 import com.ae2powertools.features.crafter.PacketSetCrafterSpeed;
 import com.ae2powertools.features.crafter.PacketToggleCrafterEntry;
+import com.ae2powertools.features.locator.PacketLocatorSync;
+import com.ae2powertools.features.locator.PacketLocatorToggleSubnet;
 
 
 /**
@@ -30,6 +32,10 @@ public class PowerToolsNetwork {
         // Scanner packets
         INSTANCE.registerMessage(PacketScannerSync.Handler.class, PacketScannerSync.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketScannerCancel.Handler.class, PacketScannerCancel.class, packetId++, Side.SERVER);
+
+        // Locator packets
+        INSTANCE.registerMessage(PacketLocatorSync.Handler.class, PacketLocatorSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketLocatorToggleSubnet.Handler.class, PacketLocatorToggleSubnet.class, packetId++, Side.SERVER);
 
         // Priority Tuner packets
         INSTANCE.registerMessage(PacketPriorityApplied.Handler.class, PacketPriorityApplied.class, packetId++, Side.CLIENT);

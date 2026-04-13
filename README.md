@@ -70,6 +70,7 @@ A powerful automation block that automatically crafts items using patterns from 
 8. Use page navigation or Overview button to switch between recipes
 9. Add drives to hold the input/output items
 10. Add interfaces to interact with your main AE2 network, like you would do a normal crafter
+11. You can add patterns from the outside by right-clicking the block with them.
 
 **Tips:**
 - Use larger batch size to avoid querying the network too often. Do note a very large batch size may cause resource shortages or crafting failures if the network can't keep up with the demand, but the recipes should automatically scale down the batch size if resources are insufficient.
@@ -109,6 +110,36 @@ A block that automatically maintains item quantities in your AE2 network by sche
 - Try to keep the recipes simple and avoid long crafting chains, as they are exponentially more expensive to calculate and schedule.
 - Prefer longer check intervals. You can batch 10k every 100 minutes instead of 100 every minute, which will be much easier on the network and still keep your stock at the desired level.
 - Make sure you have enough CPUs, energy, and crafting resources to keep up with the scheduled tasks, especially if you have many recipes, long recipes, or short check intervals.
+
+### Network Advanced Component Locator
+An advanced tool for finding and navigating to specific components in your AE2 network:
+- **Component Grid**: Displays all component types on your network in a scrollable grid (similar to AE2's Network Tool)
+- **Location Browser**: Click any component type to see all its locations sorted by distance from you
+- **Visual Overlay**: Highlights selected component locations with in-world wireframe outlines and directional arrows
+- **Distance Display**: Shows distance to each component location, with automatic unit conversion (m/km)
+- **Multi-Selection**: Select multiple locations to highlight them simultaneously
+- **Subnet Scanning**: Toggle whether to include components from connected subnets in the scan
+- **Compact/Tall View**: Switch between a compact 4-row view or a taller view that fits more items on screen
+
+**Usage:**
+- Right-click on any network component to scan the network and open the component grid GUI
+- Right-click in air to reopen the GUI with the last scan results
+- Shift-right-click to toggle the overlay display
+
+**GUI Navigation:**
+1. The grid view shows all component types with their count (like AE2's Network Status)
+2. Click a component type to enter detail view and see all locations
+3. Click locations to select/deselect them (selected locations show overlays in-world)
+4. Use "Select All" / "Clear All" buttons to manage selections quickly
+5. Use the style button (left of GUI) to toggle between compact and tall view
+6. Use the subnet button (left of GUI) to toggle subnet scanning on/off
+7. Click the back arrow or press Escape to return to the grid view
+
+**Tips:**
+- Past a configurable distance, the overlay shows directional arrows pointing toward selected locations, helping you navigate
+- Locations are automatically sorted by distance, so the closest ones appear first
+- Use subnet scanning when you need to find components across multiple connected networks
+- Toggle overlay off when not needed to reduce screen clutter, if you may hold it in hand for prolonged periods of time
 
 
 ## FAQ

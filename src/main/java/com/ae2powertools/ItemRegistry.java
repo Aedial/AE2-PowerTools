@@ -12,6 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.items.ItemCardsDistributor;
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
+import com.ae2powertools.items.ItemNetworkComponentLocator;
 import com.ae2powertools.items.ItemNetworkHealthScanner;
 import com.ae2powertools.items.ItemPriorityTuner;
 
@@ -23,12 +24,14 @@ import com.ae2powertools.items.ItemPriorityTuner;
 public class ItemRegistry {
 
     public static ItemNetworkHealthScanner NETWORK_HEALTH_SCANNER;
+    public static ItemNetworkComponentLocator NETWORK_COMPONENT_LOCATOR;
     public static ItemPriorityTuner PRIORITY_TUNER;
     public static ItemCardsDistributor CARDS_DISTRIBUTOR;
     public static ItemCrafterSpeedUpgrade CRAFTER_SPEED_UPGRADE;
 
     public static void init() {
         NETWORK_HEALTH_SCANNER = new ItemNetworkHealthScanner();
+        NETWORK_COMPONENT_LOCATOR = new ItemNetworkComponentLocator();
         PRIORITY_TUNER = new ItemPriorityTuner();
         CARDS_DISTRIBUTOR = new ItemCardsDistributor();
         CRAFTER_SPEED_UPGRADE = new ItemCrafterSpeedUpgrade();
@@ -38,6 +41,7 @@ public class ItemRegistry {
     public static void registerItems(RegistryEvent.Register<Item> event) {
         event.getRegistry().registerAll(
             NETWORK_HEALTH_SCANNER,
+            NETWORK_COMPONENT_LOCATOR,
             PRIORITY_TUNER,
             CARDS_DISTRIBUTOR,
             CRAFTER_SPEED_UPGRADE
@@ -48,6 +52,7 @@ public class ItemRegistry {
     @SideOnly(Side.CLIENT)
     public static void registerModels(ModelRegistryEvent event) {
         registerItemModel(NETWORK_HEALTH_SCANNER);
+        registerItemModel(NETWORK_COMPONENT_LOCATOR);
         registerItemModel(PRIORITY_TUNER);
         registerItemModel(CARDS_DISTRIBUTOR);
         registerSpeedUpgradeModels();

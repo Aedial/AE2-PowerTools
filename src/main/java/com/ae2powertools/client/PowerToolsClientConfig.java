@@ -26,6 +26,9 @@ public class PowerToolsClientConfig {
     @Config.LangKey("ae2powertools.config.client.monitor")
     public static final Monitor monitor = new Monitor();
 
+    @Config.LangKey("ae2powertools.config.client.locator")
+    public static final Locator locator = new Locator();
+
     public static class Maintainer {
         @Config.LangKey("ae2powertools.config.client.maintainer.useTallView")
         public boolean useTallView = false;
@@ -171,6 +174,22 @@ public class PowerToolsClientConfig {
             } catch (NumberFormatException e) {
                 return fallback;
             }
+        }
+    }
+
+    public static class Locator {
+        @Config.LangKey("ae2powertools.config.client.locator.useTallView")
+        public boolean useTallView = false;
+
+        public boolean isUseTallView() {
+            return useTallView;
+        }
+
+        public void setUseTallView(boolean value) {
+            if (useTallView == value) return;
+
+            useTallView = value;
+            ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
         }
     }
 }

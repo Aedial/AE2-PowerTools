@@ -306,6 +306,54 @@ gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
 
 # =====================================================
+# Network Advanced Component Locator
+# =====================================================
+
+# Items
+item.ae2powertools.network_component_locator.name=Network Advanced Component Locator
+item.ae2powertools.network_component_locator.tip1=Right-click on network to scan components
+item.ae2powertools.network_component_locator.tip2=Right-click in air to reopen results
+item.ae2powertools.network_component_locator.tip3=Sneak + Right-click to toggle overlay (%s)
+item.ae2powertools.network_component_locator.overlay_on=ON
+item.ae2powertools.network_component_locator.overlay_off=OFF
+item.ae2powertools.network_component_locator.overlay_enabled=Overlay enabled
+item.ae2powertools.network_component_locator.overlay_disabled=Overlay disabled
+item.ae2powertools.network_component_locator.no_network=No AE2 network found at this location.
+
+# GUI
+gui.ae2powertools.locator.title=Network Component Locator
+gui.ae2powertools.locator.hint_empty=Right-click on a network to scan.
+gui.ae2powertools.locator.hint_components=%s component types found
+gui.ae2powertools.locator.hint_nodes=%s nodes scanned
+gui.ae2powertools.locator.hint_click=Click a component to see all locations
+gui.ae2powertools.locator.tooltip_count=Found: %s
+gui.ae2powertools.locator.back=Back
+gui.ae2powertools.locator.detail_hint=Click to select, Esc to go back
+gui.ae2powertools.locator.selected_count=%s selected
+gui.ae2powertools.locator.click_select=Click to select (show overlay)
+gui.ae2powertools.locator.click_deselect=Click to deselect (hide overlay)
+
+# GUI - View Style Toggle
+gui.ae2powertools.locator.style.title=View Style
+gui.ae2powertools.locator.style.tall=Tall view
+gui.ae2powertools.locator.style.small=Compact view
+gui.ae2powertools.locator.style.click_toggle=Click to toggle
+
+# GUI - Subnet Scanning Toggle
+gui.ae2powertools.locator.subnet.title=Subnet Scanning
+gui.ae2powertools.locator.subnet.enabled=Enabled (includes subnets)
+gui.ae2powertools.locator.subnet.disabled=Disabled (main network only)
+gui.ae2powertools.locator.subnet.click_toggle=Click to toggle
+gui.ae2powertools.locator.subnet.hint=Rescan network to apply
+gui.ae2powertools.locator.hint_subnets=(+ subnets)
+
+# Config
+ae2powertools.config.client.locator=Locator
+ae2powertools.config.client.locator.tooltip=Network Component Locator settings
+ae2powertools.config.client.locator.useTallView=Use tall view
+ae2powertools.config.client.locator.useTallView.tooltip=Use tall view (more rows) instead of compact view
+
+# =====================================================
 # ME Storage Monitoring
 # =====================================================
 
