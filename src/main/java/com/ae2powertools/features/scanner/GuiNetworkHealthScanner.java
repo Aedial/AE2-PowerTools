@@ -1044,6 +1044,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         super.updateScreen();
 
         // Refresh display rows periodically to handle new data
-        if (mc.player != null && mc.player.ticksExisted % 20 == 0) rebuildDisplayRows();
+        if (mc.player != null && mc.player.ticksExisted % 20 == 0) {
+            rebuildDisplayRows();
+            recalculateLayout();
+        }
     }
 }

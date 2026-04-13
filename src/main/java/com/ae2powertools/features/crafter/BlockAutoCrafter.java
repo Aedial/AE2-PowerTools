@@ -24,11 +24,12 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import appeng.api.implementations.ICraftingPatternItem;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
 
 import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.Tags;
-import com.ae2powertools.items.ItemCardsDistributor;
 
 
 /**
@@ -137,13 +138,35 @@ public class BlockAutoCrafter extends Block {
         if (world.isRemote) return true;
 
         TileEntity te = world.getTileEntity(pos);
-        if (te instanceof TileAutoCrafter) {
-            player.openGui(AE2PowerTools.instance, CrafterGuiHandler.GUI_CRAFTER, world,
-                    pos.getX(), pos.getY(), pos.getZ());
-            return true;
+        if (!(te instanceof TileAutoCrafter)) return false;
+
+        TileAutoCrafter crafter = (TileAutoCrafter) te;
+
+        // Try to quick-insert a held crafting pattern into the first available slot
+        ItemStack heldItem = player.getHeldItem(hand);
+        if (!heldItem.isEmpty() && heldItem.getItem() instanceof ICraftingPatternItem) {
+            ICraftingPatternItem patternItem = (ICraftingPatternItem) heldItem.getItem();
+            ICraftingPatternDetails details = patternItem.getPatternForItem(heldItem, world);
+
+            // Only insert valid crafting patterns (not processing patterns)
+            if (details != null && details.isCraftable()) {
+                // Find the first empty entry slot
+                List<CrafterEntry> entries = crafter.getEntries();
+                for (int i = 0; i < entries.size(); i++) {
+                    if (entries.get(i).isEmpty()) {
+                        // Insert one pattern into the slot
+                        ItemStack singlePattern = heldItem.splitStack(1);
+                        crafter.simulatePattern(i, singlePattern);
+                        return true;
+                    }
+                }
+            }
+            // Fall through to open GUI if pattern is invalid or crafter is full
         }
 
-        return false;
+        player.openGui(AE2PowerTools.instance, CrafterGuiHandler.GUI_CRAFTER, world,
+                pos.getX(), pos.getY(), pos.getZ());
+        return true;
     }
 
     @Override

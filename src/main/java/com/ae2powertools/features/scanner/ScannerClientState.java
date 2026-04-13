@@ -10,6 +10,7 @@ import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -883,7 +884,9 @@ public class ScannerClientState {
                     if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
 
                     if (sortMode == SortMode.NAME) {
-                        int nameCompare = a.description.compareToIgnoreCase(b.description);
+                        // Strip color codes (§x) so they don't affect alphabetical ordering
+                        int nameCompare = TextFormatting.getTextWithoutFormattingCodes(a.description)
+                                .compareToIgnoreCase(TextFormatting.getTextWithoutFormattingCodes(b.description));
                         if (nameCompare != 0) return nameCompare;
                     }
 
@@ -956,8 +959,12 @@ public class ScannerClientState {
                     if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
                     if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
 
+                    // Strip color codes (§x) so they don't affect alphabetical ordering
+                    String aName = TextFormatting.getTextWithoutFormattingCodes(a.getDisplayName());
+                    String bName = TextFormatting.getTextWithoutFormattingCodes(b.getDisplayName());
+
                     if (sortMode == SortMode.NAME) {
-                        int nameCompare = a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
+                        int nameCompare = aName.compareToIgnoreCase(bName);
                         if (nameCompare != 0) return nameCompare;
 
                         return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
@@ -967,7 +974,7 @@ public class ScannerClientState {
                     int distCompare = Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
                     if (distCompare != 0) return distCompare;
 
-                    return a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
+                    return aName.compareToIgnoreCase(bName);
                 });
             }
         }
@@ -1004,7 +1011,9 @@ public class ScannerClientState {
 
                     // Sort mode controls secondary ordering within same severity
                     if (sortMode == SortMode.NAME) {
-                        int nameCompare = a.description.compareToIgnoreCase(b.description);
+                        // Strip color codes (§x) so they don't affect alphabetical ordering
+                        int nameCompare = TextFormatting.getTextWithoutFormattingCodes(a.description)
+                                .compareToIgnoreCase(TextFormatting.getTextWithoutFormattingCodes(b.description));
                         if (nameCompare != 0) return nameCompare;
                     }
 
