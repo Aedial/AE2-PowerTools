@@ -306,6 +306,54 @@ gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂：
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误：应当是%s，实际为%s
 
 # =====================================================
+# Network Advanced Component Locator
+# =====================================================
+
+# Items
+item.ae2powertools.network_component_locator.name=网络高级部件定位器
+item.ae2powertools.network_component_locator.tip1=右键点击网络以扫描部件
+item.ae2powertools.network_component_locator.tip2=右键点击空气以重新打开结果
+item.ae2powertools.network_component_locator.tip3=潜行+右键点击以切换叠加层（%s）
+item.ae2powertools.network_component_locator.overlay_on=开
+item.ae2powertools.network_component_locator.overlay_off=关
+item.ae2powertools.network_component_locator.overlay_enabled=叠加层已启用
+item.ae2powertools.network_component_locator.overlay_disabled=叠加层已禁用
+item.ae2powertools.network_component_locator.no_network=该位置未找到AE2网络。
+
+# GUI
+gui.ae2powertools.locator.title=网络部件定位器
+gui.ae2powertools.locator.hint_empty=右键点击网络进行扫描。
+gui.ae2powertools.locator.hint_components=找到部件类型：%s
+gui.ae2powertools.locator.hint_nodes=扫描节点数量：%s
+gui.ae2powertools.locator.hint_click=点击部件查看所有位置
+gui.ae2powertools.locator.tooltip_count=已找到：%s
+gui.ae2powertools.locator.back=返回
+gui.ae2powertools.locator.detail_hint=点击选择，Esc键返回
+gui.ae2powertools.locator.selected_count=已选择%s个
+gui.ae2powertools.locator.click_select=点击选择（显示叠加层）
+gui.ae2powertools.locator.click_deselect=点击取消选择（隐藏叠加层）
+
+# GUI - View Style Toggle
+gui.ae2powertools.locator.style.title=视图样式
+gui.ae2powertools.locator.style.tall=高视图
+gui.ae2powertools.locator.style.small=紧凑视图
+gui.ae2powertools.locator.style.click_toggle=点击切换
+
+# GUI - Subnet Scanning Toggle
+gui.ae2powertools.locator.subnet.title=子网络扫描
+gui.ae2powertools.locator.subnet.enabled=已启用（包含子网络）
+gui.ae2powertools.locator.subnet.disabled=已禁用（仅主网络）
+gui.ae2powertools.locator.subnet.click_toggle=点击切换
+gui.ae2powertools.locator.subnet.hint=重新扫描网络以应用设置
+gui.ae2powertools.locator.hint_subnets=（+ 子网络）
+
+# Config
+ae2powertools.config.client.locator=定位器
+ae2powertools.config.client.locator.tooltip=网络部件定位器设置
+ae2powertools.config.client.locator.useTallView=使用高视图
+ae2powertools.config.client.locator.useTallView.tooltip=使用高视图（行数更多）替换紧凑视图
+
+# =====================================================
 # ME Storage Monitoring
 # =====================================================
 
