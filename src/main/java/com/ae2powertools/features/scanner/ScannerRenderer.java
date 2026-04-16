@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -463,10 +464,10 @@ public class ScannerRenderer {
     private ItemStack getHeldScanner(Minecraft mc) {
         if (mc.player == null) return ItemStack.EMPTY;
 
-        ItemStack mainHand = mc.player.getHeldItemMainhand();
+        ItemStack mainHand = mc.player.getHeldItem(EnumHand.MAIN_HAND);
         if (mainHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) return mainHand;
 
-        ItemStack offHand = mc.player.getHeldItemOffhand();
+        ItemStack offHand = mc.player.getHeldItem(EnumHand.OFF_HAND);
         if (offHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) return offHand;
 
         return ItemStack.EMPTY;

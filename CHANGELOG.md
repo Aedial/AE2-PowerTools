@@ -8,7 +8,18 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.5.2] - 2026-03-30
+## [1.6.0] - 2026-04-30
+### Added
+- Add Storage Level Emitter and Storage Display, alternative versions of the AE2 Level Emitter and Storage Monitor, with configurable refresh rate and more controlable matching. This should provide better performance when dealing with a lot of rapid changes, but do not need to react immediately.
+
+
+## [1.5.3] - 2026-04-16
+### Added
+- Add Memory Card support for the AutoCrafter. It will copy both settings and patterns, and format blank patterns are found in the player's inventory on settings application.
+- Add a Creative tab for AE2 PowerTools (getting a tad cramped in AE2's tab)
+
+
+## [1.5.2] - 2026-04-14
 ### Added
 - Add Network Component Locator: a new tool that scans the AE2 network and displays all components in a grid (like the AE2 Network Tool). Click on a component type to see all its locations sorted by distance. Selected locations are highlighted with on-screen overlays, like the Network Health Scanner.
 - Add sorting options for the Network Health Scanner display lists, allowing sorting by distance or name. Chokepoints still sort by excess channels by default, sorting by distance/name as a tiebreaker. Sorting preference is saved per-tab.

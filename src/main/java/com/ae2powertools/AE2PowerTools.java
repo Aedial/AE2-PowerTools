@@ -38,6 +38,7 @@ public class AE2PowerTools {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        PowerToolsCreativeTab.init();
         ItemRegistry.init();
         BlockRegistry.init();
         PowerToolsNetwork.init();

@@ -31,8 +31,8 @@ import appeng.api.networking.IGridNode;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
-import appeng.core.CreativeTab;
 
+import com.ae2powertools.PowerToolsCreativeTab;
 import com.ae2powertools.Tags;
 import com.ae2powertools.network.PacketScannerSync;
 import com.ae2powertools.network.PowerToolsNetwork;
@@ -64,7 +64,7 @@ public class ItemNetworkHealthScanner extends Item {
         this.setRegistryName(Tags.MODID, "network_health_scanner");
         this.setTranslationKey(Tags.MODID + ".network_health_scanner");
         this.setMaxStackSize(1);
-        this.setCreativeTab(CreativeTab.instance);
+        this.setCreativeTab(PowerToolsCreativeTab.instance);
     }
 
     /**

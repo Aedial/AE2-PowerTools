@@ -12,7 +12,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import appeng.core.CreativeTab;
+import com.ae2powertools.PowerToolsCreativeTab;
 
 import com.ae2powertools.Tags;
 
@@ -46,7 +46,7 @@ public class ItemCrafterSpeedUpgrade extends Item {
         this.setMaxStackSize(64);
         this.setHasSubtypes(true);
         this.setMaxDamage(0);
-        this.setCreativeTab(CreativeTab.instance);
+        this.setCreativeTab(PowerToolsCreativeTab.instance);
     }
 
     @Override

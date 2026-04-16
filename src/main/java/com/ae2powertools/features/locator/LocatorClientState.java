@@ -211,7 +211,7 @@ public class LocatorClientState {
 
     /**
      * Toggle the local subnet scan state (for GUI display).
-     * This does NOT modify server-side NBT — use PacketLocatorToggleSubnet for that.
+     * This does NOT modify server-side NBT, use PacketLocatorToggleSubnet for that.
      */
     public static void toggleSubnetScanLocal() {
         DeviceState state = getActiveState();

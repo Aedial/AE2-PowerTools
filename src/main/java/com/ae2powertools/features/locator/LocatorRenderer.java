@@ -8,6 +8,7 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -205,12 +206,12 @@ public class LocatorRenderer {
     private ItemStack getHeldLocator(Minecraft mc) {
         if (mc.player == null) return ItemStack.EMPTY;
 
-        ItemStack mainHand = mc.player.getHeldItemMainhand();
+        ItemStack mainHand = mc.player.getHeldItem(EnumHand.MAIN_HAND);
         if (!mainHand.isEmpty() && mainHand.getItem() == ItemRegistry.NETWORK_COMPONENT_LOCATOR) {
             return mainHand;
         }
 
-        ItemStack offHand = mc.player.getHeldItemOffhand();
+        ItemStack offHand = mc.player.getHeldItem(EnumHand.OFF_HAND);
         if (!offHand.isEmpty() && offHand.getItem() == ItemRegistry.NETWORK_COMPONENT_LOCATOR) {
             return offHand;
         }

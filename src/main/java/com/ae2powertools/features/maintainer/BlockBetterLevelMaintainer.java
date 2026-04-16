@@ -21,6 +21,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.PowerToolsCreativeTab;
 import com.ae2powertools.Tags;
 
 
@@ -36,7 +37,7 @@ public class BlockBetterLevelMaintainer extends Block {
         super(Material.IRON);
         setRegistryName(Tags.MODID, NAME);
         setTranslationKey(Tags.MODID + "." + NAME);
-        setCreativeTab(net.minecraft.creativetab.CreativeTabs.REDSTONE);
+        setCreativeTab(PowerToolsCreativeTab.instance);
         setHardness(2.0F);
         setResistance(10.0F);
     }

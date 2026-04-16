@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumHand;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -42,14 +43,14 @@ public class PacketLocatorToggleSubnet implements IMessage {
 
         private static void handleServer(EntityPlayerMP player) {
             // Find the held locator in either hand
-            ItemStack mainHand = player.getHeldItemMainhand();
+            ItemStack mainHand = player.getHeldItem(EnumHand.MAIN_HAND);
             if (!mainHand.isEmpty() && mainHand.getItem() == ItemRegistry.NETWORK_COMPONENT_LOCATOR) {
                 ItemNetworkComponentLocator.toggleSubnetScan(mainHand);
 
                 return;
             }
 
-            ItemStack offHand = player.getHeldItemOffhand();
+            ItemStack offHand = player.getHeldItem(EnumHand.OFF_HAND);
             if (!offHand.isEmpty() && offHand.getItem() == ItemRegistry.NETWORK_COMPONENT_LOCATOR) {
                 ItemNetworkComponentLocator.toggleSubnetScan(offHand);
             }
