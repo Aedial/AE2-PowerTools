@@ -1,3 +1,6 @@
+# Creative tab
+itemGroup.ae2powertools=AE2 PowerTools
+
 # Common strings
 ae2powertools.common.unknown=未知
 
@@ -236,12 +239,20 @@ tile.ae2powertools.auto_crafter.name=AE2自动合成器
 tile.ae2powertools.auto_crafter.tooltip=使用样板自动合成物品（类似其他模组的自动合成器）。
 tile.ae2powertools.auto_crafter.tooltip2=支持可重复使用的物品、具有耐久度的工具，以及复制配方。
 
+# Memory Card
+tile.ae2powertools.auto_crafter.memory_card.tooltip=自动合成器设置+样板
+tile.ae2powertools.auto_crafter.memory_card.saved=已将设置与%d个样板保存至内存卡。
+tile.ae2powertools.auto_crafter.memory_card.restored=成功编码并插入%d个样板。
+tile.ae2powertools.auto_crafter.memory_card.partial=已编码%d个样板，但有%d个无法恢复：
+tile.ae2powertools.auto_crafter.memory_card.no_blanks= - 物品栏中缺少%d个空白样板。
+tile.ae2powertools.auto_crafter.memory_card.no_slots= - 自动合成器中缺少%d个空闲槽位。
+
 # Items - Speed Upgrades
 item.ae2powertools.crafter_speed_upgrade_i.name=速度升级 I
 item.ae2powertools.crafter_speed_upgrade_ii.name=速度升级 II
 item.ae2powertools.crafter_speed_upgrade_iii.name=速度升级 III
 item.ae2powertools.crafter_speed_upgrade_iv.name=速度升级 IV
-item.ae2powertools.crafter_speed_upgrade.tooltip=批量大小x%d
+item.ae2powertools.crafter_speed_upgrade.tooltip=批量大小x%d。放入自动合成器以增加吞吐量。
 
 # Config
 ae2powertools.config.server.crafter.tooltip=自动合成器平衡性设置
@@ -358,14 +369,11 @@ ae2powertools.config.client.locator.useTallView.tooltip=使用高视图（行数
 # =====================================================
 
 # Blocks
-tile.ae2powertools.monitoring_manager.name=监控管理器
-tile.ae2powertools.monitoring_manager.tooltip=轮询AE2网络并缓存全部存储内容，供ME存储发信器与显示器使用。
-
 tile.ae2powertools.storage_level_emitter.name=ME存储发信器
-tile.ae2powertools.storage_level_emitter.tooltip=根据监控物品的数量输出红石信号，需先绑定监控管理器。
+tile.ae2powertools.storage_level_emitter.tooltip=根据监控物品的数量输出红石信号。
 
 tile.ae2powertools.storage_display.name=ME存储显示器
-tile.ae2powertools.storage_display.tooltip=显示监控物品的数量，需先绑定监控管理器。
+tile.ae2powertools.storage_display.tooltip=显示网络中监控物品的数量。
 
 # Items
 item.ae2powertools.storage_level_emitter_part.name=ME存储发信器
@@ -381,19 +389,11 @@ ae2powertools.config.client.monitor.displayColorAbove.tooltip=物品数量达到
 ae2powertools.config.client.monitor.displayColorBelow=低于阈值的颜色
 ae2powertools.config.client.monitor.displayColorBelow.tooltip=物品数量低于颜色阈值时，角落指示器的颜色（ARGB十六进制）
 
-# Tooltips/Messages
-ae2powertools.monitor.bound_to=已绑定至位于%s的管理器
-ae2powertools.monitor.not_bound=未绑定管理器
-ae2powertools.monitor.bound_success=成功绑定至监控管理器[%s, %s, %s]
-ae2powertools.monitor.not_bound_hint=右击监控管理器以绑定该设备
-
 # GUI
-gui.ae2powertools.monitoring_manager.title=监控管理器
 gui.ae2powertools.storage_emitter.title=ME存储发信器
 gui.ae2powertools.storage_display.title=ME存储显示器
-gui.ae2powertools.storage_emitter.threshold=阈值：
-gui.ae2powertools.storage_display.color_threshold=颜色阈值：
-gui.ae2powertools.storage_emitter.no_manager=无管理器
+gui.ae2powertools.storage_emitter.match_mode=匹配：%s
 gui.ae2powertools.storage_emitter.refresh_rate=刷新：%s
-gui.ae2powertools.storage_emitter.quantity=数量：%s
+gui.ae2powertools.storage_emitter.condition_met=条件已满足
+gui.ae2powertools.storage_emitter.condition_not_met=条件未满足
 gui.ae2powertools.storage_emitter.select_content=选择内容
