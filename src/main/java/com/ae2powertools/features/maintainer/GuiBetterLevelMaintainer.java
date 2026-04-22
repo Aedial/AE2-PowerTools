@@ -17,19 +17,15 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.ReadableNumberConverter;
-import appeng.util.Platform;
 
-import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.Tags;
 import com.ae2powertools.client.PowerToolsClientConfig;
-import com.ae2powertools.features.maintainer.MaintainerState;
 import com.ae2powertools.network.PacketSelectRecipe;
 import com.ae2powertools.network.PacketUpdateMaintainerEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
@@ -143,13 +139,11 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
     private int tallScrollbarHeight;
     private int styleButtonX, styleButtonY;
     private boolean styleButtonHovered = false;
-    private boolean jeiEnabled;
 
     public GuiBetterLevelMaintainer(ContainerBetterLevelMaintainer container) {
         super(container);
         this.container = container;
         this.useTallView = PowerToolsClientConfig.maintainer.isUseTallView();
-        this.jeiEnabled = Platform.isModLoaded("jei");
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
     }
@@ -827,9 +821,10 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
             String stateColor = getStateTextColor(state);
             tooltip.add(stateColor + I18n.format(stateKey) + "§r");
 
-            // Show error message for error states
-            if (state.isError() && entry.getErrorMessage() != null) {
-                tooltip.add("§c" + I18n.format(entry.getErrorMessage()) + "§r");
+            // Show error message for error states. The component is built server-side as a
+            // TextComponentTranslation, so we just resolve it here using the client's locale.
+            if (state.isError() && entry.getErrorComponent() != null) {
+                tooltip.add("§c" + entry.getErrorComponent().getFormattedText() + "§r");
             }
 
             tooltip.add("");

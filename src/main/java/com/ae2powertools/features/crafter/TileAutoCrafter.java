@@ -19,7 +19,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.NonNullList;
-import net.minecraft.util.text.translation.I18n;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
@@ -237,9 +238,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Check catalysts
             if (info.requiresCatalysts()) {
-                List<String> catalystErrors = new ArrayList<>();
+                List<ITextComponent> catalystErrors = new ArrayList<>();
                 if (!hasSufficientCatalysts(entry, info, catalystErrors)) {
-                    for (String error : catalystErrors) entry.addErrorDetail(error);
+                    for (ITextComponent error : catalystErrors) entry.addErrorDetail(error);
                     updateEntryState(entry, CrafterState.MISSING_CATALYST);
                     continue;
                 }
@@ -368,9 +369,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Check catalysts
             if (info.requiresCatalysts()) {
-                List<String> catalystErrors = new ArrayList<>();
+                List<ITextComponent> catalystErrors = new ArrayList<>();
                 if (!hasSufficientCatalysts(entry, info, catalystErrors)) {
-                    for (String error : catalystErrors) entry.addErrorDetail(error);
+                    for (ITextComponent error : catalystErrors) entry.addErrorDetail(error);
                     updateEntryState(entry, CrafterState.MISSING_CATALYST);
                     continue;
                 }
@@ -389,7 +390,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Check each candidate for input availability
         for (CraftCandidate candidate : candidates) {
             boolean hasAllInputs = true;
-            List<String> missingInputs = new ArrayList<>();
+            List<ITextComponent> missingInputs = new ArrayList<>();
 
             for (CrafterRecipeInfo.IngredientInfo ingredient : candidate.info.getConsumedItems()) {
                 IAEItemStack item = ingredient.getItem();
@@ -402,8 +403,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (available < needed) {
                     hasAllInputs = false;
                     ItemStack stack = item.createItemStack();
-                    // TODO: use TextComponentTranslation instead of server I18n
-                    missingInputs.add(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.need_have",
+                    // Build a TextComponentTranslation so the receiving client renders the
+                    // message in its own locale; server-side I18n would lock everyone to
+                    // English (and fail entirely on dedicated servers without lang files).
+                    missingInputs.add(new TextComponentTranslation("gui.ae2powertools.crafter.error.need_have",
                             stack.getDisplayName(), needed, available));
                 }
             }
@@ -411,7 +414,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             if (hasAllInputs) {
                 updateEntryState(candidate.entry, CrafterState.IDLE);
             } else {
-                for (String error : missingInputs) candidate.entry.addErrorDetail(error);
+                for (ITextComponent error : missingInputs) candidate.entry.addErrorDetail(error);
                 updateEntryState(candidate.entry, CrafterState.MISSING_INPUT);
             }
         }
@@ -559,7 +562,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         for (CraftCandidate candidate : candidates) {
             int finalCrafts = effectiveMaxBatchSize;
-            List<String> limitingFactors = new ArrayList<>();
+            List<ITextComponent> limitingFactors = new ArrayList<>();
 
             for (CrafterRecipeInfo.IngredientInfo ingredient : candidate.info.getConsumedItems()) {
                 IAEItemStack item = ingredient.getItem();
@@ -578,7 +581,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (craftsFromAllocation < finalCrafts) {
                     long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
                     if (allocated < needed) {
-                        limitingFactors.add(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.limited_by",
+                        limitingFactors.add(new TextComponentTranslation("gui.ae2powertools.crafter.error.limited_by",
                                 item.createItemStack().getDisplayName(), allocated, needed));
                     }
                 }
@@ -595,12 +598,12 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
                 // If crafts were reduced, add info about why
                 if (finalCrafts < effectiveMaxBatchSize && !limitingFactors.isEmpty()) {
-                    for (String factor : limitingFactors) candidate.entry.addErrorDetail(factor);
+                    for (ITextComponent factor : limitingFactors) candidate.entry.addErrorDetail(factor);
                 }
             } else {
                 // No crafts possible - add all limiting factors as errors
-                for (String factor : limitingFactors) candidate.entry.addErrorDetail(factor);
-                if (limitingFactors.isEmpty()) candidate.entry.addErrorDetail(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.no_items_in_network"));
+                for (ITextComponent factor : limitingFactors) candidate.entry.addErrorDetail(factor);
+                if (limitingFactors.isEmpty()) candidate.entry.addErrorDetail(new TextComponentTranslation("gui.ae2powertools.crafter.error.no_items_in_network"));
                 updateEntryState(candidate.entry, CrafterState.MISSING_INPUT);
                 // Record as error (no crafts possible)
                 candidate.entry.recordMetrics(true, 0, 0);
@@ -767,7 +770,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * @return true if all catalysts are present in their correct slots
      */
     private boolean hasSufficientCatalysts(CrafterEntry entry, CrafterRecipeInfo info, 
-                                           @Nullable List<String> errorDetails) {
+                                           @Nullable List<ITextComponent> errorDetails) {
         // Check each catalyst slot using 1:1 mapping (recipe slot X = internal inventory slot X)
         for (CrafterRecipeInfo.IngredientInfo catalyst : info.getCatalystSlots()) {
             if (catalyst.getItem() == null) continue;
@@ -778,7 +781,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             
             if (available.isEmpty()) {
                 if (errorDetails != null) {
-                    errorDetails.add(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.missing_catalyst_slot",
+                    errorDetails.add(new TextComponentTranslation("gui.ae2powertools.crafter.error.missing_catalyst_slot",
                             recipeSlot + 1, required.getDisplayName()));
                 }
                 return false;
@@ -787,7 +790,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             // Use inclusive NBT matching
             if (!areItemStacksMatchingIncludingNbt(required, available)) {
                 if (errorDetails != null) {
-                    errorDetails.add(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.wrong_catalyst_slot",
+                    errorDetails.add(new TextComponentTranslation("gui.ae2powertools.crafter.error.wrong_catalyst_slot",
                             recipeSlot + 1, required.getDisplayName(), available.getDisplayName()));
                 }
                 return false;

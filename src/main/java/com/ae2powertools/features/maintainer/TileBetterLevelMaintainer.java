@@ -15,7 +15,8 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ITickable;
-import net.minecraft.util.text.translation.I18n;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.Constants;
 
@@ -29,7 +30,6 @@ import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingRequester;
-import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEMonitor;
@@ -58,7 +58,7 @@ import com.ae2powertools.config.PowerToolsServerConfig;
  *        and sometimes stay stuck there.
  */
 public class TileBetterLevelMaintainer extends AEBaseTile
-        implements ITickable, IActionHost, IGridProxyable, ICraftingRequester {
+        implements ITickable, IGridProxyable, ICraftingRequester {
 
     /**
      * Number of entries per row in the GUI.
@@ -460,7 +460,11 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                         .mapToLong(ICraftingCPU::getAvailableStorage)
                         .max().orElse(0);
                 String cpuSize = ReadableNumberConverter.INSTANCE.toWideReadableForm(bestCpuStorage);
-                String error = I18n.translateToLocalFormatted("gui.ae2powertools.maintainer.error.cpu_too_small", jobSize, cpuSize);
+                // Build a TextComponentTranslation so the message is localized on the client (the
+                // server-side I18n facility only ever returns the English fallback in dedicated
+                // environments, which would break non-English clients).
+                ITextComponent error = new TextComponentTranslation(
+                        "gui.ae2powertools.maintainer.error.cpu_too_small", jobSize, cpuSize);
                 entry.setError(MaintainerState.ERROR, error);
                 entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
                 needsSync = true;
@@ -1046,11 +1050,14 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 data.writeInt(entry.getState().ordinal());
                 data.writeLong(entry.getCurrentQuantity());
 
-                // Sync error message for tooltip display
-                String errorMsg = entry.getErrorMessage();
-                data.writeBoolean(errorMsg != null);
-                if (errorMsg != null) {
-                    byte[] msgBytes = errorMsg.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                // Sync error component for tooltip display. We serialize as JSON so the client
+                // re-creates the same ITextComponent (TextComponentTranslation/args preserved)
+                // and renders it in the player's own language.
+                ITextComponent errorComp = entry.getErrorComponent();
+                String errorJson = errorComp != null ? ITextComponent.Serializer.componentToJson(errorComp) : null;
+                data.writeBoolean(errorJson != null);
+                if (errorJson != null) {
+                    byte[] msgBytes = errorJson.getBytes(java.nio.charset.StandardCharsets.UTF_8);
                     data.writeShort(msgBytes.length);
                     data.writeBytes(msgBytes);
                 }
@@ -1082,14 +1089,15 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 int stateOrdinal = data.readInt();
                 long currentQty = data.readLong();
 
-                // Read error message
+                // Read error component (JSON-serialized ITextComponent)
                 boolean hasError = data.readBoolean();
-                String errorMsg = null;
+                ITextComponent errorComp = null;
                 if (hasError) {
                     int msgLen = data.readShort();
                     byte[] msgBytes = new byte[msgLen];
                     data.readBytes(msgBytes);
-                    errorMsg = new String(msgBytes, java.nio.charset.StandardCharsets.UTF_8);
+                    String errorJson = new String(msgBytes, java.nio.charset.StandardCharsets.UTF_8);
+                    errorComp = ITextComponent.Serializer.jsonToComponent(errorJson);
                 }
 
                 entry.setTargetItem(targetItem);
@@ -1101,7 +1109,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setState(MaintainerState.values()[stateOrdinal]);
                 }
                 entry.setCurrentQuantity(currentQty);
-                entry.setErrorMessage(errorMsg);
+                entry.setErrorComponent(errorComp);
             } else {
                 // Clear entry if it had a recipe before
                 if (entry.hasRecipe()) entries.set(i, new MaintainerEntry());

@@ -19,6 +19,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
@@ -160,7 +161,7 @@ public class GuiAutoCrafter extends GuiContainer {
     private int recipeEntryIndex = -1;
     private IAEItemStack[] syncedInputGrid = new IAEItemStack[9];
     private final List<CatalystInfo> syncedCatalystInfo = new ArrayList<>();
-    private List<String> syncedErrorDetails = new ArrayList<>();
+    private List<ITextComponent> syncedErrorDetails = new ArrayList<>();
 
     /** Simple holder for catalyst slot info (slot index + expected ghost item). */
     private static class CatalystInfo {
@@ -1090,11 +1091,12 @@ public class GuiAutoCrafter extends GuiContainer {
                     + TextFormatting.RESET + getStateText(getSyncedState(entryIndex)));
 
             // Error details using synced data
-            List<String> errorDetails = getSyncedErrorDetails(entryIndex);
+            List<ITextComponent> errorDetails = getSyncedErrorDetails(entryIndex);
             if (!errorDetails.isEmpty()) {
                 tooltip.add("");
                 tooltip.add(TextFormatting.RED + I18n.format("gui.ae2powertools.crafter.issues") + ":");
-                for (String detail : errorDetails) tooltip.add(TextFormatting.GRAY + "  - " + detail);
+                // Resolve each component in the player's locale at render time.
+                for (ITextComponent detail : errorDetails) tooltip.add(TextFormatting.GRAY + "  - " + detail.getFormattedText());
             }
 
             // Metrics summary with explanations
@@ -1372,7 +1374,7 @@ public class GuiAutoCrafter extends GuiContainer {
     }
 
     /** Gets the synced error details for an entry (only valid for current page). */
-    private List<String> getSyncedErrorDetails(int entryIndex) {
+    private List<ITextComponent> getSyncedErrorDetails(int entryIndex) {
         if (!hasRecipeData || entryIndex != recipeEntryIndex) return Collections.emptyList();
         return syncedErrorDetails;
     }

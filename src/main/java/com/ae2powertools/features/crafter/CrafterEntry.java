@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.text.ITextComponent;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
@@ -73,9 +74,13 @@ public class CrafterEntry {
     /**
      * Detailed error information for verbose tooltips.
      * Lists which inputs were missing and how many more were needed.
-     * Format: item display name -> count missing
+     * <p>
+     * Stored as {@link ITextComponent} (typically {@link net.minecraft.util.text.TextComponentTranslation})
+     * so the message is translated using the client's locale at render time. The server
+     * never has a meaningful localization context, so storing pre-translated strings here
+     * would always show the English fallback to non-English clients.
      */
-    private final List<String> errorDetails;
+    private final List<ITextComponent> errorDetails;
 
     /**
      * Current batch size achieved vs. requested (for occupancy calculation).
@@ -318,10 +323,11 @@ public class CrafterEntry {
     // --- Error Details ---
 
     /**
-     * Gets the list of error detail messages (human-readable strings).
+     * Gets the list of error detail components.
      * These provide verbose information about why crafting failed or was limited.
+     * Components are resolved client-side via {@link ITextComponent#getFormattedText()}.
      */
-    public List<String> getErrorDetails() {
+    public List<ITextComponent> getErrorDetails() {
         return errorDetails;
     }
 
@@ -333,11 +339,11 @@ public class CrafterEntry {
     }
 
     /**
-     * Adds an error detail message.
-     * @param detail Human-readable error detail (e.g., "Missing 5x Iron Ingot")
+     * Adds an error detail component.
+     * @param detail The error detail (typically a {@link net.minecraft.util.text.TextComponentTranslation})
      */
-    public void addErrorDetail(String detail) {
-        if (detail != null && !detail.isEmpty()) errorDetails.add(detail);
+    public void addErrorDetail(ITextComponent detail) {
+        if (detail != null) errorDetails.add(detail);
     }
 
     /**

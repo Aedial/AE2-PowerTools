@@ -10,6 +10,8 @@ import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -49,7 +51,7 @@ public class ScannerClientState {
      * Per-device scan state.
      */
     public static class DeviceScanState {
-        private String statusMessage = "";
+        private ITextComponent statusMessage = new TextComponentString("");
         private boolean isScanComplete = false;
         private Tab currentTab = Tab.LOOPS;
 
@@ -392,13 +394,13 @@ public class ScannerClientState {
         }
     }
 
-    public static String getStatusMessage() {
+    public static ITextComponent getStatusMessage() {
         DeviceScanState state = getActiveState();
 
-        return state != null ? state.statusMessage : "";
+        return state != null ? state.statusMessage : new TextComponentString("");
     }
 
-    public static void setStatusMessage(long deviceId, String message) {
+    public static void setStatusMessage(long deviceId, ITextComponent message) {
         DeviceScanState state = getOrCreateState(deviceId);
         state.statusMessage = message;
     }

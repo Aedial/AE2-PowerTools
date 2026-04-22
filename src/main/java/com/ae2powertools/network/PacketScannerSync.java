@@ -8,6 +8,8 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -38,6 +40,8 @@ public class PacketScannerSync implements IMessage {
     private long deviceId;
     private boolean hasSession;
     private boolean isComplete;
+    // Serialized JSON of the status message component.
+    // It will be deserialized and translated on the client.
     private String statusMessage;
     private List<LoopLocationData> loopLocations;
     private List<ChunkLocationData> chunkLocations;
@@ -181,7 +185,7 @@ public class PacketScannerSync implements IMessage {
         if (session != null) {
             NetworkScanner scanner = session.getScanner();
             this.isComplete = scanner.isComplete();
-            this.statusMessage = scanner.getStatusMessage();
+            this.statusMessage = ITextComponent.Serializer.componentToJson(scanner.getStatusMessage());
 
             // Add loop locations
             for (IssueLocation loc : scanner.getDetectedLoops()) {
@@ -420,7 +424,17 @@ public class PacketScannerSync implements IMessage {
 
                 ScannerClientState.setActiveSession(deviceId, message.hasSession);
                 ScannerClientState.setScanComplete(deviceId, message.isComplete);
-                ScannerClientState.setStatusMessage(deviceId, message.statusMessage);
+                ITextComponent statusComponent = null;
+                if (message.statusMessage != null && !message.statusMessage.isEmpty()) {
+                    // Best-effort: malformed JSON falls back to a plain string component.
+                    try {
+                        statusComponent = ITextComponent.Serializer.jsonToComponent(message.statusMessage);
+                    } catch (Exception e) {
+                        statusComponent = new TextComponentString(message.statusMessage);
+                    }
+                }
+                if (statusComponent == null) statusComponent = new TextComponentString("");
+                ScannerClientState.setStatusMessage(deviceId, statusComponent);
 
                 // Set loop locations
                 List<LoopLocationClient> clientLoops = new ArrayList<>();

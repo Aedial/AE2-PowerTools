@@ -10,6 +10,8 @@ import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
 
+import net.minecraft.util.text.ITextComponent;
+
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
 
@@ -68,12 +70,12 @@ public final class CrafterRecipeSnapshot {
 
     private final IAEItemStack[] inputGrid;
     private final List<CatalystExpectation> catalysts;
-    private final List<String> errorDetails;
+    private final List<ITextComponent> errorDetails;
     private final boolean hasDisplayData;
 
     public CrafterRecipeSnapshot(IAEItemStack[] inputGrid,
                                  List<CatalystExpectation> catalysts,
-                                 List<String> errorDetails,
+                                 List<ITextComponent> errorDetails,
                                  boolean hasDisplayData) {
         this.inputGrid = inputGrid;
         this.catalysts = catalysts;
@@ -90,7 +92,7 @@ public final class CrafterRecipeSnapshot {
             // Even when there is no recipe info, we still want to send error details
             // (the entry might be in SIMULATION_FAILED state with helpful messages).
             return new CrafterRecipeSnapshot(new IAEItemStack[9], Collections.emptyList(),
-                copyStrings(entry.getErrorDetails()), false);
+                copyComponents(entry.getErrorDetails()), false);
         }
 
         IAEItemStack[] grid = new IAEItemStack[9];
@@ -110,10 +112,10 @@ public final class CrafterRecipeSnapshot {
             }
         }
 
-        return new CrafterRecipeSnapshot(grid, catalysts, copyStrings(entry.getErrorDetails()), true);
+        return new CrafterRecipeSnapshot(grid, catalysts, copyComponents(entry.getErrorDetails()), true);
     }
 
-    private static List<String> copyStrings(List<String> source) {
+    private static List<ITextComponent> copyComponents(List<ITextComponent> source) {
         return source.isEmpty() ? Collections.emptyList() : new ArrayList<>(source);
     }
 
@@ -135,9 +137,11 @@ public final class CrafterRecipeSnapshot {
             if (cat.expectedItem != null) cat.expectedItem.writeToPacket(buf);
         }
 
-        // Error details
+        // Error details are serialized as JSON-encoded ITextComponents so the receiving
+        // client can rebuild the same component tree (translation key + args) and resolve
+        // it in its own locale.
         buf.writeShort(errorDetails.size());
-        for (String s : errorDetails) writeString(buf, s);
+        for (ITextComponent comp : errorDetails) writeString(buf, ITextComponent.Serializer.componentToJson(comp));
     }
 
     public static CrafterRecipeSnapshot readFromBuf(ByteBuf buf) throws IOException {
@@ -157,8 +161,8 @@ public final class CrafterRecipeSnapshot {
         }
 
         int errCount = buf.readShort() & 0xFFFF;
-        List<String> errors = new ArrayList<>(errCount);
-        for (int i = 0; i < errCount; i++) errors.add(readString(buf));
+        List<ITextComponent> errors = new ArrayList<>(errCount);
+        for (int i = 0; i < errCount; i++) errors.add(ITextComponent.Serializer.jsonToComponent(readString(buf)));
 
         return new CrafterRecipeSnapshot(grid, catalysts, errors, hasDisplay);
     }
@@ -178,7 +182,7 @@ public final class CrafterRecipeSnapshot {
 
     public IAEItemStack[] getInputGrid() { return inputGrid; }
     public List<CatalystExpectation> getCatalysts() { return catalysts; }
-    public List<String> getErrorDetails() { return errorDetails; }
+    public List<ITextComponent> getErrorDetails() { return errorDetails; }
     public boolean hasDisplayData() { return hasDisplayData; }
 
     @Override

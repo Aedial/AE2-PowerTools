@@ -4,6 +4,8 @@ import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
@@ -50,10 +52,12 @@ public class MaintainerEntry {
     private MaintainerState state;
 
     /**
-     * Error message if state is ERROR or POST_ERROR.
+     * Error component shown to the player when the entry is in an error state.
+     * Stored as ITextComponent so translation happens client-side (preserves the
+     * client's language even when the message originates on the server).
      */
     @Nullable
-    private String errorMessage;
+    private ITextComponent errorComponent;
 
     /**
      * Time of the last successful run (world time in ticks).
@@ -83,7 +87,7 @@ public class MaintainerEntry {
         this.frequencySeconds = 60;  // Default: 1 minute
         this.enabled = true;
         this.state = MaintainerState.IDLE;
-        this.errorMessage = null;
+        this.errorComponent = null;
         this.lastRunTime = 0;
         this.nextRunTime = 0;
         this.scheduleDirtyTime = 0;
@@ -166,17 +170,32 @@ public class MaintainerEntry {
     }
 
     @Nullable
-    public String getErrorMessage() {
-        return errorMessage;
+    public ITextComponent getErrorComponent() {
+        return errorComponent;
     }
 
-    public void setErrorMessage(@Nullable String errorMessage) {
-        this.errorMessage = errorMessage;
+    public void setErrorComponent(@Nullable ITextComponent errorComponent) {
+        this.errorComponent = errorComponent;
     }
 
-    public void setError(MaintainerState errorState, String message) {
+    /**
+     * Convenience setter that takes a translation key (used by callers that don't have
+     * any format arguments). Wraps the key into a TextComponentTranslation so client-side
+     * localization still works. Pass {@code null} to clear.
+     */
+    public void setError(MaintainerState errorState, @Nullable String translationKey) {
         this.state = errorState;
-        this.errorMessage = message;
+        this.errorComponent = translationKey == null ? null : new TextComponentTranslation(translationKey);
+    }
+
+    /**
+     * Direct setter for callers that need to pass format arguments via
+     * {@link TextComponentTranslation}. Storing the component (rather than the resolved
+     * string) ensures the message is translated using the client's language at render time.
+     */
+    public void setError(MaintainerState errorState, ITextComponent component) {
+        this.state = errorState;
+        this.errorComponent = component;
     }
 
     public void clearError() {
@@ -184,7 +203,7 @@ public class MaintainerEntry {
             this.state = this.enabled ? MaintainerState.IDLE : MaintainerState.DISABLED;
         }
 
-        this.errorMessage = null;
+        this.errorComponent = null;
     }
 
     public long getLastRunTime() {
@@ -281,7 +300,9 @@ public class MaintainerEntry {
         tag.setLong("lastRunTime", lastRunTime);
         tag.setLong("nextRunTime", nextRunTime);
 
-        if (errorMessage != null) tag.setString("errorMessage", errorMessage);
+        // Persist as JSON so the component (including any TextComponentTranslation args)
+        // round-trips losslessly across save/load.
+        if (errorComponent != null) tag.setString("errorComponent", ITextComponent.Serializer.componentToJson(errorComponent));
 
         return tag;
     }
@@ -317,8 +338,14 @@ public class MaintainerEntry {
         // The checkCraftingNeeds() will reschedule them properly based on current world time.
         nextRunTime = 0;
 
-        errorMessage = null;
-        if (tag.hasKey("errorMessage")) errorMessage = tag.getString("errorMessage");
+        errorComponent = null;
+        if (tag.hasKey("errorComponent")) {
+            errorComponent = ITextComponent.Serializer.jsonToComponent(tag.getString("errorComponent"));
+        } else if (tag.hasKey("errorMessage")) {
+            // Legacy NBT (pre-ITextComponent migration): the value was a translation key.
+            // Preserve it by wrapping into TextComponentTranslation so old worlds keep working.
+            errorComponent = new TextComponentTranslation(tag.getString("errorMessage"));
+        }
     }
 
     /**
@@ -428,7 +455,7 @@ public class MaintainerEntry {
         copy.frequencySeconds = this.frequencySeconds;
         copy.enabled = this.enabled;
         copy.state = this.state;
-        copy.errorMessage = this.errorMessage;
+        copy.errorComponent = this.errorComponent;
         copy.lastRunTime = this.lastRunTime;
         copy.nextRunTime = this.nextRunTime;
         copy.scheduleDirtyTime = this.scheduleDirtyTime;

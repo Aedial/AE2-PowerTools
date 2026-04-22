@@ -15,7 +15,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.translation.I18n;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
 import appeng.api.networking.GridFlags;
@@ -67,7 +68,9 @@ public class ChannelScanner {
     private boolean isComplete = false;
     private boolean hasController = false;
     private int nodesProcessed = 0;
-    private String statusMessage = "";
+    // Stored as ITextComponent so the message can be serialized as JSON and re-translated
+    // client-side in the player's locale (server-side I18n only has English fallback).
+    private ITextComponent statusMessage = new net.minecraft.util.text.TextComponentString("");
 
     // BFS tracking - Phase 1: Build tree structure from controller
     private final Queue<BfsNode> openList = new LinkedList<>();
@@ -105,24 +108,11 @@ public class ChannelScanner {
         // Is this node a channel consumer? For multiblocks, only the representative consumes a channel.
         boolean requiresChannel = false;
 
-        // For multiblock handling: if this node is part of a cluster, this points to the representative
-        // If null, this node is not part of a multiblock cluster
-        // If this == clusterRepresentative, this node IS the representative
-        BfsNode clusterRepresentative = null;
-
         BfsNode(IGridNode gridNode, BfsNode parent, IGridConnection connection, int depth) {
             this.gridNode = gridNode;
             this.parent = parent;
             this.connectionFromParent = connection;
             this.depth = depth;
-        }
-
-        boolean isClusterRepresentative() {
-            return clusterRepresentative == this;
-        }
-
-        boolean isPartOfCluster() {
-            return clusterRepresentative != null;
         }
     }
 
@@ -141,7 +131,7 @@ public class ChannelScanner {
             IPathingGrid pathingGrid = grid.getCache(IPathingGrid.class);
 
             if (pathingGrid == null) {
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.channel.no_pathing_grid");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.no_pathing_grid");
                 isComplete = true;
 
                 return;
@@ -153,7 +143,7 @@ public class ChannelScanner {
             if (!hasController) {
                 // Ad-hoc network - channel chokepoints don't make sense here
                 // (all devices share 8 channels, all-or-nothing)
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.channel.no_controller");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.no_controller");
                 isComplete = true;
 
                 return;
@@ -168,16 +158,16 @@ public class ChannelScanner {
             }
 
             if (openList.isEmpty()) {
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.channel.no_controller");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.no_controller");
                 isComplete = true;
 
                 return;
             }
 
-            statusMessage = I18n.translateToLocal("ae2powertools.scanner.channel.building_tree");
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.building_tree");
         } catch (Exception e) {
             AE2PowerTools.LOGGER.error("Error initializing channel scanner", e);
-            statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.status.error", e.getMessage());
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.error", e.getMessage());
             isComplete = true;
         }
     }
@@ -204,7 +194,7 @@ public class ChannelScanner {
 
         while (!openList.isEmpty() && processed < MAX_NODES_PER_TICK) {
             if (nodesProcessed >= MAX_TOTAL_NODES) {
-                statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.status.too_large",
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.too_large",
                     MAX_TOTAL_NODES);
                 isComplete = true;
 
@@ -219,14 +209,14 @@ public class ChannelScanner {
 
         if (openList.isEmpty()) {
             phase1Complete = true;
-            statusMessage = I18n.translateToLocal("ae2powertools.scanner.channel.calculating_demand");
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.calculating_demand");
 
             // Collect leaf nodes for bottom-up traversal
             for (BfsNode node : nodeMap.values()) {
                 if (node.children.isEmpty()) leafNodes.add(node);
             }
         } else {
-            statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.channel.building_tree_progress",
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.building_tree_progress",
                 nodesProcessed);
         }
 
@@ -248,13 +238,11 @@ public class ChannelScanner {
             if (representative == null) {
                 // First node of this cluster - it becomes the representative
                 clusterRepresentatives.put(currentCluster, current);
-                current.clusterRepresentative = current;
 
                 // Only the representative checks for channel requirement
                 if (node.hasFlag(GridFlags.REQUIRE_CHANNEL)) current.requiresChannel = true;
             } else {
                 // Part of existing cluster - point to representative, don't require a channel
-                current.clusterRepresentative = representative;
                 current.requiresChannel = false;
             }
         } else {
@@ -307,13 +295,13 @@ public class ChannelScanner {
             isComplete = true;
 
             if (chokepoints.isEmpty()) {
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.channel.no_chokepoints");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.no_chokepoints");
             } else {
-                statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.channel.found",
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.found",
                     chokepoints.size());
             }
         } else {
-            statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.channel.calculating_progress",
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.calculating_progress",
                 demandPhaseIndex, leafNodes.size());
         }
 
@@ -445,7 +433,7 @@ public class ChannelScanner {
             int parentChannels = bfsNode.connectionFromParent != null
                 ? bfsNode.connectionFromParent.getUsedChannels() : 0;
 
-            String toControllerSuffix = " " + I18n.translateToLocal("ae2powertools.scanner.channel.to_controller");
+            String toControllerSuffix = " " + new TextComponentTranslation("ae2powertools.scanner.channel.to_controller").getFormattedText();
             DirectionFlow parentFlow = new DirectionFlow(
                 direction, parentChannels, bfsNode.channelDemand,
                 parentPos, parentDesc + toControllerSuffix
@@ -514,9 +502,13 @@ public class ChannelScanner {
     /**
      * Get a human-readable description of a grid node.
      * Uses the machine representation's display name for localized output.
+     * TODO: should move localization to client side and return ITextComponent here.
      */
     private String getNodeDescription(IGridNode node) {
-        if (node == null) return I18n.translateToLocal("ae2powertools.common.unknown");
+        // NOTE: Returns a String because the value is concatenated into other strings and
+        // baked into network packets. We resolve translations eagerly via getFormattedText()
+        // (server-side resolution, English fallback) to match the previous behavior.
+        if (node == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
 
         // Try to get the localized name from the machine representation
         try {
@@ -529,7 +521,7 @@ public class ChannelScanner {
 
         // Fallback: clean up class name
         IGridHost host = node.getMachine();
-        if (host == null) return I18n.translateToLocal("ae2powertools.common.unknown");
+        if (host == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
 
         String className = host.getClass().getSimpleName();
 
@@ -587,7 +579,7 @@ public class ChannelScanner {
         return isComplete;
     }
 
-    public String getStatusMessage() {
+    public ITextComponent getStatusMessage() {
         return statusMessage;
     }
 

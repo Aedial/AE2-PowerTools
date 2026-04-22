@@ -299,7 +299,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String loopInfo = I18n.format("gui.ae2powertools.scanner.loops_info");
             footerLines.addAll(fontRenderer.listFormattedStringToWidth(loopInfo, footerTextWidth));
         } else {
-            String status = ScannerClientState.getStatusMessage();
+            String status = ScannerClientState.getStatusMessage().getFormattedText();
             if (!status.isEmpty()) footerLines.add(status);
         }
 
