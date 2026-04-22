@@ -724,7 +724,6 @@ public class GuiComponentLocator extends GuiScreen {
 
         List<String> tooltip = new ArrayList<>();
         tooltip.add(loc.getCoordString());
-        tooltip.add(I18n.format("gui.ae2powertools.locator.dimension", loc.dimension));
 
         if (mc.player != null) {
             double distance = loc.getDistanceFrom(mc.player.getPosition());
@@ -733,8 +732,8 @@ public class GuiComponentLocator extends GuiScreen {
 
         boolean isSelected = LocatorClientState.isLocationSelected(originalIdx);
         tooltip.add(isSelected ?
-            I18n.format("gui.ae2powertools.locator.click_deselect") :
-            I18n.format("gui.ae2powertools.locator.click_select"));
+            "§b" + I18n.format("gui.ae2powertools.locator.click_deselect") :
+            "§b" + I18n.format("gui.ae2powertools.locator.click_select"));
 
         drawHoveringText(tooltip, mouseX, mouseY);
     }

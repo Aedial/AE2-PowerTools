@@ -16,6 +16,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.text.translation.I18n;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.Constants;
 
 import appeng.api.AEApi;
@@ -46,6 +47,7 @@ import appeng.util.ReadableNumberConverter;
 import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.config.PowerToolsServerConfig;
 
 
 /**
@@ -80,18 +82,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
      */
     private static final int SCHEDULE_DEBOUNCE_TICKS = 10 * 20;
 
-    /**
-     * Maximum number of concurrent job calculations allowed.
-     * Limits server load when many entries need crafting simultaneously.
-     * Complex crafting trees can be expensive to calculate.
-     */
-    private static final int MAX_CONCURRENT_CALCULATIONS = 2;
-
-    /**
-     * Maximum number of times a task can retry waiting for CPU before giving up.
-     * Prevents tasks from being stuck indefinitely in the wait queue.
-     */
-    private static final int MAX_CPU_RETRY_COUNT = 10;
 
     private final AENetworkProxy gridProxy;
     private final IActionSource actionSource;
@@ -313,16 +303,26 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             // Limit concurrent calculations to prevent lag from complex crafting trees.
             // Tasks beyond the limit will be picked up in the next check cycle.
             int activeCalculations = countActiveCalculations();
-            if (activeCalculations >= MAX_CONCURRENT_CALCULATIONS) {
+            if (activeCalculations >= PowerToolsServerConfig.maintainer.getMaxConcurrentCalculations()) {
                 // Too many calculations running, skip this entry for now.
                 // It will be picked up in the next checkCraftingNeeds cycle.
                 return;
             }
 
-            // Begin crafting job calculation
+            // Begin crafting job calculation.
+            //
+            // We deliberately use a player-presenting action source here (and ONLY here) to
+            // sidestep the AE2 stopwatch double-stop bug in CraftingJob.handlePausing(): the
+            // pause/resume path, which fails to restart craftingTreeWatch, is gated on
+            // !actionSrc.player().isPresent(). See CalculationActionSource for full rationale.
+            // submitJob, injectCraftedItems, and all real network operations continue to use
+            // the original MachineSource so security and accounting are unchanged.
             entry.setState(MaintainerState.SCHEDULED);
+            IActionSource calcSource = (world instanceof WorldServer)
+                    ? new CalculationActionSource(this, (WorldServer) world)
+                    : actionSource;
             Future<ICraftingJob> future = craftingGrid.beginCraftingJob(
-                    world, grid, actionSource, targetItem, null);
+                    world, grid, calcSource, targetItem, null);
 
             // Create task to track this job with its future
             MaintainerTask task = new MaintainerTask(
@@ -550,7 +550,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 }
 
                 // Check retry limit to prevent infinite loops
-                if (task.getCpuRetryCount() >= MAX_CPU_RETRY_COUNT) {
+                if (task.getCpuRetryCount() >= PowerToolsServerConfig.maintainer.getMaxCpuRetryCount()) {
                     MaintainerEntry entry = entries.get(task.getEntryIndex());
                     if (entry != null) {
                         entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cpu_retry_limit");

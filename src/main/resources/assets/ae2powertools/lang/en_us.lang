@@ -259,6 +259,13 @@ ae2powertools.config.server.crafter.tooltip=AutoCrafter balance settings
 ae2powertools.config.server.crafter.baseCraftsPerOperation=Base crafts per operation
 ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=Base number of crafts performed per operation cycle (flat multiplier on all batch sizes)
 
+ae2powertools.config.server.maintainer=Better Level Maintainer
+ae2powertools.config.server.maintainer.tooltip=Better Level Maintainer performance settings
+ae2powertools.config.server.maintainer.maxConcurrentCalculations=Max concurrent calculations
+ae2powertools.config.server.maintainer.maxConcurrentCalculations.tooltip=Maximum number of crafting job calculations allowed to run concurrently (higher values allow more parallel calculations but may cause lag)
+ae2powertools.config.server.maintainer.maxCpuRetryCount=Max CPU retry count
+ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=Maximum number of times a task retries waiting for a free CPU before entering an error state
+
 
 # GUI - Main
 gui.ae2powertools.crafter.title=AutoCrafter
