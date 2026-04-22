@@ -1,6 +1,5 @@
 package com.ae2powertools.features.crafter;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -8,14 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.mojang.authlib.GameProfile;
 
-import io.netty.buffer.ByteBuf;
-
-import net.minecraft.inventory.Container;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
@@ -28,7 +23,6 @@ import net.minecraft.util.text.translation.I18n;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.items.ItemHandlerHelper;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
@@ -55,7 +49,6 @@ import appeng.me.helpers.MachineSource;
 import appeng.tile.AEBaseTile;
 import appeng.util.item.AEItemStack;
 
-import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
 
@@ -106,11 +99,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     private int tickCounter;
 
     /**
-     * Whether we need to sync to clients.
-     */
-    private boolean needsSync;
-
-    /**
      * Cached fake player for crafting.
      */
     @Nullable
@@ -141,7 +129,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         this.speedTicks = DEFAULT_SPEED_TICKS;
         this.batchSize = DEFAULT_BATCH_SIZE;
         this.tickCounter = 0;
-        this.needsSync = false;
         this.currentPage = 0;
 
         this.upgradeInventory = new ItemStack[UPGRADE_SLOTS];
@@ -161,12 +148,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             processPendingOutputs();
             processAllEntries();
         }
-
-        // Sync to clients if needed
-        if (needsSync) {
-            markForUpdate();
-            needsSync = false;
-        }
     }
 
     /**
@@ -178,7 +159,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             List<IAEItemStack> pendingList = entry.getPendingOutputs();
             Iterator<IAEItemStack> it = pendingList.iterator();
-            boolean anyInserted = false;
 
             while (it.hasNext()) {
                 IAEItemStack pending = it.next();
@@ -186,7 +166,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
                 if (remaining == null || remaining.getStackSize() == 0) {
                     it.remove();
-                    anyInserted = true;
                 } else {
                     pending.setStackSize(remaining.getStackSize());
                 }
@@ -194,23 +173,20 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             if (pendingList.isEmpty()) {
                 entry.setState(CrafterState.IDLE);
-                needsSync = true;
-            } else if (anyInserted) {
-                needsSync = true;
             }
         }
     }
 
     /**
      * Process all entries and run crafts where possible.
-     * 
+     * <p>
      * This method processes entries atomically with a shared resource pool:
      * 1. Collect: Gather all entries that want to craft
      * 2. Allocate: Distribute resources fairly among competing entries
      * 3. Extract: Extract all inputs for all entries
      * 4. Craft: Run all crafts using cached recipe info
      * 5. Insert: Insert all outputs into network
-     * 
+     * <p>
      * Fair allocation ensures that if multiple entries need the same resource,
      * each gets a proportional share rather than first-come-first-served.
      */
@@ -410,8 +386,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         Map<ItemStackKey, Long> sharedPool = initializeSharedPool(candidates);
 
         // Simulate fair allocation (same as processAllEntries, but don't extract/craft)
-        final int effectiveMaxBatchSize = getEffectiveMaxBatchSize();
-
         // Check each candidate for input availability
         for (CraftCandidate candidate : candidates) {
             boolean hasAllInputs = true;
@@ -428,6 +402,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (available < needed) {
                     hasAllInputs = false;
                     ItemStack stack = item.createItemStack();
+                    // TODO: use TextComponentTranslation instead of server I18n
                     missingInputs.add(I18n.translateToLocalFormatted("gui.ae2powertools.crafter.error.need_have",
                             stack.getDisplayName(), needed, available));
                 }
@@ -440,8 +415,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 updateEntryState(candidate.entry, CrafterState.MISSING_INPUT);
             }
         }
-
-        needsSync = true;
     }
 
     /**
@@ -708,12 +681,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     /**
-     * Update entry state and mark for sync if changed.
+     * Update entry state if changed. Diff sync in the container will propagate the change.
      */
     private void updateEntryState(CrafterEntry entry, CrafterState newState) {
         if (entry.getState() != newState) {
             entry.setState(newState);
-            needsSync = true;
         }
     }
 
@@ -1176,7 +1148,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (patternStack == null || patternStack.isEmpty()) {
             entry.setRecipeInfo(null);
             entry.setState(CrafterState.NO_PATTERN);
-            needsSync = true;
             return;
         }
 
@@ -1184,7 +1155,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (!(patternStack.getItem() instanceof ICraftingPatternItem)) {
             entry.setRecipeInfo(new CrafterRecipeInfo("gui.ae2powertools.crafter.error.not_pattern"));
             entry.setState(CrafterState.SIMULATION_FAILED);
-            needsSync = true;
             return;
         }
 
@@ -1194,7 +1164,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (details == null) {
             entry.setRecipeInfo(new CrafterRecipeInfo("gui.ae2powertools.crafter.error.invalid_pattern"));
             entry.setState(CrafterState.SIMULATION_FAILED);
-            needsSync = true;
             return;
         }
 
@@ -1202,7 +1171,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (!details.isCraftable()) {
             entry.setRecipeInfo(new CrafterRecipeInfo("gui.ae2powertools.crafter.error.processing_pattern"));
             entry.setState(CrafterState.SIMULATION_FAILED);
-            needsSync = true;
             return;
         }
 
@@ -1218,7 +1186,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         }
         // If !resetState and info.isValid(), keep the existing state (e.g., MISSING_INPUT from NBT)
 
-        needsSync = true;
         markDirty();
     }
 
@@ -1452,9 +1419,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (page < 0 || page >= ENTRY_COUNT) return;
 
         this.currentPage = page;
-        // Don't markDirty() - this is intentionally NOT saved to NBT
-        // Needs sync for clients to see the change
-        needsSync = true;
+        // Don't markDirty() - this is intentionally NOT saved to NBT.
+        // ContainerAutoCrafter.detectAndSendChanges picks up the page change next tick
+        // and propagates it to all listeners via @GuiSync.
     }
 
     // ==================== UPGRADES ====================
@@ -1473,10 +1440,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         upgradeInventory[slot] = stack == null ? ItemStack.EMPTY : stack;
 
-        // If tier changed, immediately update block state on client
+        // If tier changed, immediately update block state on client.
+        // markForUpdate is required here because tier affects the block model (not just GUI),
+        // which must be re-rendered for non-GUI viewers via the block update packet.
         int newTier = getUpgradeTier();
         if (oldTier != newTier) {
-            needsSync = true;
             markForUpdate();
         }
 
@@ -1545,7 +1513,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         CrafterEntry entry = entries.get(index);
         entry.setEnabled(!entry.isEnabled());
-        needsSync = true;
         markDirty();
     }
 
@@ -1564,7 +1531,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         for (int i = 0; i < CrafterEntry.CATALYST_SLOTS; i++) entry.setCatalystStack(i, ItemStack.EMPTY);
 
-        needsSync = true;
         markDirty();
     }
 
@@ -1599,7 +1565,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (craftMatrix == null) {
             // Missing catalyst - recipe cannot work
             entry.setState(CrafterState.MISSING_CATALYST);
-            needsSync = true;
             return;
         }
 
@@ -1607,7 +1572,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         IRecipe recipe = CraftingManager.findMatchingRecipe(craftMatrix, world);
         if (recipe == null) {
             entry.setState(CrafterState.SIMULATION_FAILED);
-            needsSync = true;
             markDirty();
             return;
         }
@@ -1618,7 +1582,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         
         if (expectedOutput == null || newOutput.isEmpty()) {
             entry.setState(CrafterState.SIMULATION_FAILED);
-            needsSync = true;
             markDirty();
             return;
         }
@@ -1627,7 +1590,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (expectedStack.getItem() != newOutput.getItem() 
             || expectedStack.getMetadata() != newOutput.getMetadata()) {
             entry.setState(CrafterState.SIMULATION_FAILED);
-            needsSync = true;
             markDirty();
             return;
         }
@@ -1635,7 +1597,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Recipe is still valid
         if (entry.isEnabled()) entry.setState(CrafterState.IDLE);
 
-        needsSync = true;
         markDirty();
     }
 
@@ -1749,129 +1710,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     // ==================== NETWORK SYNC ====================
-
-    @Override
-    protected void writeToStream(ByteBuf data) throws IOException {
-        super.writeToStream(data);
-
-        data.writeInt(speedTicks);
-        data.writeInt(batchSize);
-        data.writeInt(currentPage);
-
-        for (CrafterEntry entry : entries) {
-            // Write whether entry has display data (pattern with valid recipe)
-            boolean hasDisplayData = entry.hasPattern() && entry.hasValidRecipeInfo();
-            data.writeBoolean(hasDisplayData);
-            data.writeInt(entry.getState().ordinal());
-
-            // Write metrics data for client-side display
-            data.writeLong(entry.getMetricsTotal());
-            data.writeLong(entry.getMetricsError());
-            data.writeLong(entry.getMetricsTotalActualCrafted());
-            data.writeLong(entry.getMetricsTotalMaxPossible());
-
-            if (hasDisplayData) {
-                // Write output item for display
-                IAEItemStack output = entry.getOutputItem();
-                if (output != null) {
-                    data.writeBoolean(true);
-                    try {
-                        output.writeToPacket(data);
-                    } catch (IOException e) {
-                        data.writeBoolean(false);
-                    }
-                } else {
-                    data.writeBoolean(false);
-                }
-
-                // Write input grid (9 slots)
-                IAEItemStack[] inputGrid = entry.getInputGrid();
-                if (inputGrid != null) {
-                    data.writeBoolean(true);
-                    for (int i = 0; i < 9; i++) {
-                        IAEItemStack gridItem = inputGrid[i];
-                        if (gridItem != null) {
-                            data.writeBoolean(true);
-                            try {
-                                gridItem.writeToPacket(data);
-                            } catch (IOException e) {
-                                // Error writing, mark as empty
-                            }
-                        } else {
-                            data.writeBoolean(false);
-                        }
-                    }
-                } else {
-                    data.writeBoolean(false);
-                }
-            }
-        }
-    }
-
-    @Override
-    protected boolean readFromStream(ByteBuf data) throws IOException {
-        boolean changed = super.readFromStream(data);
-
-        speedTicks = data.readInt();
-        batchSize = data.readInt();
-        currentPage = data.readInt();
-
-        for (CrafterEntry entry : entries) {
-            boolean hasDisplayData = data.readBoolean();
-            int stateOrdinal = data.readInt();
-            entry.setState(CrafterState.values()[stateOrdinal]);
-
-            // Read metrics data for client-side display
-            long metricsTotal = data.readLong();
-            long metricsError = data.readLong();
-            long metricsTotalActualCrafted = data.readLong();
-            long metricsTotalMaxPossible = data.readLong();
-            entry.setSyncedMetrics(metricsTotal, metricsError, metricsTotalActualCrafted, metricsTotalMaxPossible);
-
-            if (hasDisplayData) {
-                // Read output item for client-side display
-                boolean hasOutput = data.readBoolean();
-                if (hasOutput) {
-                    try {
-                        IAEItemStack output = AEItemStack.fromPacket(data);
-                        entry.setSyncedOutputItem(output);
-                    } catch (Exception e) {
-                        entry.setSyncedOutputItem(null);
-                    }
-                } else {
-                    entry.setSyncedOutputItem(null);
-                }
-
-                // Read input grid (9 slots) for client-side display
-                boolean hasGrid = data.readBoolean();
-                if (hasGrid) {
-                    IAEItemStack[] grid = new IAEItemStack[9];
-                    for (int i = 0; i < 9; i++) {
-                        boolean hasGridItem = data.readBoolean();
-                        if (hasGridItem) {
-                            try {
-                                grid[i] = AEItemStack.fromPacket(data);
-                            } catch (Exception e) {
-                                grid[i] = null;
-                            }
-                        } else {
-                            grid[i] = null;
-                        }
-                    }
-                    entry.setSyncedInputGrid(grid);
-                } else {
-                    entry.setSyncedInputGrid(null);
-                }
-            } else {
-                entry.setSyncedOutputItem(null);
-                entry.setSyncedInputGrid(null);
-            }
-
-            changed = true;
-        }
-
-        return changed;
-    }
+    // GUI sync is handled per-tick by ContainerAutoCrafter.detectAndSendChanges via diff
+    // packets. There is no longer a writeToStream/readFromStream override here:
+    //  - Per-listener overview & recipe diff packets cover GUI rendering needs.
+    //  - The block model (driven by upgrade tier) still uses markForUpdate in setUpgradeStack.
+    // This eliminates the per-block-update payload tax that the previous stream sync incurred.
 
     // ==================== GRID PROXY ====================
 
@@ -1887,8 +1730,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     @Override
     public void gridChanged() {
-        // Re-evaluate states when grid changes
-        needsSync = true;
+        // Nothing to do here - we don't cache any dynamic grid info that needs to be invalidated on change.
     }
 
     @Override

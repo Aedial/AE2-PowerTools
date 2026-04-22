@@ -5,11 +5,12 @@ import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
 import com.ae2powertools.Tags;
-import com.ae2powertools.features.crafter.PacketCrafterStateSync;
+import com.ae2powertools.features.crafter.PacketCrafterOverviewSync;
+import com.ae2powertools.features.crafter.PacketCrafterRecipeSync;
 import com.ae2powertools.features.crafter.PacketOpenCrafterSubGui;
-import com.ae2powertools.features.crafter.PacketRequestCrafterSync;
 import com.ae2powertools.features.crafter.PacketReturnToCrafterGui;
 import com.ae2powertools.features.crafter.PacketSetCrafterBatch;
+import com.ae2powertools.features.crafter.PacketCrafterPageInit;
 import com.ae2powertools.features.crafter.PacketSetCrafterPage;
 import com.ae2powertools.features.crafter.PacketSetCrafterSpeed;
 import com.ae2powertools.features.crafter.PacketToggleCrafterEntry;
@@ -53,8 +54,9 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketSetCrafterBatch.Handler.class, PacketSetCrafterBatch.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetCrafterSpeed.Handler.class, PacketSetCrafterSpeed.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetCrafterPage.Handler.class, PacketSetCrafterPage.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketCrafterPageInit.Handler.class, PacketCrafterPageInit.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketReturnToCrafterGui.Handler.class, PacketReturnToCrafterGui.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketRequestCrafterSync.Handler.class, PacketRequestCrafterSync.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketCrafterStateSync.Handler.class, PacketCrafterStateSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketCrafterOverviewSync.Handler.class, PacketCrafterOverviewSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketCrafterRecipeSync.Handler.class, PacketCrafterRecipeSync.class, packetId++, Side.CLIENT);
     }
 }

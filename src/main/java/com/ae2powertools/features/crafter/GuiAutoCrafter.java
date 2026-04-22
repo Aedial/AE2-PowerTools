@@ -2,7 +2,11 @@ package com.ae2powertools.features.crafter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Nullable;
 
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -14,8 +18,6 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.client.config.GuiUtils;
@@ -24,7 +26,6 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.ReadableNumberConverter;
-import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.Tags;
 import com.ae2powertools.features.crafter.pmt.PMTManager;
@@ -137,31 +138,31 @@ public class GuiAutoCrafter extends GuiContainer {
     private int lastKnownPage = -1;
 
     // ==================== PACKET-SYNCED CLIENT STATE ====================
-    // These are populated by handleStateSync() when packets arrive from server.
-    // This replaces the unreliable AE2 stream-based syncing.
+    // These are populated by handleOverviewSync / handleRecipeSync when diff packets
+    // arrive from server. Per-entry overview data is sync'd for all 12 entries; recipe
+    // data (input grid, catalyst expectations, error details) is only sync'd for the
+    // current page (server-authoritative).
 
-    private boolean hasSyncedData = false;
-    private int syncedSpeedTicks = TileAutoCrafter.DEFAULT_SPEED_TICKS;
-    private int syncedBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
-    private int syncedEffectiveBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
-    private int syncedCurrentPage = 0;
+    private boolean hasOverviewData = false;
+    private boolean hasRecipeData = false;
 
-    // Per-entry synced data
+    // Per-entry overview data (always populated for all 12 entries after first sync)
     private final CrafterState[] syncedStates = new CrafterState[TileAutoCrafter.ENTRY_COUNT];
     private final boolean[] syncedHasDisplayData = new boolean[TileAutoCrafter.ENTRY_COUNT];
     private final IAEItemStack[] syncedOutputItems = new IAEItemStack[TileAutoCrafter.ENTRY_COUNT];
-    private final IAEItemStack[][] syncedInputGrids = new IAEItemStack[TileAutoCrafter.ENTRY_COUNT][9];
     private final long[] syncedMetricsTotal = new long[TileAutoCrafter.ENTRY_COUNT];
     private final double[] syncedOccupancy = new double[TileAutoCrafter.ENTRY_COUNT];
     private final double[] syncedErrorRate = new double[TileAutoCrafter.ENTRY_COUNT];
-    private final List<List<String>> syncedErrorDetails = new ArrayList<>();
 
-    // Catalyst info per entry (slot index -> expected item)
-    private final List<List<CatalystInfo>> syncedCatalystInfo = new ArrayList<>();
-    // Actual catalyst inventory per entry
-    private final ItemStack[][] syncedCatalystInventory = new ItemStack[TileAutoCrafter.ENTRY_COUNT][CrafterEntry.CATALYST_SLOTS];
+    // Recipe data only kept for the entry the server told us is current.
+    // recipeEntryIndex is checked when reading to guard against stale draws after a
+    // page change, before the server's fresh recipe packet arrives.
+    private int recipeEntryIndex = -1;
+    private IAEItemStack[] syncedInputGrid = new IAEItemStack[9];
+    private final List<CatalystInfo> syncedCatalystInfo = new ArrayList<>();
+    private List<String> syncedErrorDetails = new ArrayList<>();
 
-    /** Simple holder for catalyst slot info. */
+    /** Simple holder for catalyst slot info (slot index + expected ghost item). */
     private static class CatalystInfo {
         final int slotIndex;
         final IAEItemStack expectedItem;
@@ -177,22 +178,36 @@ public class GuiAutoCrafter extends GuiContainer {
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
 
-        // Initialize synced data arrays
+        // Initialize synced overview arrays so the GUI renders cleanly before the first
+        // packet arrives (it should arrive on the same tick the GUI opens, but be safe).
         for (int i = 0; i < TileAutoCrafter.ENTRY_COUNT; i++) {
             syncedStates[i] = CrafterState.NO_PATTERN;
-            syncedErrorDetails.add(new ArrayList<>());
-            syncedCatalystInfo.add(new ArrayList<>());
-            for (int j = 0; j < CrafterEntry.CATALYST_SLOTS; j++) {
-                syncedCatalystInventory[i][j] = ItemStack.EMPTY;
-            }
         }
     }
 
     /**
-     * Gets the current page - uses packet-synced data if available.
+     * Returns the underlying container. Used by network handlers (e.g. PacketCrafterPageInit)
+     * that need to mutate container state on the client thread.
+     */
+    public ContainerAutoCrafter getContainer() {
+        return container;
+    }
+
+    /**
+     * Records that the client has acknowledged the server's current page so that the
+     * drawScreen mismatch-detection loop does not redundantly call setCurrentEntryIndex
+     * on the next render. Called by PacketCrafterPageInit after it has applied the page.
+     */
+    public void acknowledgeServerPage(int page) {
+        this.lastKnownPage = page;
+    }
+
+    /**
+     * Gets the current page - the container's @GuiSync field is the authoritative source.
+     * The container syncs this from {@link TileAutoCrafter#getCurrentPage()} via @GuiSync.
      */
     private int getCurrentPage() {
-        return hasSyncedData ? syncedCurrentPage : container.getCurrentEntryIndex();
+        return container.getCurrentEntryIndex();
     }
 
     @Override
@@ -201,31 +216,17 @@ public class GuiAutoCrafter extends GuiContainer {
 
         buttonList.clear();
 
-        // Batch and Speed buttons are now custom drawn (no GuiButton)
-
         // Calculate overview modal position (top-left aligned with main GUI)
         overviewLeft = guiLeft;
         overviewTop = guiTop;
-
-        // Request full state sync from server
-        requestStateSync();
-    }
-
-    /**
-     * Request a full state sync from the server.
-     * Called on GUI open and when switching to overview mode.
-     */
-    private void requestStateSync() {
-        PowerToolsNetwork.INSTANCE.sendToServer(new PacketRequestCrafterSync(
-                container.getTile().getPos()));
     }
 
     /**
      * Sets the current page and syncs to server for persistence.
-     * Updates local synced state immediately for responsive UI.
+     * Updates local container state immediately for responsive UI; the next server sync
+     * will overwrite it if the server rejects the change (e.g., out-of-range index).
      */
     private void setCurrentPage(int page) {
-        syncedCurrentPage = page;  // Update local state immediately for instant response
         container.setCurrentEntryIndex(page);
         PowerToolsNetwork.INSTANCE.sendToServer(new PacketSetCrafterPage(
                 container.getTile().getPos(), page));
@@ -727,13 +728,15 @@ public class GuiAutoCrafter extends GuiContainer {
     }
 
     /**
-     * Draws catalyst ghost items using synced data.
+     * Draws catalyst ghost items using synced recipe data.
      * Shows ghost items for empty catalyst slots based on the recipe requirements.
+     * Reads the actual catalyst inventory from the container's real Slots (vanilla-synced)
+     * rather than a separate snapshot - this avoids any sync lag for the slot the player
+     * is currently interacting with.
      */
     private void drawCatalystGhosts(int entryIndex, int mouseX, int mouseY) {
-        // Use synced catalyst info for immediate accuracy
-        List<CatalystInfo> catalysts = syncedCatalystInfo.get(entryIndex);
-        if (catalysts == null || catalysts.isEmpty()) return;
+        List<CatalystInfo> catalysts = getSyncedCatalystInfo(entryIndex);
+        if (catalysts.isEmpty()) return;
 
         // Collect positions that need ghost overlay rendering (drawn after all items)
         List<int[]> ghostOverlayPositions = new ArrayList<>();
@@ -742,8 +745,8 @@ public class GuiAutoCrafter extends GuiContainer {
             int slotIndex = catalyst.slotIndex;
             if (slotIndex < 0 || slotIndex >= CrafterEntry.CATALYST_SLOTS) continue;
 
-            // Use synced catalyst inventory
-            ItemStack current = syncedCatalystInventory[entryIndex][slotIndex];
+            // Read the live catalyst slot from the container - it's a real Slot synced by vanilla
+            ItemStack current = container.getCatalystSlotStack(slotIndex);
 
             // Position based on actual slot index, not iteration index
             int x = guiLeft + CATALYST_START_X + slotIndex * 18;
@@ -805,12 +808,12 @@ public class GuiAutoCrafter extends GuiContainer {
         IAEItemStack output = getSyncedOutput(entryIndex);
         if (output == null) return;
 
-        // Calculate throughput using synced values
-        int speedTicks = getSyncedSpeedTicks();
-        int batchSize = getSyncedBatchSize();
+        // Calculate throughput using @GuiSync values from container
+        int speedTicks = container.syncSpeedTicks;
+        int batchSize = container.syncBatchSize;
         long outputCount = output.getStackSize();
 
-        long itemsPerCraft = getSyncedEffectiveBatchSize() * outputCount;
+        long itemsPerCraft = (long) container.syncEffectiveBatchSize * outputCount;
         String itemsPerCraftStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(itemsPerCraft);
         String timePerOperation = FormatUtil.formatTimeTicks(speedTicks * batchSize);
         String throughput = I18n.format("gui.ae2powertools.crafter.crafts_per_operation",
@@ -1268,203 +1271,128 @@ public class GuiAutoCrafter extends GuiContainer {
     // ==================== PACKET-BASED STATE SYNC ====================
 
     /**
-     * Handles incoming state sync packet from server.
-     * This is called by the packet handler when data arrives.
+     * Handles incoming overview diff packet from server.
+     * Each entry index in the map is updated; entries not present in the packet keep
+     * their previously-cached values.
      */
-    public void handleStateSync(NBTTagCompound data) {
-        // Global settings
-        syncedSpeedTicks = data.getInteger("speedTicks");
-        syncedBatchSize = data.getInteger("batchSize");
-        syncedEffectiveBatchSize = data.getInteger("effectiveBatchSize");
-        syncedCurrentPage = data.getInteger("currentPage");
+    public void handleOverviewSync(Map<Integer, CrafterOverviewSnapshot> snapshots) {
+        for (Map.Entry<Integer, CrafterOverviewSnapshot> e : snapshots.entrySet()) {
+            int i = e.getKey();
+            if (i < 0 || i >= TileAutoCrafter.ENTRY_COUNT) continue;
 
-        // Update container's page to match
-        if (container.getCurrentEntryIndex() != syncedCurrentPage) {
-            container.setCurrentEntryIndex(syncedCurrentPage);
-            lastKnownPage = syncedCurrentPage;
-        }
-
-        // Parse entries
-        NBTTagList entriesList = data.getTagList("entries", 10);
-        for (int i = 0; i < Math.min(entriesList.tagCount(), TileAutoCrafter.ENTRY_COUNT); i++) {
-            NBTTagCompound entryTag = entriesList.getCompoundTagAt(i);
-
-            // State
-            int stateOrdinal = entryTag.getInteger("state");
+            CrafterOverviewSnapshot snap = e.getValue();
+            int stateOrdinal = snap.getStateOrdinal();
             if (stateOrdinal >= 0 && stateOrdinal < CrafterState.values().length) {
                 syncedStates[i] = CrafterState.values()[stateOrdinal];
             } else {
                 syncedStates[i] = CrafterState.NO_PATTERN;
             }
 
-            // Metrics
-            syncedMetricsTotal[i] = entryTag.getLong("metricsTotal");
-            long metricsError = entryTag.getLong("metricsError");
-            long metricsTotalActualCrafted = entryTag.getLong("metricsTotalActualCrafted");
-            long metricsTotalMaxPossible = entryTag.getLong("metricsTotalMaxPossible");
+            syncedHasDisplayData[i] = snap.hasDisplayData();
+            syncedOutputItems[i] = snap.getOutput();
 
-            // Calculate rates
-            syncedErrorRate[i] = syncedMetricsTotal[i] > 0 
-                    ? (metricsError * 100.0) / syncedMetricsTotal[i] : 0.0;
-            syncedOccupancy[i] = metricsTotalMaxPossible > 0 
-                    ? (metricsTotalActualCrafted * 100.0) / metricsTotalMaxPossible : 0.0;
-
-            // Display data
-            syncedHasDisplayData[i] = entryTag.getBoolean("hasDisplayData");
-
-            if (syncedHasDisplayData[i]) {
-                // Output item
-                if (entryTag.hasKey("output")) {
-                    ItemStack outputStack = new ItemStack(entryTag.getCompoundTag("output"));
-                    syncedOutputItems[i] = AEItemStack.fromItemStack(outputStack);
-                } else {
-                    syncedOutputItems[i] = null;
-                }
-
-                // Input grid
-                if (entryTag.hasKey("inputGrid")) {
-                    NBTTagList gridList = entryTag.getTagList("inputGrid", 10);
-                    for (int j = 0; j < Math.min(gridList.tagCount(), 9); j++) {
-                        NBTTagCompound slotTag = gridList.getCompoundTagAt(j);
-                        if (!slotTag.isEmpty()) {
-                            ItemStack gridStack = new ItemStack(slotTag);
-                            syncedInputGrids[i][j] = AEItemStack.fromItemStack(gridStack);
-                        } else {
-                            syncedInputGrids[i][j] = null;
-                        }
-                    }
-                }
-
-                // Catalyst info (expected items for ghost rendering)
-                syncedCatalystInfo.get(i).clear();
-                if (entryTag.hasKey("catalysts")) {
-                    NBTTagList catalystList = entryTag.getTagList("catalysts", 10);
-                    for (int j = 0; j < catalystList.tagCount(); j++) {
-                        NBTTagCompound catTag = catalystList.getCompoundTagAt(j);
-                        int slotIndex = catTag.getInteger("slot");
-                        IAEItemStack expectedItem = null;
-                        if (catTag.hasKey("item")) {
-                            ItemStack itemStack = new ItemStack(catTag.getCompoundTag("item"));
-                            expectedItem = AEItemStack.fromItemStack(itemStack);
-                        }
-                        syncedCatalystInfo.get(i).add(new CatalystInfo(slotIndex, expectedItem));
-                    }
-                }
-
-                // Catalyst inventory (actual items in slots)
-                if (entryTag.hasKey("catalystInventory")) {
-                    NBTTagList catalystInvList = entryTag.getTagList("catalystInventory", 10);
-                    for (int j = 0; j < Math.min(catalystInvList.tagCount(), CrafterEntry.CATALYST_SLOTS); j++) {
-                        NBTTagCompound slotTag = catalystInvList.getCompoundTagAt(j);
-                        if (!slotTag.isEmpty()) {
-                            syncedCatalystInventory[i][j] = new ItemStack(slotTag);
-                        } else {
-                            syncedCatalystInventory[i][j] = ItemStack.EMPTY;
-                        }
-                    }
-                }
-            } else {
-                syncedOutputItems[i] = null;
-                for (int j = 0; j < 9; j++) syncedInputGrids[i][j] = null;
-                syncedCatalystInfo.get(i).clear();
-                for (int j = 0; j < CrafterEntry.CATALYST_SLOTS; j++) {
-                    syncedCatalystInventory[i][j] = ItemStack.EMPTY;
-                }
-            }
-
-            // Error details
-            syncedErrorDetails.get(i).clear();
-            if (entryTag.hasKey("errors")) {
-                NBTTagList errorList = entryTag.getTagList("errors", 10);
-                for (int j = 0; j < errorList.tagCount(); j++) {
-                    NBTTagCompound errorTag = errorList.getCompoundTagAt(j);
-                    syncedErrorDetails.get(i).add(errorTag.getString("msg"));
-                }
-            }
+            // Calculate rates from raw metrics
+            long total = snap.getMetricsTotal();
+            long error = snap.getMetricsError();
+            long actualCrafted = snap.getMetricsTotalActualCrafted();
+            long maxPossible = snap.getMetricsTotalMaxPossible();
+            syncedMetricsTotal[i] = total;
+            syncedErrorRate[i] = total > 0 ? (error * 100.0) / total : 0.0;
+            syncedOccupancy[i] = maxPossible > 0 ? (actualCrafted * 100.0) / maxPossible : 0.0;
         }
 
-        hasSyncedData = true;
+        hasOverviewData = true;
+    }
+
+    /**
+     * Handles incoming recipe diff packet from server.
+     * The packet is tagged with the entryIndex it describes; if it doesn't match the
+     * page the GUI currently believes is active, we still accept it (server is
+     * authoritative on which page should be shown - the @GuiSync field will catch up
+     * shortly).
+     */
+    public void handleRecipeSync(int entryIndex, CrafterRecipeSnapshot snapshot) {
+        recipeEntryIndex = entryIndex;
+
+        IAEItemStack[] srcGrid = snapshot.getInputGrid();
+        // Defensive copy with fixed length 9 so out-of-bounds indices don't bite us
+        for (int i = 0; i < 9; i++) syncedInputGrid[i] = i < srcGrid.length ? srcGrid[i] : null;
+
+        syncedCatalystInfo.clear();
+        for (CrafterRecipeSnapshot.CatalystExpectation cat : snapshot.getCatalysts()) {
+            syncedCatalystInfo.add(new CatalystInfo(cat.slotIndex, cat.expectedItem));
+        }
+
+        syncedErrorDetails = new ArrayList<>(snapshot.getErrorDetails());
+
+        hasRecipeData = true;
     }
 
     // ==================== SYNCED DATA ACCESSORS ====================
 
     /** Gets the synced state for an entry. */
     private CrafterState getSyncedState(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return CrafterState.NO_PATTERN;  // Fallback before first packet arrives
+        if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
+            return CrafterState.NO_PATTERN;
         }
         return syncedStates[entryIndex];
     }
 
     /** Gets whether an entry has display data. */
     private boolean hasDisplayData(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return container.getTile().getEntry(entryIndex).hasDisplayData();
-        }
+        if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return false;
         return syncedHasDisplayData[entryIndex];
     }
 
     /** Gets the synced output item for an entry. */
     private IAEItemStack getSyncedOutput(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return container.getTile().getEntry(entryIndex).getOutputItem();
-        }
+        if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return null;
         return syncedOutputItems[entryIndex];
     }
 
-    /** Gets the synced input grid for an entry. */
+    /**
+     * Gets the synced input grid for an entry. Recipe data is only sync'd for the
+     * current page, so this returns null for any entry other than {@link #recipeEntryIndex}.
+     * The recipe view only ever calls this for the current page, so that's the only
+     * case that matters in practice.
+     */
+    @Nullable
     private IAEItemStack[] getSyncedInputGrid(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return container.getTile().getEntry(entryIndex).getInputGrid();
-        }
-        return syncedInputGrids[entryIndex];
+        if (!hasRecipeData || entryIndex != recipeEntryIndex) return null;
+        return syncedInputGrid;
     }
 
-    /** Gets the synced error details for an entry. */
+    /**
+     * Gets the synced catalyst expectations for an entry. Same scoping as
+     * {@link #getSyncedInputGrid(int)}: only valid for the current page.
+     */
+    private List<CatalystInfo> getSyncedCatalystInfo(int entryIndex) {
+        if (!hasRecipeData || entryIndex != recipeEntryIndex) return Collections.emptyList();
+        return syncedCatalystInfo;
+    }
+
+    /** Gets the synced error details for an entry (only valid for current page). */
     private List<String> getSyncedErrorDetails(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return container.getTile().getEntry(entryIndex).getErrorDetails();
-        }
-        return syncedErrorDetails.get(entryIndex);
+        if (!hasRecipeData || entryIndex != recipeEntryIndex) return Collections.emptyList();
+        return syncedErrorDetails;
     }
 
     /** Gets the synced occupancy for an entry. */
     private double getSyncedOccupancy(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return container.getTile().getEntry(entryIndex).getOccupancy();
-        }
+        if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return 0.0;
         return syncedOccupancy[entryIndex];
     }
 
     /** Gets the synced error rate for an entry. */
     private double getSyncedErrorRate(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return container.getTile().getEntry(entryIndex).getErrorRate();
-        }
+        if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return 0.0;
         return syncedErrorRate[entryIndex];
     }
 
     /** Gets the synced metrics total for an entry. */
     private long getSyncedMetricsTotal(int entryIndex) {
-        if (!hasSyncedData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) {
-            return container.getTile().getEntry(entryIndex).getMetricsTotal();
-        }
+        if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return 0L;
         return syncedMetricsTotal[entryIndex];
-    }
-
-    /** Gets synced speed ticks. */
-    private int getSyncedSpeedTicks() {
-        return hasSyncedData ? syncedSpeedTicks : container.syncSpeedTicks;
-    }
-
-    /** Gets synced batch size. */
-    private int getSyncedBatchSize() {
-        return hasSyncedData ? syncedBatchSize : container.syncBatchSize;
-    }
-
-    /** Gets synced effective batch size. */
-    private int getSyncedEffectiveBatchSize() {
-        return hasSyncedData ? syncedEffectiveBatchSize : container.syncEffectiveBatchSize;
     }
 
     // ==================== CLICK OUTSIDE HANDLING ====================

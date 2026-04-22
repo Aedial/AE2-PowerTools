@@ -1,7 +1,9 @@
 package com.ae2powertools.features.crafter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -10,11 +12,13 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.ClickType;
+import net.minecraft.inventory.IContainerListener;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
@@ -42,15 +46,13 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     private final InventoryPlayer playerInv;
 
     /**
-     * Tick counter for periodic tile sync while GUI is open.
-     * This ensures metrics data (occupancy, error rate) sync in real-time.
-     */
-    private int tickCounter = 0;
-    private static final int SYNC_INTERVAL = 10; // Sync tile data every 10 ticks (0.5 sec)
-
-    /**
      * Currently viewed entry index (0-11).
-     * Synced from tile via GuiSync.
+     * Synced from tile via {@link GuiSync}.
+     * <p>
+     * NOTE: This field is the CLIENT MIRROR of {@link TileAutoCrafter#getCurrentPage()}.
+     * Server-side click handling MUST always use {@code tile.getCurrentPage()} as the
+     * authoritative source, because the field could lag behind by one tick if a page packet
+     * was processed in the same tick as a slot click. See handlePatternSlotClick etc.
      */
     @GuiSync(3)
     public int syncCurrentPage = 0;
@@ -74,6 +76,22 @@ public class ContainerAutoCrafter extends AEBaseContainer {
      */
     @GuiSync(4)
     public int syncEffectiveBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
+
+    // ============================= Server-side diff caches =============================
+    // These mirror the LAST sent snapshot to each listener. Per-tick detectAndSendChanges
+    // diffs the current tile state against these caches and only sends packets when
+    // something actually changed. Only what is needed to render the current page is cached/synced.
+    // The overview is also sync'd, as it is cheap and is a modal, which can be opened/closed without page changes.
+
+    /** Last overview snapshot sent for each entry (server-side only). */
+    private final CrafterOverviewSnapshot[] lastOverviewSnapshots = new CrafterOverviewSnapshot[TileAutoCrafter.ENTRY_COUNT];
+
+    /** Last recipe snapshot sent for the entry index this cache was filled with (server-side only). */
+    @Nullable
+    private CrafterRecipeSnapshot lastRecipeSnapshot;
+
+    /** Entry index that {@link #lastRecipeSnapshot} corresponds to (-1 = none yet). */
+    private int lastRecipeEntryIndex = -1;
 
     // Slots for the current entry
     private SlotPattern patternSlot;
@@ -99,11 +117,14 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         this.tile = tile;
         this.playerInv = playerInv;
 
-        // Initialize synced values from tile immediately (server-side)
-        // This ensures the first sync sends correct values to client
+        // Initialize synced values from tile immediately (server-side).
+        // This ensures the first @GuiSync send carries the correct values to the client
+        // (AE2 sends initial values on the first detectAndSendChanges call).
         if (Platform.isServer()) {
             this.syncSpeedTicks = tile.getSpeedTicks();
             this.syncBatchSize = tile.getBatchSize();
+            this.syncEffectiveBatchSize = tile.getEffectiveMaxBatchSize();
+            this.syncCurrentPage = tile.getCurrentPage();
         }
 
         // Get initial page from tile
@@ -183,8 +204,9 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
     @Override
     public void detectAndSendChanges() {
-        super.detectAndSendChanges();
-
+        // Pull tile values into @GuiSync mirrors BEFORE super.
+        // AE2's SyncData uses null clientVersion on the very first tick to push the
+        // initial value, so the field must already match the host before super runs.
         if (Platform.isServer()) {
             this.syncSpeedTicks = tile.getSpeedTicks();
             this.syncBatchSize = tile.getBatchSize();
@@ -192,28 +214,119 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
             int newPage = tile.getCurrentPage();
             if (newPage != this.syncCurrentPage) {
+                // Update server-side slot entry indices BEFORE super so that the vanilla
+                // slot diff picks up the new page's pattern + catalysts atomically with
+                // the @GuiSync currentPage update.
                 this.syncCurrentPage = newPage;
                 updateSlotsForCurrentPage();
             }
+        }
 
-            // Periodically send full state packet for reliable sync.
-            // This replaces the old markForUpdate() approach with packet-based sync.
-            tickCounter++;
-            if (tickCounter >= SYNC_INTERVAL) {
-                tickCounter = 0;
-                sendStatePacketToPlayer();
+        super.detectAndSendChanges();
+
+        if (!Platform.isServer()) return;
+
+        // Per-listener diff sync of overview + recipe data
+        sendOverviewDiff();
+        sendRecipeDiff();
+    }
+
+    /**
+     * Diff-sync overview snapshots for all 12 entries against the last sent ones.
+     * Only changed entries are bundled into the packet; if nothing changed, no packet is sent.
+     */
+    private void sendOverviewDiff() {
+        Map<Integer, CrafterOverviewSnapshot> changed = null;
+
+        for (int i = 0; i < TileAutoCrafter.ENTRY_COUNT; i++) {
+            CrafterOverviewSnapshot current = CrafterOverviewSnapshot.fromEntry(tile.getEntry(i));
+            CrafterOverviewSnapshot cached = lastOverviewSnapshots[i];
+
+            if (cached != null && cached.equals(current)) continue;
+
+            lastOverviewSnapshots[i] = current;
+            if (changed == null) changed = new HashMap<>();
+            changed.put(i, current);
+        }
+
+        if (changed == null) return;
+
+        PacketCrafterOverviewSync packet = new PacketCrafterOverviewSync(changed);
+        for (IContainerListener listener : this.listeners) {
+            if (listener instanceof EntityPlayerMP) {
+                PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) listener);
             }
         }
     }
 
     /**
-     * Sends a full state sync packet to the player viewing this container.
-     * This provides reliable, immediate sync for metrics and other data.
+     * Diff-sync the current entry's recipe data. The recipe view only ever shows the
+     * current page, so we only sync that one entry. When the page changes, the cache
+     * is invalidated (new entryIndex != cached entryIndex) and a fresh recipe sync
+     * is sent for the new page.
      */
-    private void sendStatePacketToPlayer() {
-        if (playerInv.player instanceof EntityPlayerMP) {
-            PacketCrafterStateSync syncPacket = PacketCrafterStateSync.fromTile(tile);
-            PowerToolsNetwork.INSTANCE.sendTo(syncPacket, (EntityPlayerMP) playerInv.player);
+    private void sendRecipeDiff() {
+        int currentEntry = tile.getCurrentPage();
+        if (currentEntry < 0 || currentEntry >= TileAutoCrafter.ENTRY_COUNT) return;
+
+        CrafterRecipeSnapshot current = CrafterRecipeSnapshot.fromEntry(tile.getEntry(currentEntry));
+
+        // Send if entry changed or content differs
+        boolean entryChanged = lastRecipeEntryIndex != currentEntry;
+        if (!entryChanged && lastRecipeSnapshot != null && lastRecipeSnapshot.equals(current)) return;
+
+        lastRecipeEntryIndex = currentEntry;
+        lastRecipeSnapshot = current;
+
+        PacketCrafterRecipeSync packet = new PacketCrafterRecipeSync(currentEntry, current);
+        for (IContainerListener listener : this.listeners) {
+            if (listener instanceof EntityPlayerMP) {
+                PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) listener);
+            }
+        }
+    }
+
+    @Override
+    public void addListener(@Nonnull IContainerListener listener) {
+        // Send the current page to the client BEFORE super.addListener fires
+        // vanilla's initial slot sync (sendAllContents). The catalyst slot's item handler
+        // writes incoming stack data into tile.getEntry(slot.entryIndex).catalystStack on
+        // the client. The client's tile.currentPage is NOT synced (it's not in chunk data),
+        // so the client constructs its slots pointing at entry[0] regardless of which page
+        // the server is actually on. Without this packet, the initial catalyst stacks for the
+        // server's actual page leak into the client's entry[0], causing the catalyst to
+        // reappear on page 1 when the user navigates back to it later. See PacketCrafterPageInit.
+        if (Platform.isServer() && listener instanceof EntityPlayerMP) {
+            PowerToolsNetwork.INSTANCE.sendTo(
+                new PacketCrafterPageInit(tile.getCurrentPage()),
+                (EntityPlayerMP) listener
+            );
+        }
+
+        super.addListener(listener);
+
+        // Initial full sync to the new listener. The diff caches are
+        // also populated so the very next tick only sends real changes.
+        if (!Platform.isServer() || !(listener instanceof EntityPlayerMP)) return;
+
+        EntityPlayerMP mp = (EntityPlayerMP) listener;
+
+        // Full overview snapshot for all entries
+        Map<Integer, CrafterOverviewSnapshot> all = new HashMap<>();
+        for (int i = 0; i < TileAutoCrafter.ENTRY_COUNT; i++) {
+            CrafterOverviewSnapshot snap = CrafterOverviewSnapshot.fromEntry(tile.getEntry(i));
+            lastOverviewSnapshots[i] = snap;
+            all.put(i, snap);
+        }
+        PowerToolsNetwork.INSTANCE.sendTo(new PacketCrafterOverviewSync(all), mp);
+
+        // Recipe snapshot for the current entry
+        int currentEntry = tile.getCurrentPage();
+        if (currentEntry >= 0 && currentEntry < TileAutoCrafter.ENTRY_COUNT) {
+            CrafterRecipeSnapshot recipe = CrafterRecipeSnapshot.fromEntry(tile.getEntry(currentEntry));
+            lastRecipeEntryIndex = currentEntry;
+            lastRecipeSnapshot = recipe;
+            PowerToolsNetwork.INSTANCE.sendTo(new PacketCrafterRecipeSync(currentEntry, recipe), mp);
         }
     }
 
@@ -234,6 +347,16 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
     public CrafterEntry getCurrentEntry() {
         return tile.getEntry(syncCurrentPage);
+    }
+
+    /**
+     * Returns the live ItemStack in the catalyst slot at the given index, for the
+     * page currently displayed by the GUI. Used by {@link GuiAutoCrafter} to render
+     * ghost overlays without a separate sync channel (vanilla already syncs slots).
+     */
+    public ItemStack getCatalystSlotStack(int catalystIndex) {
+        if (catalystIndex < 0 || catalystIndex >= catalystSlots.length) return ItemStack.EMPTY;
+        return catalystSlots[catalystIndex].getStack();
     }
 
     /**
@@ -268,7 +391,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
     private ItemStack handlePatternSlotClick(SlotPattern slot, int dragType, ClickType clickType, EntityPlayer player) {
         CrafterEntry entry = getCurrentEntry();
-        if (entry == null) return ItemStack.EMPTY;
+        if (entry == null) return heldResult(player);
 
         ItemStack held = player.inventory.getItemStack();
 
@@ -278,6 +401,8 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                 ItemStack pattern = entry.getPatternStack().copy();
                 entry.setPatternStack(null);
                 tile.simulatePattern(syncCurrentPage, null);
+                // Pattern removed: eject any leftover catalysts so the slots stay valid.
+                ejectCatalystsToPlayer(syncCurrentPage, player);
 
                 if (held.isEmpty()) {
                     player.inventory.setItemStack(pattern);
@@ -285,9 +410,9 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     // Try to add to inventory
                     if (!player.inventory.addItemStackToInventory(pattern)) player.dropItem(pattern, false);
                 }
-                return ItemStack.EMPTY;
+                return heldResult(player);
             }
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
         // Left-click to insert/swap
@@ -298,12 +423,17 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     ItemStack pattern = entry.getPatternStack().copy();
                     entry.setPatternStack(null);
                     tile.simulatePattern(syncCurrentPage, null);
+                    // Pattern removed: eject leftover catalysts.
+                    ejectCatalystsToPlayer(syncCurrentPage, player);
                     player.inventory.setItemStack(pattern);
                 }
             } else {
                 // Check if held item is a valid pattern
                 if (isValidPattern(held)) {
                     ItemStack existing = entry.hasPattern() ? entry.getPatternStack().copy() : ItemStack.EMPTY;
+                    // If swapping/replacing the pattern, eject catalysts first since the
+                    // recipe (and therefore the valid catalyst types) may change.
+                    if (!existing.isEmpty()) ejectCatalystsToPlayer(syncCurrentPage, player);
                     ItemStack toInsert = held.splitStack(1);
                     entry.setPatternStack(toInsert);
                     tile.simulatePattern(syncCurrentPage, toInsert);
@@ -319,7 +449,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     }
                 }
             }
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
         // Shift-click
@@ -331,20 +461,62 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                 if (pmtManager != null && tryInsertIntoPMT(pattern)) {
                     entry.setPatternStack(null);
                     tile.simulatePattern(syncCurrentPage, null);
+                    // Pattern removed: eject leftover catalysts.
+                    ejectCatalystsToPlayer(syncCurrentPage, player);
                     tile.markDirty();
-                    return ItemStack.EMPTY;
+                    return heldResult(player);
                 }
 
                 // Fall back to player inventory
                 entry.setPatternStack(null);
                 tile.simulatePattern(syncCurrentPage, null);
+                // Pattern removed: eject leftover catalysts.
+                ejectCatalystsToPlayer(syncCurrentPage, player);
 
                 if (!player.inventory.addItemStackToInventory(pattern)) player.dropItem(pattern, false);
             }
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
-        return ItemStack.EMPTY;
+        return heldResult(player);
+    }
+
+    /**
+     * Returns the player's current held item to be sent back from {@link #slotClick}.
+     * <p>
+     * Vanilla's network handler ({@code NetHandlerPlayServer.processClickWindow}) compares
+     * this against the client's predicted result and triggers a full container resync if
+     * they differ. Returning {@link ItemStack#EMPTY} unconditionally would let client-side
+     * stale state escape detection - notably the catalyst duplication exploit where the
+     * client predicts extracting an item from a slot the server thinks is empty.
+     * Always copy: vanilla mutates the held item later in the pipeline.
+     */
+    private static ItemStack heldResult(EntityPlayer player) {
+        ItemStack held = player.inventory.getItemStack();
+        return held.isEmpty() ? ItemStack.EMPTY : held.copy();
+    }
+
+    /**
+     * Ejects all non-empty catalyst stacks from the given entry into the player's inventory,
+     * dropping any that don't fit. Called whenever the pattern transitions to absent or is
+     * replaced, since the catalyst slots are tied to the recipe's expected ingredients and
+     * leftover catalysts would otherwise persist as orphan items the recipe no longer accepts.
+     */
+    private void ejectCatalystsToPlayer(int entryIndex, EntityPlayer player) {
+        CrafterEntry entry = tile.getEntry(entryIndex);
+        if (entry == null) return;
+
+        for (int i = 0; i < CrafterEntry.CATALYST_SLOTS; i++) {
+            ItemStack stack = entry.getCatalystStack(i);
+            if (stack.isEmpty()) continue;
+
+            ItemStack toEject = stack.copy();
+            entry.setCatalystStack(i, ItemStack.EMPTY);
+
+            if (!player.inventory.addItemStackToInventory(toEject)) player.dropItem(toEject, false);
+        }
+
+        tile.validateCatalysts(entryIndex);
     }
 
     /**
@@ -358,7 +530,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
      */
     private ItemStack handleCatalystSlotClick(SlotCatalyst slot, int dragType, ClickType clickType, EntityPlayer player) {
         CrafterEntry entry = getCurrentEntry();
-        if (entry == null) return ItemStack.EMPTY;
+        if (entry == null) return heldResult(player);
 
         int catalystIndex = slot.getCatalystIndex();
         ItemStack held = player.inventory.getItemStack();
@@ -382,7 +554,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                 tile.validateCatalysts(syncCurrentPage);
                 tile.markDirty();
             }
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
         // Left-click to insert/swap
@@ -397,7 +569,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                 }
             } else {
                 // If no expected item, this slot is not a catalyst slot - reject all items
-                if (expectedItem.isEmpty()) return ItemStack.EMPTY;
+                if (expectedItem.isEmpty()) return heldResult(player);
 
                 // Check if item matches expected catalyst
                 boolean canInsert = isValidCatalystItem(held, expectedItem, catalystIndex);
@@ -422,7 +594,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     tile.markDirty();
                 }
             }
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
         // Shift-click to move to player inventory
@@ -435,10 +607,10 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                 tile.validateCatalysts(syncCurrentPage);
                 tile.markDirty();
             }
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
-        return ItemStack.EMPTY;
+        return heldResult(player);
     }
 
     /**
@@ -458,31 +630,31 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
         // Shift-click: move existing upgrade to player inventory
         if (clickType == ClickType.QUICK_MOVE) {
-            if (existing.isEmpty()) return ItemStack.EMPTY;
+            if (existing.isEmpty()) return heldResult(player);
 
             ItemStack toMove = existing.copy();
             tile.setUpgradeStack(upgradeIndex, ItemStack.EMPTY);
 
             if (!player.inventory.addItemStackToInventory(toMove)) player.dropItem(toMove, false);
 
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
         // Regular click (left or right) - vanilla behavior: swap/insert/extract
-        if (clickType != ClickType.PICKUP) return ItemStack.EMPTY;
+        if (clickType != ClickType.PICKUP) return heldResult(player);
 
         // Empty hand: extract existing upgrade
         if (held.isEmpty()) {
-            if (existing.isEmpty()) return ItemStack.EMPTY;
+            if (existing.isEmpty()) return heldResult(player);
 
             player.inventory.setItemStack(existing.copy());
             tile.setUpgradeStack(upgradeIndex, ItemStack.EMPTY);
 
-            return ItemStack.EMPTY;
+            return heldResult(player);
         }
 
         // Holding something - check if it's a valid speed upgrade
-        if (!ItemCrafterSpeedUpgrade.isSpeedUpgrade(held)) return ItemStack.EMPTY;
+        if (!ItemCrafterSpeedUpgrade.isSpeedUpgrade(held)) return heldResult(player);
 
         // Check if another slot already has a speed upgrade (only 1 allowed total)
         for (int i = 0; i < TileAutoCrafter.UPGRADE_SLOTS; i++) {
@@ -492,7 +664,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
             if (ItemCrafterSpeedUpgrade.isSpeedUpgrade(otherSlot)) {
                 // Already have a speed upgrade in another slot - not allowed
                 // Player must remove it first
-                return ItemStack.EMPTY;
+                return heldResult(player);
             }
         }
 
@@ -510,7 +682,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
             }
         }
 
-        return ItemStack.EMPTY;
+        return heldResult(player);
     }
 
     /**
@@ -839,8 +1011,15 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     /**
      * IItemHandler for pattern slot that reads/writes from tile's entry.
      * Properly implements insertItem/extractItem for working slot mechanics.
+     * <p>
+     * Implements {@link IItemHandlerModifiable} so vanilla's slot sync
+     * ({@code Container.putStackInSlot} -> {@code AppEngSlot.putStack} ->
+     * {@code ItemHandlerUtil.setStackInSlot}) can write through directly without
+     * being rejected by {@link #isItemValid}. The client never has recipe info
+     * (it's not synced via NBT), so insertion-based fallback would silently drop
+     * server-pushed slot updates and leave the client display stale.
      */
-    private static class PatternItemHandler implements IItemHandler {
+    private static class PatternItemHandler implements IItemHandlerModifiable {
         private final ContainerAutoCrafter container;
         private final TileAutoCrafter tile;
         private int entryIndex;
@@ -849,6 +1028,22 @@ public class ContainerAutoCrafter extends AEBaseContainer {
             this.container = container;
             this.tile = tile;
             this.entryIndex = entryIndex;
+        }
+
+        @Override
+        public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+            CrafterEntry entry = getEntry();
+            if (entry == null) return;
+
+            ItemStack toStore = stack.isEmpty() ? null : stack;
+            entry.setPatternStack(toStore);
+            // Server only: rebuild recipe info / cache snapshots. On client this
+            // method is invoked from vanilla's slot sync to mirror server state and
+            // there's no recipe pipeline to invoke.
+            if (Platform.isServer()) {
+                tile.simulatePattern(entryIndex, toStore);
+                tile.markDirty();
+            }
         }
 
         void setEntryIndex(int index) {
@@ -922,8 +1117,16 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     /**
      * IItemHandler for catalyst slot that reads/writes from tile's entry.
      * Strictly validates items against the recipe's expected catalyst for this slot.
+     * <p>
+     * Implements {@link IItemHandlerModifiable} so vanilla's slot sync can write
+     * through directly. See {@link PatternItemHandler} for the rationale - in short,
+     * the client never has recipe info, so {@link #isItemValid} would reject the
+     * server-pushed catalyst stacks and the client's slot would visually never
+     * update past whatever the click handler set locally. That stale state is what
+     * caused the catalyst-duplication exploit (catalyst appearing on a page that
+     * actually has no catalyst, server-side).
      */
-    private static class CatalystItemHandler implements IItemHandler {
+    private static class CatalystItemHandler implements IItemHandlerModifiable {
         private final ContainerAutoCrafter container;
         private final TileAutoCrafter tile;
         private final int catalystIndex;
@@ -934,6 +1137,21 @@ public class ContainerAutoCrafter extends AEBaseContainer {
             this.tile = tile;
             this.catalystIndex = catalystIndex;
             this.entryIndex = entryIndex;
+        }
+
+        @Override
+        public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+            CrafterEntry entry = getEntry();
+            if (entry == null) return;
+
+            entry.setCatalystStack(catalystIndex, stack);
+            // Only re-validate / mark dirty server-side. On the client this is the
+            // sync mirror path; we just need the underlying storage updated so the
+            // slot's getStack reflects the server's view.
+            if (Platform.isServer()) {
+                tile.validateCatalysts(entryIndex);
+                tile.markDirty();
+            }
         }
 
         void setEntryIndex(int index) {
@@ -1034,14 +1252,23 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     /**
      * IItemHandler for upgrade slot.
      * Only accepts speed upgrades. Properly implements insertItem/extractItem.
+     * <p>
+     * Implements {@link IItemHandlerModifiable} for the same client-sync reason
+     * as {@link PatternItemHandler}. Upgrade slots store data on the tile (not
+     * per-entry), but the same vanilla slot sync mechanism applies.
      */
-    private static class UpgradeItemHandler implements IItemHandler {
+    private static class UpgradeItemHandler implements IItemHandlerModifiable {
         private final TileAutoCrafter tile;
         private final int upgradeIndex;
 
         UpgradeItemHandler(TileAutoCrafter tile, int upgradeIndex) {
             this.tile = tile;
             this.upgradeIndex = upgradeIndex;
+        }
+
+        @Override
+        public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+            tile.setUpgradeStack(upgradeIndex, stack);
         }
 
         @Override
