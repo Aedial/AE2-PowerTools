@@ -1,195 +1,404 @@
-# Items
+# Creative tab
+itemGroup.ae2powertools=AE2 PowerTools
+
+# Общие строки
+ae2powertools.common.unknown=Неизвестно
+
+# Конфигурация и клавиши для фабрики конфигураций
+ae2powertools.config.title=Настройки AE2 PowerTools
+ae2powertools.config.client=Клиент
+
+# Серверная конфигурация
+ae2powertools.config.server=Сервер
+ae2powertools.config.server.crafter=Автокрафтер
+
+# =====================================================
+# Настройщик приоритета
+# =====================================================
+
+# Предметы
+item.ae2powertools.priority_tuner.name=Настройщик приоритета
+item.ae2powertools.priority_tuner.stored=Сохранённый приоритет: %s
+item.ae2powertools.priority_tuner.tip1=Shift + ПКМ: открыть интерфейс приоритета
+item.ae2powertools.priority_tuner.tip2=ПКМ: применить сохранённый приоритет
+item.ae2powertools.priority_tuner.tip3=В левой руке: авто-применение при установке блока
+
+# Сообщения
+ae2powertools.priority.applied=Применён приоритет %d на [%d, %d, %d]
+
+# Интерфейс
+gui.ae2powertools.priority_tuner.title=Настройщик приоритета
+
+# =====================================================
+# Сканер состояния сети
+# =====================================================
+
+# Предметы
 item.ae2powertools.network_health_scanner.name=Сканер состояния сети
-item.ae2powertools.network_health_scanner.tip1=ПКМ по сети для начала сканирования
+item.ae2powertools.network_health_scanner.tip1=ПКМ по сети для запуска сканирования
 item.ae2powertools.network_health_scanner.tip2=ПКМ в воздухе для просмотра результатов
-item.ae2powertools.network_health_scanner.tip3=Shift + ПКМ для переключения оверлея (%s)
+item.ae2powertools.network_health_scanner.tip3=Shift + ПКМ: переключить оверлей (%s)
 item.ae2powertools.network_health_scanner.overlay_on=ВКЛ
 item.ae2powertools.network_health_scanner.overlay_off=ВЫКЛ
 item.ae2powertools.network_health_scanner.overlay_enabled=Оверлей включён
 item.ae2powertools.network_health_scanner.overlay_disabled=Оверлей отключён
-item.ae2powertools.network_health_scanner.started=Сканирование сети запущено...
+
+# Конфигурация
+ae2powertools.config.client.scanner=Оверлей сканера
+ae2powertools.config.client.scanner.tooltip=Настройки оверлея и отрисовки стрелок сканера
+ae2powertools.config.client.scanner.arrowScalePercent=Масштаб направляющих стрелок
+ae2powertools.config.client.scanner.arrowScalePercent.tooltip=Процентный масштаб для направляющих стрелок
+ae2powertools.config.client.scanner.textScalePercent=Масштаб текста стрелок
+ae2powertools.config.client.scanner.textScalePercent.tooltip=Процентный масштаб текстовых меток на направляющих стрелках
+ae2powertools.config.client.scanner.adaptiveTextScale=Адаптивный масштаб текста
+ae2powertools.config.client.scanner.adaptiveTextScale.tooltip=Автоматически масштабировать текст стрелок в зависимости от расстояния до камеры
+ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent=Мин. адаптивный масштаб текста
+ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent.tooltip=Минимальный масштаб (в процентах) при адаптивном масштабировании текста
+ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent=Макс. адаптивный масштаб текста
+ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent.tooltip=Максимальный масштаб (в процентах) при адаптивном масштабировании текста
+
+# Сообщения
+item.ae2powertools.network_health_scanner.started=Сканирование сети начато...
 item.ae2powertools.network_health_scanner.no_network=Сеть AE2 не найдена в этом месте.
-item.ae2powertools.network_health_scanner.no_session=Нет активного сеанса сканирования. Нажмите ПКМ по сети для запуска.
+item.ae2powertools.network_health_scanner.no_session=Нет активной сессии сканирования. Нажмите ПКМ по сети для запуска.
 item.ae2powertools.network_health_scanner.already_scanning=Сканирование уже выполняется.
 item.ae2powertools.network_health_scanner.cancelled=Сканирование отменено после обработки %d узлов.
-item.ae2powertools.network_health_scanner.cache_valid=Кэшированные данные сканирования (актуальны)
-item.ae2powertools.network_health_scanner.cache_invalid=Кэшированные данные сканирования (устарели)
 
-item.ae2powertools.priority_tuner.name=Регулятор приоритета
-item.ae2powertools.priority_tuner.stored=Сохранённый приоритет: %s
-item.ae2powertools.priority_tuner.tip1=Shift + ПКМ для открытия интерфейса приоритета
-item.ae2powertools.priority_tuner.tip2=ПКМ для применения сохранённого приоритета
-item.ae2powertools.priority_tuner.tip3=В левой руке: авто-применение при установке блока
-
-item.ae2powertools.cards_distributor.name=Распределитель карт
-item.ae2powertools.cards_distributor.tip1=ПКМ по сети для распределения карт из инвентаря
-item.ae2powertools.cards_distributor.tip1bis=ПКМ по сети для распределения карт из инвентаря и связанного хранилища AE2
-item.ae2powertools.cards_distributor.tip2=Поддерживает Молекулярные сборщики (карты ускорения)
-item.ae2powertools.cards_distributor.no_network=Сеть AE2 не найдена в этом месте.
-item.ae2powertools.cards_distributor.use_on_network=Нажмите ПКМ по компоненту сети для распределения карт ускорения.
-item.ae2powertools.cards_distributor.success_accelerator=Распределено %d карт ускорения по %d сборщикам.
-item.ae2powertools.cards_distributor.still_needed=Требуется ещё %d карт для %d сборщиков, чтобы полностью улучшить.
-item.ae2powertools.cards_distributor.all_full=Все сборщики в сети полностью улучшены!
-item.ae2powertools.cards_distributor.pulled_from_ae2=Извлечено %d карт из хранилища сети AE2.
-
-ae2powertools.priority.applied=Применён приоритет %d в [%d, %d, %d]
-
-# Blocks
-tile.ae2powertools.better_level_maintainer.name=Улучшенный поддержатель уровня
-tile.ae2powertools.better_level_maintainer.tooltip=Автоматизирует создание указанных предметов для поддержания целевого количества в сети.
-tile.ae2powertools.better_level_maintainer.warning=Внимание: этот блок может вызывать значительные задержки сервера, если размещён в большой сети / используется со сложными рецептами. Используйте его в небольшой подсети с простыми рецептами.
-
-# Config GUI and keys for the config factory
-ae2powertools.config.title=Настройки AE2 PowerTools
-ae2powertools.config.client=Клиент
-ae2powertools.config.client.scanner=Оверлей сканера
-ae2powertools.config.client.scanner.tooltip=Настройки оверлея сканера и отображения стрелок
-ae2powertools.config.client.scanner.arrowScalePercent=Масштаб стрелок направления
-ae2powertools.config.client.scanner.arrowScalePercent.tooltip=Масштаб в процентах для стрелок направления
-ae2powertools.config.client.scanner.textScalePercent=Масштаб текста стрелок
-ae2powertools.config.client.scanner.textScalePercent.tooltip=Масштаб в процентах для текстовых меток на стрелках направления
-ae2powertools.config.client.scanner.adaptiveTextScale=Адаптивный масштаб текста
-ae2powertools.config.client.scanner.adaptiveTextScale.tooltip=Автоматически изменять размер текста на стрелках в зависимости от расстояния до камеры
-ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent=Мин. адаптивный масштаб текста
-ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent.tooltip=Минимальный масштаб (в процентах) при использовании адаптивного масштабирования текста
-ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent=Макс. адаптивный масштаб текста
-ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent.tooltip=Максимальный масштаб (в процентах) при использовании адаптивного масштабирования текста
-
-ae2powertools.config.client.maintainer=Поддержатель
-ae2powertools.config.client.maintainer.tooltip=Настройки интерфейса поддержателя уровня
-ae2powertools.config.client.maintainer.useTallView=Использовать высокий вид
-ae2powertools.config.client.maintainer.useTallView.tooltip=Использовать высокий вид (одна колонка) вместо компактного (три колонки)
-
-# GUI - Priority Tuner
-gui.ae2powertools.priority_tuner.title=Регулятор приоритета
-
-# GUI - Сканер состояния сети
+# Интерфейс
 gui.ae2powertools.scanner.title=Сканер состояния сети
-gui.ae2powertools.scanner.select_all=Выбрать всё
+gui.ae2powertools.scanner.select_all=Выбрать все
 gui.ae2powertools.scanner.deselect_all=Снять выделение
 gui.ae2powertools.scanner.cancel=Отмена
-gui.ae2powertools.scanner.dimension_format=%s (DIM %d)
+gui.ae2powertools.scanner.dimension_format=%s (Измерение %d)
 gui.ae2powertools.scanner.tab_loops=Петли (%d)
-gui.ae2powertools.scanner.tab_chunks=Незагруженные чанки (%d)
-gui.ae2powertools.scanner.tab_chokepoints=Узкие места (%d)
+gui.ae2powertools.scanner.tab_chunks=Не подгружено чанков (%d)
+gui.ae2powertools.scanner.tab_chokepoints=Узкие места каналов (%d)
 gui.ae2powertools.scanner.tab_missing=Нехватка каналов (%d)
 gui.ae2powertools.scanner.chunk_entry=Чанк [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d каналов
-gui.ae2powertools.scanner.loops_info=Примечание: петли не обязательно являются проблемой, если сеть работает некорректно и другие причины были исключены. Тем не менее, по возможности старайтесь избегать создания петель.
+gui.ae2powertools.scanner.loops_info=Примечание: Петли не обязательно являются проблемой, если только сеть не ведёт себя нестабильно и устранены другие причины. Тем не менее, старайтесь избегать создания петель, если это возможно.
+gui.ae2powertools.scanner.sort_distance=Расстояние
+gui.ae2powertools.scanner.sort_name=Название
+gui.ae2powertools.scanner.sort_tooltip=Сортировать по: %s
 
-# Scanner Status Messages
-ae2powertools.scanner.session_started=Сканирование сети запущено...
-ae2powertools.scanner.status.no_pathing_grid=В сети не найдена сеть путей.
+# Сообщения состояния сканера
+ae2powertools.scanner.session_started=Сканирование сети начато...
+ae2powertools.scanner.status.no_pathing_grid=Сеть не содержит сетки маршрутизации.
 ae2powertools.scanner.status.scanning_controllerless=Сканирование сети без контроллера...
 ae2powertools.scanner.status.scanning_controller=Сканирование от контроллера...
-ae2powertools.scanner.status.no_start=Не найден начальный узел.
+ae2powertools.scanner.status.no_start=Начальный узел не найден.
 ae2powertools.scanner.status.error=Ошибка во время сканирования: %s
-ae2powertools.scanner.status.too_large=Сеть слишком велика (>%d узлов). Сканирование остановлено.
+ae2powertools.scanner.status.too_large=Сеть слишком большая (>%d узлов). Сканирование остановлено.
 ae2powertools.scanner.status.no_issues=Сканирование завершено: проанализировано %d узлов.
 ae2powertools.scanner.status.found_issues=Сканирование завершено: проанализировано %d узлов.
 ae2powertools.scanner.status.scanning=Сканирование... обработано %d узлов.
 
-# Channel Chokepoint Tab
-ae2powertools.scanner.channel.no_controller=Невозможно проанализировать каналы: не найден контроллер.
+# Вкладка узких мест каналов
+ae2powertools.scanner.channel.no_controller=Невозможно проанализировать каналы: контроллер не найден.
 ae2powertools.scanner.channel.controllerless=Невозможно проанализировать каналы: в сети нет контроллера.
-ae2powertools.scanner.channel.no_pathing_grid=Не найдена сеть путей для анализа каналов.
+ae2powertools.scanner.channel.no_pathing_grid=Сетка маршрутизации не найдена для анализа каналов.
 ae2powertools.scanner.channel.building_tree=Построение дерева каналов...
 ae2powertools.scanner.channel.calculating_demand=Расчёт потребности в каналах...
 ae2powertools.scanner.channel.building_tree_progress=Построение дерева каналов... обработано %d узлов.
-ae2powertools.scanner.channel.no_chokepoints=Узких мест каналов или устройств без каналов не найдено.
-ae2powertools.scanner.channel.found=Найдено %d узких мест, %d устройств без каналов.
+ae2powertools.scanner.channel.no_chokepoints=Узких мест каналов и отсутствующих устройств не найдено.
+ae2powertools.scanner.channel.found=Найдено узких мест: %d, отсутствующих устройств: %d.
 ae2powertools.scanner.channel.calculating_progress=Анализ каналов... %d/%d узлов.
 ae2powertools.scanner.channel.to_controller=(→Контроллер)
 
-# Scan Completion Messages
+# Сообщения завершения сканирования
 ae2powertools.scanner.complete.summary.top=Просканировано %d узлов:
-ae2powertools.scanner.complete.summary.line1=- Найдено %d петель(и)
-ae2powertools.scanner.complete.summary.line2=- Найдено %d незагруженных чанков(а)
-ae2powertools.scanner.complete.summary.line3=- Найдено %d узких мест(а)
-ae2powertools.scanner.complete.summary.line4=- Найдено %d устройств(а) без каналов
+ae2powertools.scanner.complete.summary.line1=- Найдено петель: %d
+ae2powertools.scanner.complete.summary.line2=- Найдено не подгруженных чанков: %d
+ae2powertools.scanner.complete.summary.line3=- Найдено узких мест каналов: %d
+ae2powertools.scanner.complete.summary.line4=- Найдено устройств без каналов: %d
 
-# Common strings
-ae2powertools.common.unknown=Неизвестно
+# =====================================================
+# Улучшенный стабилизатор уровня
+# =====================================================
 
-# GUI - Maintainer Main
-gui.ae2powertools.maintainer.title=Улучшенный поддержатель уровня
+# Блоки
+tile.ae2powertools.better_level_maintainer.name=Улучшенный стабилизатор уровня
+tile.ae2powertools.better_level_maintainer.tooltip=Автоматизирует крафт указанных предметов для поддержания их целевого количества в сети.
+tile.ae2powertools.better_level_maintainer.warning=Внимание: этот блок может вызвать значительные лаги сервера при использовании в большой сети или со сложными рецептами. Используйте его в небольшой подсети с простыми рецептами.
+
+# Конфигурация
+ae2powertools.config.client.maintainer=Стабилизатор
+ae2powertools.config.client.maintainer.tooltip=Настройки интерфейса стабилизатора уровня
+ae2powertools.config.client.maintainer.useTallView=Использовать высокий вид
+ae2powertools.config.client.maintainer.useTallView.tooltip=Использовать высокий вид (одна колонка) вместо компактного вида (три колонки)
+
+# Основной интерфейс
+gui.ae2powertools.maintainer.title=Улучшенный стабилизатор уровня
 gui.ae2powertools.maintainer.recipes=Рецепты
 gui.ae2powertools.maintainer.failed=неудачно
 gui.ae2powertools.maintainer.post_error=ошибка вывода
 
-# GUI - Maintainer States
+# Интерфейс - Состояния стабилизатора
 gui.ae2powertools.maintainer.state.disabled=Отключён
-gui.ae2powertools.maintainer.state.idle=Ожидание - до следующего запуска
+gui.ae2powertools.maintainer.state.idle=Ожидание - ждёт следующего запуска
 gui.ae2powertools.maintainer.state.scheduled=Запланирован - расчёт дерева крафта
 gui.ae2powertools.maintainer.state.running=Работает - выполняется крафт
-gui.ae2powertools.maintainer.state.stalled=Затор - ожидание свободных устройств
+gui.ae2powertools.maintainer.state.stalled=Приостановлен - ожидание свободных машин
 gui.ae2powertools.maintainer.state.error=Ошибка
-gui.ae2powertools.maintainer.state.post_error=Ошибка вывода (нет места для созданных предметов)
+gui.ae2powertools.maintainer.state.post_error=Ошибка вывода (нет места для скрафченных предметов)
 
-# GUI - Maintainer Short States (for compact tall view entries)
-gui.ae2powertools.maintainer.state.short.disabled=Откл.
-gui.ae2powertools.maintainer.state.short.idle=Ожид.
-gui.ae2powertools.maintainer.state.short.scheduled=Запл.
-gui.ae2powertools.maintainer.state.short.running=Раб.
-gui.ae2powertools.maintainer.state.short.stalled=Затор
-gui.ae2powertools.maintainer.state.short.error=Ошб.
-gui.ae2powertools.maintainer.state.short.post_error=Ошб.выв.
+# Интерфейс - Краткие состояния стабилизатора (для записей в высоком виде)
+gui.ae2powertools.maintainer.state.short.disabled=Откл
+gui.ae2powertools.maintainer.state.short.idle=Ожид
+gui.ae2powertools.maintainer.state.short.scheduled=План
+gui.ae2powertools.maintainer.state.short.running=Актив
+gui.ae2powertools.maintainer.state.short.stalled=Стоп
+gui.ae2powertools.maintainer.state.short.error=Ошибка
+gui.ae2powertools.maintainer.state.short.post_error=Ошибка вывода
 
-# GUI - Maintainer Entry
+# Интерфейс - Запись стабилизатора
 gui.ae2powertools.maintainer.frequency=Запуск каждые %s
 
-# GUI - Maintainer Entry Tooltips
+# Интерфейс - Подсказки к записи
 gui.ae2powertools.maintainer.tooltip.empty=Пустой слот
 gui.ae2powertools.maintainer.tooltip.click_add=Нажмите, чтобы добавить рецепт для поддержания
 gui.ae2powertools.maintainer.tooltip.click_edit=ЛКМ для изменения настроек рецепта
 gui.ae2powertools.maintainer.tooltip.right_click_toggle=ПКМ для включения/отключения
-gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift + Колёсико для удвоения/уменьшения вдвое количества
-gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl + Колёсико для удвоения/уменьшения вдвое времени
-gui.ae2powertools.maintainer.tooltip.batch_size=Создаёт (минимум) %d предмет(а/ов) за запуск
+gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift + колёсико: удвоить/уменьшить вдвое количество
+gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl + колёсико: удвоить/уменьшить вдвое время
+gui.ae2powertools.maintainer.tooltip.batch_size=Крафтит (минимум) %d шт. за цикл
 gui.ae2powertools.maintainer.tooltip.frequency=Запуск каждые %s
 
-# GUI - Maintainer Status Bar Tooltips
-gui.ae2powertools.maintainer.status.cpu_title=ЦПУ крафта
-gui.ae2powertools.maintainer.status.cpu_active=Активно: %d
+# Интерфейс - Подсказки к строке состояния
+gui.ae2powertools.maintainer.status.cpu_title=Процессоры крафта
+gui.ae2powertools.maintainer.status.cpu_active=Активных: %d
 gui.ae2powertools.maintainer.status.cpu_total=Всего: %d
-gui.ae2powertools.maintainer.status.recipe_title=Статус рецептов
+gui.ae2powertools.maintainer.status.recipe_title=Состояние рецептов
 gui.ae2powertools.maintainer.status.recipe_running=Выполняется: %d
 gui.ae2powertools.maintainer.status.recipe_total=Всего: %d
 gui.ae2powertools.maintainer.status.recipe_failed=Неудачно: %d
-gui.ae2powertools.maintainer.status.recipe_post_error=Ошибки вывода: %d
+gui.ae2powertools.maintainer.status.recipe_post_error=Ошибок вывода: %d
 
-# GUI - Maintainer Modal
+# Интерфейс - Модальное окно стабилизатора
 gui.ae2powertools.maintainer.modal.target=Целевое количество
 gui.ae2powertools.maintainer.modal.batch=Размер партии
 gui.ae2powertools.maintainer.modal.frequency=Частота
-gui.ae2powertools.maintainer.modal.select_item=Нажмите на слот, чтобы выбрать предмет...
+gui.ae2powertools.maintainer.modal.select_item=Нажмите на слот для выбора предмета...
 
-# GUI - Maintainer Modal Tooltips
+# Интерфейс - Подсказки модального окна
 gui.ae2powertools.maintainer.modal.slot_left_click=ЛКМ: Выбрать рецепт
 gui.ae2powertools.maintainer.modal.slot_right_click=ПКМ: Очистить
 gui.ae2powertools.maintainer.modal.name_click_toggle=Нажмите для включения/отключения
-gui.ae2powertools.maintainer.modal.target_tooltip=Прекратить создание, когда количество достигнет этого значения
-gui.ae2powertools.maintainer.modal.batch_tooltip=Количество предметов для создания за запуск
+gui.ae2powertools.maintainer.modal.target_tooltip=Прекратить крафт, когда количество достигнет этого значения
+gui.ae2powertools.maintainer.modal.batch_tooltip=Количество предметов для крафта за один цикл
 gui.ae2powertools.maintainer.modal.frequency_tooltip=Время между проверками крафта
 gui.ae2powertools.maintainer.modal.frequency_use=Используйте кнопки для настройки
 
-# GUI - Maintainer Recipe Selector
+# Интерфейс - Селектор рецептов стабилизатора
 gui.ae2powertools.maintainer.selector.title=Выберите рецепт
 
-# GUI - Maintainer Style Toggle
-gui.ae2powertools.maintainer.style.title=Вид
-gui.ae2powertools.maintainer.style.tall=Высокий
-gui.ae2powertools.maintainer.style.small=Компактный
+# Интерфейс - Переключатель стиля отображения
+gui.ae2powertools.maintainer.style.title=Стиль вида
+gui.ae2powertools.maintainer.style.tall=Высокий вид
+gui.ae2powertools.maintainer.style.small=Компактный вид
 gui.ae2powertools.maintainer.style.click_toggle=Нажмите для переключения
 
-# Maintainer Error Messages
-gui.ae2powertools.maintainer.error.no_recipe=Не найден шаблон для этого предмета
+# Интерфейс - Сообщения об ошибках стабилизатора
+gui.ae2powertools.maintainer.error.no_recipe=Не найдено шаблона для этого предмета
 gui.ae2powertools.maintainer.error.no_network=Сеть недоступна
-gui.ae2powertools.maintainer.error.no_cpu=Нет доступного ЦПУ для крафта
-gui.ae2powertools.maintainer.error.cpu_too_small=Нет ЦПУ с достаточным объёмом хранилища (%s/%s)
-gui.ae2powertools.maintainer.error.simulation_failed=Сбой симуляции крафта
+gui.ae2powertools.maintainer.error.no_cpu=Нет доступного процессора крафта
+gui.ae2powertools.maintainer.error.cpu_too_small=Нет процессора с достаточным хранилищем (%s/%s)
+gui.ae2powertools.maintainer.error.simulation_failed=Симуляция крафта провалена
 gui.ae2powertools.maintainer.error.job_failed=Не удалось рассчитать задание крафта
 gui.ae2powertools.maintainer.error.cancelled=Крафт был отменён
-gui.ae2powertools.maintainer.error.no_space=Нет места для созданных предметов
+gui.ae2powertools.maintainer.error.no_space=Нет места для скрафченных предметов
 gui.ae2powertools.maintainer.error.missing_resources=Недостаточно предметов для начала крафта
-gui.ae2powertools.maintainer.error.calculation_timeout=Превышено время ожидания при расчёт задания (слишком сложный рецепт)
+gui.ae2powertools.maintainer.error.calculation_timeout=Время расчёта задания истекло (рецепт слишком сложный)
+gui.ae2powertools.maintainer.error.cpu_retry_limit=Превышен лимит попыток ожидания процессора
+gui.ae2powertools.maintainer.error.extraction_failed=Предметы видны, но не могут быть извлечены (проверьте внешнее хранилище)
+
+# =====================================================
+# Распределитель ускорителей
+# =====================================================
+
+# Предметы
+item.ae2powertools.cards_distributor.name=Распределитель ускорителей
+item.ae2powertools.cards_distributor.tip1=ПКМ по сети для распределения ускорителей из инвентаря
+item.ae2powertools.cards_distributor.tip1bis=ПКМ по сети для распределения ускорителей из инвентаря и подключенного хранилища AE2
+item.ae2powertools.cards_distributor.tip2=Поддерживает молекулярные сборщики (карты ускорения)
+item.ae2powertools.cards_distributor.no_network=Сеть AE2 не найдена в этом месте.
+item.ae2powertools.cards_distributor.use_on_network=Нажмите ПКМ по компоненту сети, чтобы распределить карты ускорения.
+
+# Сообщения
+item.ae2powertools.cards_distributor.success_accelerator=Распределено %d карт ускорения по %d сборщикам.
+item.ae2powertools.cards_distributor.still_needed=Всё ещё требуется %d карт для полной прокачки %d сборщиков.
+item.ae2powertools.cards_distributor.all_full=Все сборщики в сети полностью прокачаны!
+item.ae2powertools.cards_distributor.pulled_from_ae2=Извлечено %d карт из хранилища сети AE2.
+
+# =====================================================
+# Автокрафтер AE2
+# =====================================================
+
+# Блоки
+tile.ae2powertools.auto_crafter.name=Автокрафтер AE2
+tile.ae2powertools.auto_crafter.tooltip=Автоматически изготавливает предметы по шаблонам (как другие автокрафтеры).
+tile.ae2powertools.auto_crafter.tooltip2=Поддерживает многоразовые предметы, инструменты с прочностью и рецепты дублирования.
+
+# Карта памяти
+tile.ae2powertools.auto_crafter.memory_card.tooltip=Настройки автокрафтера + шаблоны
+tile.ae2powertools.auto_crafter.memory_card.saved=Настройки и %d шаблон(ов) сохранены на карту памяти.
+tile.ae2powertools.auto_crafter.memory_card.restored=Успешно закодировано и вставлено %d шаблон(ов).
+tile.ae2powertools.auto_crafter.memory_card.partial=Закодировано %d шаблон(ов), но %d шаблон(ов) не удалось восстановить:
+tile.ae2powertools.auto_crafter.memory_card.no_blanks= - В инвентаре не хватает %d чистых шаблонов.
+tile.ae2powertools.auto_crafter.memory_card.no_slots= - В автокрафтере не хватает %d свободных слотов.
+
+# Предметы - улучшения скорости
+item.ae2powertools.crafter_speed_upgrade_i.name=Улучшение скорости I
+item.ae2powertools.crafter_speed_upgrade_ii.name=Улучшение скорости II
+item.ae2powertools.crafter_speed_upgrade_iii.name=Улучшение скорости III
+item.ae2powertools.crafter_speed_upgrade_iv.name=Улучшение скорости IV
+item.ae2powertools.crafter_speed_upgrade.tooltip=Множитель размера партии x%d. Поместите в автокрафтер для увеличения производительности.
+
+# Конфигурация
+ae2powertools.config.server.crafter.tooltip=Настройки баланса автокрафтера
+ae2powertools.config.server.crafter.baseCraftsPerOperation=Базовое количество крафтов за операцию
+ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=Базовое количество крафтов, выполняемых за один операционный цикл (плоский множитель для всех размеров партий)
+
+ae2powertools.config.server.maintainer=Улучшенный стабилизатор уровня
+ae2powertools.config.server.maintainer.tooltip=Настройки производительности улучшенного стабилизатора уровня
+ae2powertools.config.server.maintainer.maxConcurrentCalculations=Макс. одновременных расчётов
+ae2powertools.config.server.maintainer.maxConcurrentCalculations.tooltip=Максимальное количество одновременно выполняемых расчётов заданий крафта (большие значения увеличивают параллелизм, но могут вызывать лаги)
+ae2powertools.config.server.maintainer.maxCpuRetryCount=Макс. количество попыток ожидания процессора
+ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=Максимальное количество повторных попыток задачи ожидать освобождения процессора перед переходом в состояние ошибки
+
+# Интерфейс - Основной
+gui.ae2powertools.crafter.title=Автокрафтер
+gui.ae2powertools.crafter.overview=Обзор автокрафтера
+gui.ae2powertools.crafter.page.previous=Предыдущая страница
+gui.ae2powertools.crafter.page.next=Следующая страница
+gui.ae2powertools.crafter.page=Страница %d/%d
+gui.ae2powertools.crafter.empty_slot=Слот %d - Пуст
+gui.ae2powertools.crafter.click_to_view=ЛКМ для просмотра
+gui.ae2powertools.crafter.right_click_toggle=ПКМ для переключения
+
+# Интерфейс - Размер партии
+gui.ae2powertools.crafter.batch.title=Размер партии
+gui.ae2powertools.crafter.batch.desc=Текущее: %d
+gui.ae2powertools.crafter.batch.explanation=Умножает количество крафтов за операцию и время (сохраняя пропускную способность)
+
+# Интерфейс - Скорость
+gui.ae2powertools.crafter.speed.title=Скорость крафта
+gui.ae2powertools.crafter.speed.desc=Текущая: %s
+gui.ae2powertools.crafter.speed.explanation=Время между операциями (больше = ниже пропускная способность)
+
+# Интерфейс - Состояния
+gui.ae2powertools.crafter.state.no_pattern=Нет шаблона
+gui.ae2powertools.crafter.state.disabled=Отключён
+gui.ae2powertools.crafter.state.idle=Работает нормально
+gui.ae2powertools.crafter.state.missing_catalyst=Отсутствуют катализаторы
+gui.ae2powertools.crafter.state.missing_input=Отсутствуют входящие предметы
+gui.ae2powertools.crafter.state.no_output_space=Нет места для вывода
+gui.ae2powertools.crafter.state.simulation_failed=Симуляция рецепта провалена
+gui.ae2powertools.crafter.state.holding_output=Удерживает вывод (ожидание места)
+
+# Интерфейс - Метрики
+gui.ae2powertools.crafter.state=Статус
+gui.ae2powertools.crafter.occupancy=Загрузка: %s
+gui.ae2powertools.crafter.error_rate=Частота ошибок: %s
+gui.ae2powertools.crafter.metrics_format=%s%% | %s%%
+gui.ae2powertools.crafter.occupancy_desc=Процент запрошенной партии, фактически скрафченный (из-за ограничений ресурсов)
+gui.ae2powertools.crafter.error_rate_desc=Доля операций, в которых рецепт не мог выполниться (состояние ошибки), от общего числа попыток
+gui.ae2powertools.crafter.crafts_per_operation=По %d крафтов каждые %s
+gui.ae2powertools.crafter.issues=Проблемы
+gui.ae2powertools.crafter.crafts_per_operation=%s предм. / %s
+
+# Интерфейс - Ошибки
+gui.ae2powertools.crafter.error.not_pattern=Предмет не является шаблоном крафта
+gui.ae2powertools.crafter.error.invalid_pattern=Недопустимый или повреждённый шаблон
+gui.ae2powertools.crafter.error.processing_pattern=Поддерживаются только шаблоны крафта, но не обработки
+
+# Интерфейс - Предупреждения (подсказки)
+gui.ae2powertools.crafter.warning.processing_pattern_title=ВНИМАНИЕ: Шаблон обработки!
+gui.ae2powertools.crafter.warning.processing_pattern_desc=Автокрафтер принимает только шаблоны крафта.
+gui.ae2powertools.crafter.error.need_have=%s (нужно %d, есть %d)
+gui.ae2powertools.crafter.error.limited_by=Ограничено %s (выделено %d, нужно %d)
+gui.ae2powertools.crafter.error.no_items_in_network=Нет доступных предметов в сети
+gui.ae2powertools.crafter.error.missing_catalyst_slot=Отсутствует катализатор в слоте %d: %s
+gui.ae2powertools.crafter.error.wrong_catalyst_slot=Неправильный предмет в слоте %d: ожидается %s, получено %s
+
+# =====================================================
+# Усовершенствованный локатор компонентов сети
+# =====================================================
+
+# Предметы
+item.ae2powertools.network_component_locator.name=Усовершенствованный локатор компонентов сети
+item.ae2powertools.network_component_locator.tip1=ПКМ по сети для сканирования компонентов
+item.ae2powertools.network_component_locator.tip2=ПКМ в воздухе, чтобы снова открыть результаты
+item.ae2powertools.network_component_locator.tip3=Shift + ПКМ: переключить оверлей (%s)
+item.ae2powertools.network_component_locator.overlay_on=ВКЛ
+item.ae2powertools.network_component_locator.overlay_off=ВЫКЛ
+item.ae2powertools.network_component_locator.overlay_enabled=Оверлей включён
+item.ae2powertools.network_component_locator.overlay_disabled=Оверлей отключён
+item.ae2powertools.network_component_locator.no_network=Сеть AE2 не найдена в этом месте.
+
+# Интерфейс
+gui.ae2powertools.locator.title=Локатор компонентов сети
+gui.ae2powertools.locator.hint_empty=Нажмите ПКМ по сети для сканирования.
+gui.ae2powertools.locator.hint_components=Найдено типов компонентов: %s
+gui.ae2powertools.locator.hint_nodes=Просканировано узлов: %s
+gui.ae2powertools.locator.hint_click=Нажмите на компонент, чтобы увидеть все местоположения
+gui.ae2powertools.locator.tooltip_count=Найдено: %s
+gui.ae2powertools.locator.back=Назад
+gui.ae2powertools.locator.detail_hint=Нажмите для выбора, Esc для возврата
+gui.ae2powertools.locator.selected_count=Выбрано: %s
+gui.ae2powertools.locator.click_select=Нажмите для выбора (показать оверлей)
+gui.ae2powertools.locator.click_deselect=Нажмите для снятия выделения (скрыть оверлей)
+
+# Интерфейс - Переключение стиля вида
+gui.ae2powertools.locator.style.title=Стиль вида
+gui.ae2powertools.locator.style.tall=Высокий вид
+gui.ae2powertools.locator.style.small=Компактный вид
+gui.ae2powertools.locator.style.click_toggle=Нажмите для переключения
+
+# Интерфейс - Переключение сканирования подсетей
+gui.ae2powertools.locator.subnet.title=Сканирование подсетей
+gui.ae2powertools.locator.subnet.enabled=Включено (включая подсети)
+gui.ae2powertools.locator.subnet.disabled=Отключено (только основная сеть)
+gui.ae2powertools.locator.subnet.click_toggle=Нажмите для переключения
+gui.ae2powertools.locator.subnet.hint=Пересканируйте сеть для применения
+gui.ae2powertools.locator.hint_subnets=(+ подсети)
+
+# Конфигурация
+ae2powertools.config.client.locator=Локатор
+ae2powertools.config.client.locator.tooltip=Настройки локатора компонентов сети
+ae2powertools.config.client.locator.useTallView=Использовать высокий вид
+ae2powertools.config.client.locator.useTallView.tooltip=Использовать высокий вид (больше строк) вместо компактного
+
+# =====================================================
+# Мониторинг МЭ хранилища
+# =====================================================
+
+# Блоки
+tile.ae2powertools.storage_level_emitter.name=МЭ эмиттер уровня хранилища
+tile.ae2powertools.storage_level_emitter.tooltip=Испускает красный сигнал в зависимости от количества отслеживаемого ресурса.
+
+tile.ae2powertools.storage_display.name=МЭ дисплей хранилища
+tile.ae2powertools.storage_display.tooltip=Отображает количество отслеживаемого ресурса в сети.
+
+# Предметы
+item.ae2powertools.storage_level_emitter_part.name=МЭ эмиттер уровня хранилища
+item.ae2powertools.storage_display_part.name=МЭ дисплей хранилища
+
+# Конфигурация
+ae2powertools.config.client.monitor=Монитор
+ae2powertools.config.client.monitor.tooltip=Настройки отрисовки МЭ дисплея хранилища
+ae2powertools.config.client.monitor.displayRenderDistance=Дистанция отрисовки дисплея
+ae2powertools.config.client.monitor.displayRenderDistance.tooltip=Максимальное расстояние (в блоках), на котором МЭ дисплеи отрисовывают содержимое
+ae2powertools.config.client.monitor.displayColorAbove=Цвет выше порога
+ae2powertools.config.client.monitor.displayColorAbove.tooltip=Цвет углового индикатора (ARGB hex), когда количество равно или превышает цветовой порог
+ae2powertools.config.client.monitor.displayColorBelow=Цвет ниже порога
+ae2powertools.config.client.monitor.displayColorBelow.tooltip=Цвет углового индикатора (ARGB hex), когда количество ниже цветового порога
+
+# Интерфейс
+gui.ae2powertools.storage_emitter.title=МЭ эмиттер уровня хранилища
+gui.ae2powertools.storage_display.title=МЭ дисплей хранилища
+gui.ae2powertools.storage_emitter.match_mode=Режим: %s
+gui.ae2powertools.storage_emitter.refresh_rate=Обновление: %s
+gui.ae2powertools.storage_emitter.condition_met=Условие выполнено
+gui.ae2powertools.storage_emitter.condition_not_met=Условие не выполнено
+gui.ae2powertools.storage_emitter.select_content=Выберите содержимое
