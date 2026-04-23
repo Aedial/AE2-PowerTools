@@ -1,0 +1,61 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:crafter_speed_upgrade"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:molecular_assembler"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:energy_cell"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:crafting_accelerator"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:crafting_storage_64k"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.card_speed"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:crafter_speed_upgrade",
+        "data": 0
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "msm",
+        "aca",
+        "mem"
+    ],
+    "key": {
+        "m": {
+            "item": "appliedenergistics2:molecular_assembler"
+        },
+        "s": {
+            "item": "appliedenergistics2:crafting_storage_64k"
+        },
+        "a": {
+            "item": "appliedenergistics2:crafting_accelerator"
+        },
+        "c": {
+            "item": "appliedenergistics2:material",
+            "data": 30
+        },
+        "e": {
+            "item": "appliedenergistics2:energy_cell"
+        }
+    }
+}

@@ -1,0 +1,55 @@
+apply from: 'gradle/scripts/helpers.gradle'
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name 'CurseMaven'
+                url 'https://cursemaven.com'
+            }
+        }
+        filter {
+            includeGroup 'curse.maven'
+        }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name 'Modrinth'
+                url 'https://api.modrinth.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'maven.modrinth'
+        }
+    }
+
+    mavenLocal() // Must be last for caching to work
+}
+
+/**
+ * NOT DEPENDENCIES:
+ *  - runtimeOnly: not required at all for the mod, added for developer convenience to run targets
+ * OPTIONAL DEPENDENCIES:
+ *  - compileOnly: will not be included in developer run targets
+ *  - devOnlyNonPublishable: will be included in developer run targets
+ * REQUIRED DEPENDENCIES:
+ *  - implementation: mods or other jars that are required to be installed alongside this mod
+ */
+dependencies {
+    // Include StripLatestForgeRequirements by default for the dev env
+    runtimeOnly 'com.cleanroommc:strip-latest-forge-requirements:1.0'
+    // Include OSXNarratorBlocker by default for the dev env, for M1+ Macs
+    runtimeOnly 'com.cleanroommc:osxnarratorblocker:1.0'
+
+    // ---- Required dependencies ----
+
+    // AE2 Extended Life (AE2-UEL)
+    implementation rfg.deobf("curse.maven:ae2-extended-life-570458:5378163")
+
+    // ---- Optional: JEI ----
+    devOnlyNonPublishable rfg.deobf("curse.maven:jei-238222:3043174")
+
+    // ---- Optional: Baubles (for PMT baubles slot support) ----
+    compileOnly rfg.deobf("curse.maven:baubles-227083:2518667")
+}

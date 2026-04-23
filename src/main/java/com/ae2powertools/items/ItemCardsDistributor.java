@@ -37,7 +37,7 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.IConfigManager;
-import appeng.core.CreativeTab;
+import com.ae2powertools.PowerToolsCreativeTab;
 import appeng.core.localization.GuiText;
 import appeng.helpers.WirelessTerminalGuiObject;
 import appeng.me.helpers.BaseActionSource;
@@ -66,7 +66,7 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
         this.setRegistryName(Tags.MODID, "cards_distributor");
         this.setTranslationKey(Tags.MODID + ".cards_distributor");
         this.setMaxStackSize(1);
-        this.setCreativeTab(CreativeTab.instance);
+        this.setCreativeTab(PowerToolsCreativeTab.instance);
     }
 
     // IWirelessTermHandler implementation

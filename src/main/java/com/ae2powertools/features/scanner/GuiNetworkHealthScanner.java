@@ -8,15 +8,14 @@ import java.util.Map;
 
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -25,6 +24,7 @@ import com.ae2powertools.features.scanner.ScannerClientState.ChunkLocationClient
 import com.ae2powertools.features.scanner.ScannerClientState.ChokeLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.LoopLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.MissingDeviceClient;
+import com.ae2powertools.features.scanner.ScannerClientState.SortMode;
 import com.ae2powertools.features.scanner.ScannerClientState.Tab;
 import com.ae2powertools.network.PacketScannerCancel;
 import com.ae2powertools.network.PowerToolsNetwork;
@@ -65,6 +65,16 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private static final int COLOR_TAB_SELECTED = 0xC0282838;   // Selected tab
     private static final int COLOR_TAB_HOVER = 0xC0202030;      // Hovered tab
 
+    // AE2 states.png texture for sort button icons
+    private static final ResourceLocation STATES_TEXTURE =
+        new ResourceLocation("appliedenergistics2", "textures/guis/states.png");
+    private static final int SORT_BUTTON_SIZE = 16;
+    // Icon grid positions in states.png (column * 16, row * 16)
+    private static final int ICON_COORDS_U = 6 * 16;   // "Coords" icon at column 6, row 6
+    private static final int ICON_COORDS_V = 6 * 16;
+    private static final int ICON_NAME_U = 0;           // "Name" icon at column 0, row 4
+    private static final int ICON_NAME_V = 4 * 16;
+
     // Dynamic dimensions
     private int guiWidth;
     private int guiHeight;
@@ -92,39 +102,19 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private GuiButton deselectAllButton;
     private GuiButton cancelButton;
 
-    // TODO: add sort button (distance/A-Z/Z-A)
+    // Sort button (custom-drawn icon button, right side of GUI)
+    private boolean sortButtonHovered = false;
 
     /**
      * Represents a row in the display list.
      */
     private static class DisplayRow {
-        enum Type { CATEGORY, LOOP_ENTRY, CHUNK_ENTRY, MISSING_ENTRY, CHOKE_ENTRY, INFO_FOOTER }
-
-        // Info footer constructor
-        static DisplayRow infoFooter(String text) {
-            return new DisplayRow(Type.INFO_FOOTER, text);
-        }
-
-        private DisplayRow(Type type, String text) {
-            this.type = type;
-            this.text = text;
-            this.dimensionKey = null;
-            this.locationIndex = -1;
-            this.loopLocation = null;
-            this.chunkLocation = null;
-            this.missingDevice = null;
-            this.chokeLocation = null;
-            this.isLastInCategory = false;
-        }
+        enum Type { CATEGORY, ENTRY, INFO_FOOTER }
 
         final Type type;
         final String text;
         final String dimensionKey;    // For categories
         final int locationIndex;       // For entries
-        final LoopLocationClient loopLocation;
-        final ChunkLocationClient chunkLocation;
-        final MissingDeviceClient missingDevice;
-        final ChokeLocationClient chokeLocation;
         final boolean isLastInCategory;
 
         // Category constructor
@@ -133,62 +123,15 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             this.dimensionKey = dimensionKey;
             this.text = text;
             this.locationIndex = -1;
-            this.loopLocation = null;
-            this.chunkLocation = null;
-            this.missingDevice = null;
-            this.chokeLocation = null;
             this.isLastInCategory = false;
         }
 
-        // Loop entry constructor
-        DisplayRow(int index, LoopLocationClient location, String text, boolean isLastInCategory) {
-            this.type = Type.LOOP_ENTRY;
+        // Entry constructor
+        DisplayRow(int index, String text, boolean isLastInCategory) {
+            this.type = Type.ENTRY;
             this.dimensionKey = null;
             this.text = text;
             this.locationIndex = index;
-            this.loopLocation = location;
-            this.chunkLocation = null;
-            this.missingDevice = null;
-            this.chokeLocation = null;
-            this.isLastInCategory = isLastInCategory;
-        }
-
-        // Chunk entry constructor
-        DisplayRow(int index, ChunkLocationClient location, String text, boolean isLastInCategory) {
-            this.type = Type.CHUNK_ENTRY;
-            this.dimensionKey = null;
-            this.text = text;
-            this.locationIndex = index;
-            this.loopLocation = null;
-            this.chunkLocation = location;
-            this.missingDevice = null;
-            this.chokeLocation = null;
-            this.isLastInCategory = isLastInCategory;
-        }
-
-        // Choke entry constructor
-        DisplayRow(int index, ChokeLocationClient location, String text, boolean isLastInCategory) {
-            this.type = Type.CHOKE_ENTRY;
-            this.dimensionKey = null;
-            this.text = text;
-            this.locationIndex = index;
-            this.loopLocation = null;
-            this.chunkLocation = null;
-            this.missingDevice = null;
-            this.chokeLocation = location;
-            this.isLastInCategory = isLastInCategory;
-        }
-
-        // Missing device entry constructor
-        DisplayRow(int index, MissingDeviceClient device, String text, boolean isLastInCategory) {
-            this.type = Type.MISSING_ENTRY;
-            this.dimensionKey = null;
-            this.text = text;
-            this.locationIndex = index;
-            this.loopLocation = null;
-            this.chunkLocation = null;
-            this.missingDevice = device;
-            this.chokeLocation = null;
             this.isLastInCategory = isLastInCategory;
         }
     }
@@ -252,7 +195,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int selectAllWidth = fontRenderer.getStringWidth(I18n.format("gui.ae2powertools.scanner.select_all")) + buttonPadding;
         int deselectAllWidth = fontRenderer.getStringWidth(I18n.format("gui.ae2powertools.scanner.deselect_all")) + buttonPadding;
         int cancelWidth = fontRenderer.getStringWidth(I18n.format("gui.ae2powertools.scanner.cancel")) + buttonPadding;
-        int minButtonsWidth = TAB_SIZE + PADDING + selectAllWidth + 4 + deselectAllWidth + 10 + cancelWidth + 10;
+        int minButtonsWidth = TAB_SIZE + PADDING + selectAllWidth + 4 + deselectAllWidth + 10
+            + cancelWidth + 10;
         guiWidth = Math.max(guiWidth, minButtonsWidth);
 
         // Minimum height to fit all 4 tabs: HEADER_HEIGHT + 4 tabs + 3 spacers (2px each)
@@ -355,7 +299,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String loopInfo = I18n.format("gui.ae2powertools.scanner.loops_info");
             footerLines.addAll(fontRenderer.listFormattedStringToWidth(loopInfo, footerTextWidth));
         } else {
-            String status = ScannerClientState.getStatusMessage();
+            String status = ScannerClientState.getStatusMessage().getFormattedText();
             if (!status.isEmpty()) footerLines.add(status);
         }
 
@@ -411,7 +355,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = loc.description + " " + posStr + distStr;
 
-            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
@@ -459,7 +403,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = I18n.format("gui.ae2powertools.scanner.chunk_entry", loc.chunkX, loc.chunkZ) + distStr;
 
-            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
@@ -530,7 +474,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = loc.getDisplayName() + " " + posStr + distStr;
 
-            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
@@ -594,7 +538,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
             String text = loc.description + " " + posStr + " " + channelStr + excessStr + distStr;
 
-            displayRows.add(new DisplayRow(originalIndex, loc, text, isLast));
+            displayRows.add(new DisplayRow(originalIndex, text, isLast));
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
         }
     }
@@ -634,6 +578,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         // Draw icon tabs on the left side
         drawIconTabs(mouseX, mouseY);
+
+        // Draw sort button on the right side (mirrors left tabs)
+        drawSortButton(mouseX, mouseY);
 
         // Draw footer bar
         drawRect(guiLeft + TAB_SIZE, guiTop + guiHeight - footerHeight, guiLeft + guiWidth, guiTop + guiHeight, COLOR_HEADER_BG);
@@ -690,8 +637,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         // Draw buttons
         super.drawScreen(mouseX, mouseY, partialTicks);
 
-        // Draw tab tooltips
+        // Draw tooltips last (on top of everything)
         drawTabTooltips(mouseX, mouseY);
+        drawSortButtonTooltip(mouseX, mouseY);
     }
 
     private void drawRow(DisplayRow row, int x, int y, int width, boolean hovered) {
@@ -871,11 +819,90 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         }
     }
 
+    /**
+     * Draw the sort mode toggle button on the right side of the GUI,
+     * mirroring the icon tabs on the left. Uses an inverted icon from states.png.
+     */
+    private void drawSortButton(int mouseX, int mouseY) {
+        // Position: right edge of GUI, vertically centered in content area
+        int btnX = guiLeft + guiWidth;
+        int btnY = guiTop + HEADER_HEIGHT;
+
+        sortButtonHovered = mouseX >= btnX && mouseX < btnX + TAB_SIZE &&
+                            mouseY >= btnY && mouseY < btnY + TAB_SIZE;
+
+        // Tab background (same style as left tabs)
+        int bgColor = sortButtonHovered ? COLOR_TAB_HOVER : COLOR_TAB_BG;
+        drawRect(btnX, btnY, btnX + TAB_SIZE, btnY + TAB_SIZE, bgColor);
+
+        // Selection indicator on the left edge (inside the tab, touching the main GUI)
+        drawRect(btnX, btnY, btnX + 2, btnY + TAB_SIZE, COLOR_CATEGORY_TEXT);
+
+        // Draw inverted icon centered in the tab
+        SortMode mode = ScannerClientState.getCurrentSortMode();
+        int iconU = mode == SortMode.DISTANCE ? ICON_COORDS_U : ICON_NAME_U;
+        int iconV = mode == SortMode.DISTANCE ? ICON_COORDS_V : ICON_NAME_V;
+        int iconX = btnX + (TAB_SIZE - SORT_BUTTON_SIZE) / 2;
+        int iconY = btnY + (TAB_SIZE - SORT_BUTTON_SIZE) / 2;
+        drawInvertedIcon(iconX, iconY, iconU, iconV);
+    }
+
+    /**
+     * Draw an icon from states.png with colors replaced by the vertex color (white),
+     * preserving only the texture's alpha channel. This makes dark icons visible
+     * on the dark GUI background.
+     */
+    private void drawInvertedIcon(int x, int y, int u, int v) {
+        mc.getTextureManager().bindTexture(STATES_TEXTURE);
+        GlStateManager.enableBlend();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+
+        // Use GL_COMBINE to replace texture RGB with vertex color (white),
+        // keeping the texture alpha for transparency masking
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL13.GL_COMBINE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_REPLACE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL13.GL_PRIMARY_COLOR);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_REPLACE);
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL11.GL_TEXTURE);
+
+        drawTexturedModalRect(x, y, u, v, SORT_BUTTON_SIZE, SORT_BUTTON_SIZE);
+
+        // Reset texture environment to default
+        GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    /**
+     * Draw tooltip for the sort button when hovered.
+     */
+    private void drawSortButtonTooltip(int mouseX, int mouseY) {
+        if (!sortButtonHovered) return;
+
+        SortMode mode = ScannerClientState.getCurrentSortMode();
+        String modeText = mode == SortMode.DISTANCE
+            ? I18n.format("gui.ae2powertools.scanner.sort_distance")
+            : I18n.format("gui.ae2powertools.scanner.sort_name");
+        String tooltip = I18n.format("gui.ae2powertools.scanner.sort_tooltip", modeText);
+
+        List<String> tooltipLines = new ArrayList<>();
+        tooltipLines.add(tooltip);
+        drawHoveringText(tooltipLines, mouseX, mouseY);
+    }
+
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
         if (mouseButton != 0) return;
+
+        // Check sort button click (right side tab)
+        if (sortButtonHovered) {
+            ScannerClientState.toggleCurrentSortMode();
+            rebuildDisplayRows();
+            recalculateLayout();
+
+            return;
+        }
 
         // Check icon tab click
         int tab0Y = guiTop + HEADER_HEIGHT;
@@ -1017,6 +1044,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         super.updateScreen();
 
         // Refresh display rows periodically to handle new data
-        if (mc.player != null && mc.player.ticksExisted % 20 == 0) rebuildDisplayRows();
+        if (mc.player != null && mc.player.ticksExisted % 20 == 0) {
+            rebuildDisplayRows();
+            recalculateLayout();
+        }
     }
 }

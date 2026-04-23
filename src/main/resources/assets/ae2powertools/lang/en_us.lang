@@ -1,0 +1,406 @@
+# Creative tab
+itemGroup.ae2powertools=AE2 PowerTools
+
+# Common strings
+ae2powertools.common.unknown=Unknown
+
+# Config GUI and keys for the config factory
+ae2powertools.config.title=AE2 PowerTools Configuration
+ae2powertools.config.client=Client
+
+# Server config
+ae2powertools.config.server=Server
+ae2powertools.config.server.crafter=AutoCrafter
+
+# =====================================================
+# Priority Tuner
+# =====================================================
+
+# Items
+item.ae2powertools.priority_tuner.name=Priority Tuner
+item.ae2powertools.priority_tuner.stored=Stored Priority: %s
+item.ae2powertools.priority_tuner.tip1=Sneak + Right-click to open priority GUI
+item.ae2powertools.priority_tuner.tip2=Right-click to apply stored priority
+item.ae2powertools.priority_tuner.tip3=Off-hand: Auto-apply on block placement
+
+# Messages
+ae2powertools.priority.applied=Applied priority %d at [%d, %d, %d]
+
+# GUI
+gui.ae2powertools.priority_tuner.title=Priority Tuner
+
+# =====================================================
+# Network Health Scanner
+# =====================================================
+
+# Items
+item.ae2powertools.network_health_scanner.name=Network Health Scanner
+item.ae2powertools.network_health_scanner.tip1=Right-click on network to start scan
+item.ae2powertools.network_health_scanner.tip2=Right-click in air to open results
+item.ae2powertools.network_health_scanner.tip3=Sneak + Right-click to toggle overlay (%s)
+item.ae2powertools.network_health_scanner.overlay_on=ON
+item.ae2powertools.network_health_scanner.overlay_off=OFF
+item.ae2powertools.network_health_scanner.overlay_enabled=Overlay enabled
+item.ae2powertools.network_health_scanner.overlay_disabled=Overlay disabled
+
+# Config
+ae2powertools.config.client.scanner=Scanner Overlay
+ae2powertools.config.client.scanner.tooltip=Scanner overlay and arrow rendering settings
+ae2powertools.config.client.scanner.arrowScalePercent=Directional arrows scale
+ae2powertools.config.client.scanner.arrowScalePercent.tooltip=Percentage scale for directional arrows
+ae2powertools.config.client.scanner.textScalePercent=Arrow text scale
+ae2powertools.config.client.scanner.textScalePercent.tooltip=Percentage scale for text labels on directional arrows
+ae2powertools.config.client.scanner.adaptiveTextScale=Adaptive text scaling
+ae2powertools.config.client.scanner.adaptiveTextScale.tooltip=Automatically scale arrow text size based on distance to camera
+ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent=Min adaptive text scale
+ae2powertools.config.client.scanner.adaptiveTextScaleMinPercent.tooltip=Minimum scale (in percent) when adaptive text scaling is applied
+ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent=Max adaptive text scale
+ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent.tooltip=Maximum scale (in percent) when adaptive text scaling is applied
+
+# Messages
+item.ae2powertools.network_health_scanner.started=Network scan started...
+item.ae2powertools.network_health_scanner.no_network=No AE2 network found at this location.
+item.ae2powertools.network_health_scanner.no_session=No active scan session. Right-click on a network to start.
+item.ae2powertools.network_health_scanner.already_scanning=A scan is already in progress.
+item.ae2powertools.network_health_scanner.cancelled=Scan cancelled after processing %d nodes.
+
+# GUI
+gui.ae2powertools.scanner.title=Network Health Scanner
+gui.ae2powertools.scanner.select_all=Select All
+gui.ae2powertools.scanner.deselect_all=Deselect All
+gui.ae2powertools.scanner.cancel=Cancel
+gui.ae2powertools.scanner.dimension_format=%s (DIM %d)
+gui.ae2powertools.scanner.tab_loops=Loops (%d)
+gui.ae2powertools.scanner.tab_chunks=Non-chunkloaded (%d)
+gui.ae2powertools.scanner.tab_chokepoints=Chokepoints (%d)
+gui.ae2powertools.scanner.tab_missing=Missing channels (%d)
+gui.ae2powertools.scanner.chunk_entry=Chunk [%d, %d]
+gui.ae2powertools.scanner.choke_entry=%d/%d channels
+gui.ae2powertools.scanner.loops_info=Note: Loops are not necessarily a problem unless the network is misbehaving and other causes have been ruled out. Nonetheless, try to avoid causing loops if possible.
+gui.ae2powertools.scanner.sort_distance=Distance
+gui.ae2powertools.scanner.sort_name=Name
+gui.ae2powertools.scanner.sort_tooltip=Sort by: %s
+
+# Scanner Status Messages
+ae2powertools.scanner.session_started=Network scan started...
+ae2powertools.scanner.status.no_pathing_grid=No pathing grid found in network.
+ae2powertools.scanner.status.scanning_controllerless=Scanning controllerless network...
+ae2powertools.scanner.status.scanning_controller=Scanning from controller...
+ae2powertools.scanner.status.no_start=No starting node found.
+ae2powertools.scanner.status.error=Error during scan: %s
+ae2powertools.scanner.status.too_large=Network too large (>%d nodes). Scan stopped.
+ae2powertools.scanner.status.no_issues=Scan complete: %d nodes analyzed.
+ae2powertools.scanner.status.found_issues=Scan complete: %d nodes analyzed.
+ae2powertools.scanner.status.scanning=Scanning... %d nodes processed.
+
+# Channel Chokepoint Tab
+ae2powertools.scanner.channel.no_controller=Cannot analyze channels: no controller found.
+ae2powertools.scanner.channel.controllerless=Cannot analyze channels: network has no controller.
+ae2powertools.scanner.channel.no_pathing_grid=No pathing grid found for channel analysis.
+ae2powertools.scanner.channel.building_tree=Building channel tree...
+ae2powertools.scanner.channel.calculating_demand=Calculating channel demand...
+ae2powertools.scanner.channel.building_tree_progress=Building channel tree... %d nodes processed.
+ae2powertools.scanner.channel.no_chokepoints=No channel chokepoints or missing devices found.
+ae2powertools.scanner.channel.found=Found %d chokepoints, %d missing devices.
+ae2powertools.scanner.channel.calculating_progress=Analyzing channels... %d/%d nodes.
+ae2powertools.scanner.channel.to_controller=(→Controller)
+
+# Scan Completion Messages
+ae2powertools.scanner.complete.summary.top=Scanned %d nodes:
+ae2powertools.scanner.complete.summary.line1=- Found %d loop(s)
+ae2powertools.scanner.complete.summary.line2=- Found %d non-chunkloaded chunk(s)
+ae2powertools.scanner.complete.summary.line3=- Found %d chokepoint(s)
+ae2powertools.scanner.complete.summary.line4=- Found %d device(s) without channels
+
+# =====================================================
+# Better Level Maintainer
+# =====================================================
+
+# Blocks
+tile.ae2powertools.better_level_maintainer.name=Better Level Maintainer
+tile.ae2powertools.better_level_maintainer.tooltip=Automates crafting of specified items to maintain a target quantity in the network.
+tile.ae2powertools.better_level_maintainer.warning=Warning: This block can cause significant server lag if put on a large network/used with complex recipes. Use it on a small sub-network, with simple recipes.
+
+# Config
+ae2powertools.config.client.maintainer=Maintainer
+ae2powertools.config.client.maintainer.tooltip=Level Maintainer GUI settings
+ae2powertools.config.client.maintainer.useTallView=Use tall view
+ae2powertools.config.client.maintainer.useTallView.tooltip=Use tall view (single column) instead of compact view (three columns)
+
+# Main GUI
+gui.ae2powertools.maintainer.title=Better Level Maintainer
+gui.ae2powertools.maintainer.recipes=Recipes
+gui.ae2powertools.maintainer.failed=failed
+gui.ae2powertools.maintainer.post_error=output error
+
+# GUI - Maintainer States
+gui.ae2powertools.maintainer.state.disabled=Disabled
+gui.ae2powertools.maintainer.state.idle=Idle - Waiting for next run
+gui.ae2powertools.maintainer.state.scheduled=Scheduled - Calculating crafting tree
+gui.ae2powertools.maintainer.state.running=Running - Crafting in progress
+gui.ae2powertools.maintainer.state.stalled=Stalled - Waiting for free machine(s)
+gui.ae2powertools.maintainer.state.error=Error
+gui.ae2powertools.maintainer.state.post_error=Output Error (no space for crafted items)
+
+# GUI - Maintainer Short States (for compact tall view entries)
+gui.ae2powertools.maintainer.state.short.disabled=Disabled
+gui.ae2powertools.maintainer.state.short.idle=Idle
+gui.ae2powertools.maintainer.state.short.scheduled=Scheduled
+gui.ae2powertools.maintainer.state.short.running=Running
+gui.ae2powertools.maintainer.state.short.stalled=Stalled
+gui.ae2powertools.maintainer.state.short.error=Error
+gui.ae2powertools.maintainer.state.short.post_error=Output Error
+
+# GUI - Maintainer Entry
+gui.ae2powertools.maintainer.frequency=Runs every %s
+
+# GUI - Maintainer Entry Tooltips
+gui.ae2powertools.maintainer.tooltip.empty=Empty slot
+gui.ae2powertools.maintainer.tooltip.click_add=Click to add a recipe to maintain
+gui.ae2powertools.maintainer.tooltip.click_edit=Left-click to edit recipe settings
+gui.ae2powertools.maintainer.tooltip.right_click_toggle=Right-click to toggle enabled
+gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift+Scroll to double/halve quantity
+gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl+Scroll to double/halve time
+gui.ae2powertools.maintainer.tooltip.batch_size=Crafts (at least) %d item(s) per run
+gui.ae2powertools.maintainer.tooltip.frequency=Runs every %s
+
+# GUI - Maintainer Status Bar Tooltips
+gui.ae2powertools.maintainer.status.cpu_title=Crafting CPUs
+gui.ae2powertools.maintainer.status.cpu_active=Active: %d
+gui.ae2powertools.maintainer.status.cpu_total=Total: %d
+gui.ae2powertools.maintainer.status.recipe_title=Recipe Status
+gui.ae2powertools.maintainer.status.recipe_running=Running: %d
+gui.ae2powertools.maintainer.status.recipe_total=Total: %d
+gui.ae2powertools.maintainer.status.recipe_failed=Failed: %d
+gui.ae2powertools.maintainer.status.recipe_post_error=Output Errors: %d
+
+# GUI - Maintainer Modal
+gui.ae2powertools.maintainer.modal.target=Target Quantity
+gui.ae2powertools.maintainer.modal.batch=Batch Size
+gui.ae2powertools.maintainer.modal.frequency=Frequency
+gui.ae2powertools.maintainer.modal.select_item=Click on the slot to select item...
+
+# GUI - Maintainer Modal Tooltips
+gui.ae2powertools.maintainer.modal.slot_left_click=Left-click: Select recipe
+gui.ae2powertools.maintainer.modal.slot_right_click=Right-click: Clear
+gui.ae2powertools.maintainer.modal.name_click_toggle=Click to toggle enabled/disabled
+gui.ae2powertools.maintainer.modal.target_tooltip=Stop crafting when quantity reaches this value
+gui.ae2powertools.maintainer.modal.batch_tooltip=Number of items to craft per run
+gui.ae2powertools.maintainer.modal.frequency_tooltip=Time between crafting checks
+gui.ae2powertools.maintainer.modal.frequency_use=Use buttons to adjust
+
+# GUI - Maintainer Recipe Selector
+gui.ae2powertools.maintainer.selector.title=Select Recipe
+
+# GUI - Maintainer Style Toggle
+gui.ae2powertools.maintainer.style.title=View Style
+gui.ae2powertools.maintainer.style.tall=Tall view
+gui.ae2powertools.maintainer.style.small=Compact view
+gui.ae2powertools.maintainer.style.click_toggle=Click to toggle
+
+# GUI - Maintainer Error Messages
+gui.ae2powertools.maintainer.error.no_recipe=No pattern found for this item
+gui.ae2powertools.maintainer.error.no_network=Network not available
+gui.ae2powertools.maintainer.error.no_cpu=No crafting CPU available
+gui.ae2powertools.maintainer.error.cpu_too_small=No CPU with enough storage (%s/%s)
+gui.ae2powertools.maintainer.error.simulation_failed=Crafting simulation failed
+gui.ae2powertools.maintainer.error.job_failed=Failed to calculate crafting job
+gui.ae2powertools.maintainer.error.cancelled=Crafting was cancelled
+gui.ae2powertools.maintainer.error.no_space=No space for crafted items
+gui.ae2powertools.maintainer.error.missing_resources=Not enough items to start crafting
+gui.ae2powertools.maintainer.error.calculation_timeout=Job calculation timed out (recipe too complex)
+gui.ae2powertools.maintainer.error.cpu_retry_limit=CPU wait retry limit exceeded
+gui.ae2powertools.maintainer.error.extraction_failed=Items visible but not extractable (check external storage)
+
+# =====================================================
+# Cards Distributor
+# =====================================================
+
+# Items
+item.ae2powertools.cards_distributor.name=Cards Distributor
+item.ae2powertools.cards_distributor.tip1=Right-click on network to distribute cards from inventory
+item.ae2powertools.cards_distributor.tip1bis=Right-click on network to distribute cards from inventory and linked AE2 storage
+item.ae2powertools.cards_distributor.tip2=Supports Molecular Assemblers (acceleration cards)
+item.ae2powertools.cards_distributor.no_network=No AE2 network found at this location.
+item.ae2powertools.cards_distributor.use_on_network=Right-click on a network component to distribute acceleration cards.
+
+# Messages
+item.ae2powertools.cards_distributor.success_accelerator=Distributed %d acceleration cards to %d assemblers.
+item.ae2powertools.cards_distributor.still_needed=Still need %d cards for %d assemblers to be fully upgraded.
+item.ae2powertools.cards_distributor.all_full=All assemblers on the network are fully upgraded!
+item.ae2powertools.cards_distributor.pulled_from_ae2=Pulled %d cards from AE2 network storage.
+
+# =====================================================
+# AE2 AutoCrafter
+# =====================================================
+
+# Blocks
+tile.ae2powertools.auto_crafter.name=AE2 AutoCrafter
+tile.ae2powertools.auto_crafter.tooltip=Automatically crafts items using patterns (like other Auto-Crafters).
+tile.ae2powertools.auto_crafter.tooltip2=Supports reusable items, durability tools, and duplication recipes.
+
+# Memory Card
+tile.ae2powertools.auto_crafter.memory_card.tooltip=AutoCrafter Settings + Patterns
+tile.ae2powertools.auto_crafter.memory_card.saved=Saved settings and %d pattern(s) to memory card.
+tile.ae2powertools.auto_crafter.memory_card.restored=Successfully encoded and inserted %d pattern(s).
+tile.ae2powertools.auto_crafter.memory_card.partial=Encoded %d pattern(s), but %d pattern(s) could not be restored:
+tile.ae2powertools.auto_crafter.memory_card.no_blanks= - Missing %d blank pattern(s) in inventory.
+tile.ae2powertools.auto_crafter.memory_card.no_slots= - Missing %d free slot(s) in the AutoCrafter.
+
+# Items - Speed Upgrades
+item.ae2powertools.crafter_speed_upgrade_i.name=Speed Upgrade I
+item.ae2powertools.crafter_speed_upgrade_ii.name=Speed Upgrade II
+item.ae2powertools.crafter_speed_upgrade_iii.name=Speed Upgrade III
+item.ae2powertools.crafter_speed_upgrade_iv.name=Speed Upgrade IV
+item.ae2powertools.crafter_speed_upgrade.tooltip=x%d batch size multiplier. Place in an AutoCrafter to increase throughput.
+
+# Config
+ae2powertools.config.server.crafter.tooltip=AutoCrafter balance settings
+ae2powertools.config.server.crafter.baseCraftsPerOperation=Base crafts per operation
+ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=Base number of crafts performed per operation cycle (flat multiplier on all batch sizes)
+
+ae2powertools.config.server.maintainer=Better Level Maintainer
+ae2powertools.config.server.maintainer.tooltip=Better Level Maintainer performance settings
+ae2powertools.config.server.maintainer.maxConcurrentCalculations=Max concurrent calculations
+ae2powertools.config.server.maintainer.maxConcurrentCalculations.tooltip=Maximum number of crafting job calculations allowed to run concurrently (higher values allow more parallel calculations but may cause lag)
+ae2powertools.config.server.maintainer.maxCpuRetryCount=Max CPU retry count
+ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=Maximum number of times a task retries waiting for a free CPU before entering an error state
+
+
+# GUI - Main
+gui.ae2powertools.crafter.title=AutoCrafter
+gui.ae2powertools.crafter.overview=AutoCrafter Overview
+gui.ae2powertools.crafter.page.previous=Previous Page
+gui.ae2powertools.crafter.page.next=Next Page
+gui.ae2powertools.crafter.page=Page %d/%d
+gui.ae2powertools.crafter.empty_slot=Slot %d - Empty
+gui.ae2powertools.crafter.click_to_view=Left-click to view
+gui.ae2powertools.crafter.right_click_toggle=Right-click to toggle
+
+
+# GUI - Batch
+gui.ae2powertools.crafter.batch.title=Batch Size
+gui.ae2powertools.crafter.batch.desc=Current: %d
+gui.ae2powertools.crafter.batch.explanation=Multiplies crafts per operation and time (same throughput)
+
+# GUI - Speed
+gui.ae2powertools.crafter.speed.title=Crafting Speed
+gui.ae2powertools.crafter.speed.desc=Current: %s
+gui.ae2powertools.crafter.speed.explanation=Time between operations (higher = lower throughput)
+
+# GUI - States
+gui.ae2powertools.crafter.state.no_pattern=No Pattern
+gui.ae2powertools.crafter.state.disabled=Disabled
+gui.ae2powertools.crafter.state.idle=Running normally
+gui.ae2powertools.crafter.state.missing_catalyst=Missing Catalyst Items
+gui.ae2powertools.crafter.state.missing_input=Missing Input Items
+gui.ae2powertools.crafter.state.no_output_space=No Output Space
+gui.ae2powertools.crafter.state.simulation_failed=Recipe Simulation Failed
+gui.ae2powertools.crafter.state.holding_output=Holding Output (waiting for space)
+
+# GUI - Metrics
+gui.ae2powertools.crafter.state=Status
+gui.ae2powertools.crafter.occupancy=Occupancy: %s
+gui.ae2powertools.crafter.error_rate=Error Rate: %s
+gui.ae2powertools.crafter.metrics_format=%s%% | %s%%
+gui.ae2powertools.crafter.occupancy_desc=Percentage of requested batch actually crafted (because of resource constraints)
+gui.ae2powertools.crafter.error_rate_desc=Proportion of operations where recipe couldn't run (error state) out of total attempts
+gui.ae2powertools.crafter.crafts_per_operation=On %d crafts every %s
+gui.ae2powertools.crafter.issues=Issues
+gui.ae2powertools.crafter.crafts_per_operation=%s items / %s
+
+# GUI - Errors
+gui.ae2powertools.crafter.error.not_pattern=Item is not a crafting pattern
+gui.ae2powertools.crafter.error.invalid_pattern=Invalid or corrupt pattern
+gui.ae2powertools.crafter.error.processing_pattern=Only crafting patterns are supported, not processing patterns
+
+# GUI - Warnings (tooltips)
+gui.ae2powertools.crafter.warning.processing_pattern_title=WARNING: Processing Pattern!
+gui.ae2powertools.crafter.warning.processing_pattern_desc=AutoCrafter only accepts Crafting Patterns.
+gui.ae2powertools.crafter.error.need_have=%s (need %d, have %d)
+gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
+gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
+gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d: %s
+gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
+
+# =====================================================
+# Network Advanced Component Locator
+# =====================================================
+
+# Items
+item.ae2powertools.network_component_locator.name=Network Advanced Component Locator
+item.ae2powertools.network_component_locator.tip1=Right-click on network to scan components
+item.ae2powertools.network_component_locator.tip2=Right-click in air to reopen results
+item.ae2powertools.network_component_locator.tip3=Sneak + Right-click to toggle overlay (%s)
+item.ae2powertools.network_component_locator.overlay_on=ON
+item.ae2powertools.network_component_locator.overlay_off=OFF
+item.ae2powertools.network_component_locator.overlay_enabled=Overlay enabled
+item.ae2powertools.network_component_locator.overlay_disabled=Overlay disabled
+item.ae2powertools.network_component_locator.no_network=No AE2 network found at this location.
+
+# GUI
+gui.ae2powertools.locator.title=Network Component Locator
+gui.ae2powertools.locator.hint_empty=Right-click on a network to scan.
+gui.ae2powertools.locator.hint_components=%s component types found
+gui.ae2powertools.locator.hint_nodes=%s nodes scanned
+gui.ae2powertools.locator.hint_click=Click a component to see all locations
+gui.ae2powertools.locator.tooltip_count=Found: %s
+gui.ae2powertools.locator.back=Back
+gui.ae2powertools.locator.detail_hint=Click to select, Esc to go back
+gui.ae2powertools.locator.selected_count=%s selected
+gui.ae2powertools.locator.click_select=Click to select (show overlay)
+gui.ae2powertools.locator.click_deselect=Click to deselect (hide overlay)
+
+# GUI - View Style Toggle
+gui.ae2powertools.locator.style.title=View Style
+gui.ae2powertools.locator.style.tall=Tall view
+gui.ae2powertools.locator.style.small=Compact view
+gui.ae2powertools.locator.style.click_toggle=Click to toggle
+
+# GUI - Subnet Scanning Toggle
+gui.ae2powertools.locator.subnet.title=Subnet Scanning
+gui.ae2powertools.locator.subnet.enabled=Enabled (includes subnets)
+gui.ae2powertools.locator.subnet.disabled=Disabled (main network only)
+gui.ae2powertools.locator.subnet.click_toggle=Click to toggle
+gui.ae2powertools.locator.subnet.hint=Rescan network to apply
+gui.ae2powertools.locator.hint_subnets=(+ subnets)
+
+# Config
+ae2powertools.config.client.locator=Locator
+ae2powertools.config.client.locator.tooltip=Network Component Locator settings
+ae2powertools.config.client.locator.useTallView=Use tall view
+ae2powertools.config.client.locator.useTallView.tooltip=Use tall view (more rows) instead of compact view
+
+# =====================================================
+# ME Storage Monitoring
+# =====================================================
+
+# Blocks
+tile.ae2powertools.storage_level_emitter.name=ME Storage Level Emitter
+tile.ae2powertools.storage_level_emitter.tooltip=Emits a redstone signal based on monitored resource quantity.
+
+tile.ae2powertools.storage_display.name=ME Storage Display
+tile.ae2powertools.storage_display.tooltip=Displays the quantity of a monitored resource on the network.
+
+# Items
+item.ae2powertools.storage_level_emitter_part.name=ME Storage Level Emitter
+item.ae2powertools.storage_display_part.name=ME Storage Display
+
+# Config
+ae2powertools.config.client.monitor=Monitor
+ae2powertools.config.client.monitor.tooltip=ME Storage Display rendering settings
+ae2powertools.config.client.monitor.displayRenderDistance=Display render distance
+ae2powertools.config.client.monitor.displayRenderDistance.tooltip=Maximum distance (in blocks) at which ME Storage Displays render content
+ae2powertools.config.client.monitor.displayColorAbove=Color above threshold
+ae2powertools.config.client.monitor.displayColorAbove.tooltip=Corner indicator color (ARGB hex) when quantity is at or above the color threshold
+ae2powertools.config.client.monitor.displayColorBelow=Color below threshold
+ae2powertools.config.client.monitor.displayColorBelow.tooltip=Corner indicator color (ARGB hex) when quantity is below the color threshold
+
+# GUI
+gui.ae2powertools.storage_emitter.title=ME Storage Level Emitter
+gui.ae2powertools.storage_display.title=ME Storage Display
+gui.ae2powertools.storage_emitter.match_mode=Match: %s
+gui.ae2powertools.storage_emitter.refresh_rate=Refresh: %s
+gui.ae2powertools.storage_emitter.condition_met=Condition Met
+gui.ae2powertools.storage_emitter.condition_not_met=Condition Not Met
+gui.ae2powertools.storage_emitter.select_content=Select Content

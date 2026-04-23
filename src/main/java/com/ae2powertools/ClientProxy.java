@@ -5,6 +5,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
 import com.ae2powertools.client.BlockHighlightRenderer;
+import com.ae2powertools.features.locator.LocatorRenderer;
 import com.ae2powertools.features.scanner.ScannerRenderer;
 
 
@@ -24,6 +25,7 @@ public class ClientProxy extends CommonProxy {
 
         // Register client-side event handlers
         MinecraftForge.EVENT_BUS.register(new ScannerRenderer());
+        MinecraftForge.EVENT_BUS.register(new LocatorRenderer());
         MinecraftForge.EVENT_BUS.register(new BlockHighlightRenderer());
     }
 }

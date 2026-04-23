@@ -13,9 +13,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.text.translation.I18n;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
-import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.ForgeChunkManager;
 
 import com.google.common.collect.ImmutableSetMultimap;
@@ -66,11 +66,12 @@ public class NetworkScanner {
     private ChannelScanner channelScanner = null;
     private boolean channelScanStarted = false;
 
-    // Status
+    // Status. Stored as ITextComponent (typically TextComponentTranslation) so the message
+    // can be serialized as JSON and re-translated client-side in the player's locale.
     private boolean isComplete = false;
     private boolean hasController = false;
     private int nodesProcessed = 0;
-    private String statusMessage = "";
+    private ITextComponent statusMessage = new net.minecraft.util.text.TextComponentString("");
 
     /**
      * Wrapper to track the path to each node during BFS.
@@ -104,7 +105,7 @@ public class NetworkScanner {
             IPathingGrid pathingGrid = grid.getCache(IPathingGrid.class);
 
             if (pathingGrid == null) {
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.status.no_pathing_grid");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_pathing_grid");
                 isComplete = true;
 
                 return;
@@ -122,7 +123,7 @@ public class NetworkScanner {
                     break; // Just start from one node
                 }
 
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.status.scanning_controllerless");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning_controllerless");
             } else {
                 // Start from all controller blocks
                 for (IGridNode node : grid.getMachines(TileController.class)) {
@@ -131,16 +132,16 @@ public class NetworkScanner {
                     visitedNodes.put(node, pathNode);
                 }
 
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.status.scanning_controller");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning_controller");
             }
 
             if (openList.isEmpty()) {
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.status.no_start");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_start");
                 isComplete = true;
             }
         } catch (Exception e) {
             AE2PowerTools.LOGGER.error("Error initializing network scanner", e);
-            statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.status.error", e.getMessage());
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.error", e.getMessage());
             isComplete = true;
         }
     }
@@ -167,7 +168,7 @@ public class NetworkScanner {
 
         while (!openList.isEmpty() && processed < MAX_NODES_PER_TICK) {
             if (nodesProcessed >= MAX_TOTAL_NODES) {
-                statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.status.too_large",
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.too_large",
                     MAX_TOTAL_NODES);
                 isComplete = true;
 
@@ -185,7 +186,7 @@ public class NetworkScanner {
             if (hasController && !channelScanStarted) {
                 channelScanStarted = true;
                 channelScanner = new ChannelScanner(grid, world);
-                statusMessage = I18n.translateToLocal("ae2powertools.scanner.status.scanning_channels");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning_channels");
 
                 return false; // Continue to channel scan phase
             }
@@ -194,7 +195,7 @@ public class NetworkScanner {
             return finishScan();
         }
 
-        statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.status.scanning",
+        statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning",
             nodesProcessed);
 
         return false;
@@ -224,9 +225,9 @@ public class NetworkScanner {
         int missingCount = channelScanner != null ? channelScanner.getMissingDevices().size() : 0;
 
         if (detectedLoops.isEmpty() && unloadedChunks.isEmpty() && chokeCount == 0 && missingCount == 0) {
-            statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.status.no_issues", nodesProcessed);
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_issues", nodesProcessed);
         } else {
-            statusMessage = I18n.translateToLocalFormatted("ae2powertools.scanner.status.found_issues", nodesProcessed);
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.found_issues", nodesProcessed);
         }
 
         return true;
@@ -409,7 +410,9 @@ public class NetworkScanner {
      * Uses the machine representation's display name for localized output.
      */
     private String getNodeDescription(IGridNode node) {
-        if (node == null) return I18n.translateToLocal("ae2powertools.common.unknown");
+        // NOTE: This produces a String that's later concatenated into other strings (and ends
+        // up baked into network packets), so we can't return a deferred ITextComponent here.
+        if (node == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
 
         // Try to get the localized name from the machine representation
         try {
@@ -422,7 +425,7 @@ public class NetworkScanner {
 
         // Fallback: clean up class name
         IGridHost host = node.getMachine();
-        if (host == null) return I18n.translateToLocal("ae2powertools.common.unknown");
+        if (host == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
 
         String className = host.getClass().getSimpleName();
 
@@ -480,7 +483,7 @@ public class NetworkScanner {
         return isComplete;
     }
 
-    public String getStatusMessage() {
+    public ITextComponent getStatusMessage() {
         return statusMessage;
     }
 

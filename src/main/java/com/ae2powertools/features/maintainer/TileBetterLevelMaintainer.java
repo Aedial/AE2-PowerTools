@@ -12,11 +12,12 @@ import com.google.common.collect.ImmutableSet;
 
 import io.netty.buffer.ByteBuf;
 
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ITickable;
-import net.minecraft.util.text.translation.I18n;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.Constants;
 
 import appeng.api.AEApi;
@@ -28,9 +29,7 @@ import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
-import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingRequester;
-import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEMonitor;
@@ -48,6 +47,7 @@ import appeng.util.ReadableNumberConverter;
 import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.config.PowerToolsServerConfig;
 
 
 /**
@@ -58,7 +58,7 @@ import com.ae2powertools.AE2PowerTools;
  *        and sometimes stay stuck there.
  */
 public class TileBetterLevelMaintainer extends AEBaseTile
-        implements ITickable, IActionHost, IGridProxyable, ICraftingRequester {
+        implements ITickable, IGridProxyable, ICraftingRequester {
 
     /**
      * Number of entries per row in the GUI.
@@ -81,6 +81,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
      * 10 seconds to allow rapid scrolling without spamming reschedules.
      */
     private static final int SCHEDULE_DEBOUNCE_TICKS = 10 * 20;
+
 
     private final AENetworkProxy gridProxy;
     private final IActionSource actionSource;
@@ -299,10 +300,29 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 return;
             }
 
-            // Begin crafting job calculation
+            // Limit concurrent calculations to prevent lag from complex crafting trees.
+            // Tasks beyond the limit will be picked up in the next check cycle.
+            int activeCalculations = countActiveCalculations();
+            if (activeCalculations >= PowerToolsServerConfig.maintainer.getMaxConcurrentCalculations()) {
+                // Too many calculations running, skip this entry for now.
+                // It will be picked up in the next checkCraftingNeeds cycle.
+                return;
+            }
+
+            // Begin crafting job calculation.
+            //
+            // We deliberately use a player-presenting action source here (and ONLY here) to
+            // sidestep the AE2 stopwatch double-stop bug in CraftingJob.handlePausing(): the
+            // pause/resume path, which fails to restart craftingTreeWatch, is gated on
+            // !actionSrc.player().isPresent(). See CalculationActionSource for full rationale.
+            // submitJob, injectCraftedItems, and all real network operations continue to use
+            // the original MachineSource so security and accounting are unchanged.
             entry.setState(MaintainerState.SCHEDULED);
+            IActionSource calcSource = (world instanceof WorldServer)
+                    ? new CalculationActionSource(this, (WorldServer) world)
+                    : actionSource;
             Future<ICraftingJob> future = craftingGrid.beginCraftingJob(
-                    world, grid, actionSource, targetItem, null);
+                    world, grid, calcSource, targetItem, null);
 
             // Create task to track this job with its future
             MaintainerTask task = new MaintainerTask(
@@ -315,6 +335,18 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         } catch (GridAccessException e) {
             entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_network");
         }
+    }
+
+    /**
+     * Counts the number of tasks currently calculating crafting jobs.
+     */
+    private int countActiveCalculations() {
+        int count = 0;
+        for (MaintainerTask task : activeTasks) {
+            if (task.isCalculating()) count++;
+        }
+
+        return count;
     }
 
     /**
@@ -428,7 +460,11 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                         .mapToLong(ICraftingCPU::getAvailableStorage)
                         .max().orElse(0);
                 String cpuSize = ReadableNumberConverter.INSTANCE.toWideReadableForm(bestCpuStorage);
-                String error = I18n.translateToLocalFormatted("gui.ae2powertools.maintainer.error.cpu_too_small", jobSize, cpuSize);
+                // Build a TextComponentTranslation so the message is localized on the client (the
+                // server-side I18n facility only ever returns the English fallback in dedicated
+                // environments, which would break non-English clients).
+                ITextComponent error = new TextComponentTranslation(
+                        "gui.ae2powertools.maintainer.error.cpu_too_small", jobSize, cpuSize);
                 entry.setError(MaintainerState.ERROR, error);
                 entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
                 needsSync = true;
@@ -440,8 +476,27 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             ICraftingLink link = craftingGrid.submitJob(job, this, null, false, actionSource);
 
             if (link == null) {
-                // No CPU available right now, mark as waiting
+                // submitJob returned null - this could be CPU starvation OR extraction failure.
+                // Re-check CPU availability to distinguish the two cases. Since Minecraft is
+                // single-threaded, CPU state cannot change between submitJob and this check.
+                boolean hasFreeCpuWithStorage = craftingGrid.getCpus().stream()
+                        .anyMatch(cpu -> !cpu.isBusy() && cpu.getAvailableStorage() >= jobBytes);
+
+                if (hasFreeCpuWithStorage) {
+                    // A suitable CPU exists but submitJob still failed - this means extraction
+                    // failed during commit (e.g., items visible but not extractable).
+                    // This is a permanent failure for this cycle - wait for next scheduled run.
+                    entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.extraction_failed");
+                    entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
+                    needsSync = true;
+
+                    return true;  // Permanent failure - remove task, wait for next cycle
+                }
+
+                // No suitable CPU available - mark as waiting and cache the job
+                // so we can retry without expensive recalculation
                 task.setWaitingForCpu(true);
+                task.setCachedJob(job);
                 task.incrementCpuRetryCount();
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
                 needsSync = true;
@@ -451,6 +506,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
             // Successfully submitted - task stays in activeTasks to track completion
             task.setCraftingLink(link);
+            task.setCachedJob(null);  // Clear cached job after successful submission
             task.setWaitingForCpu(false);
             entry.setState(MaintainerState.RUNNING);
             entry.clearError();
@@ -470,6 +526,9 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     /**
      * Retries submitting tasks that are waiting for a free CPU.
      * Tasks waiting for CPU are in activeTasks with waitingForCpu flag set.
+     *
+     * Only processes ONE task per tick to avoid flooding the system with calculations.
+     * Uses cached job if available to avoid expensive recalculation.
      */
     private void processCpuWaitQueue() {
         try {
@@ -479,31 +538,63 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             boolean hasFreeCpu = craftingGrid.getCpus().stream().anyMatch(cpu -> !cpu.isBusy());
             if (!hasFreeCpu) return;
 
-            // Find tasks waiting for CPU and reschedule them
-            // We need to remove and reschedule because the old job calculation is stale
+            // Find ONE task waiting for CPU to process this tick
+            // Also clean up cancelled tasks while iterating
+            MaintainerTask taskToProcess = null;
             Iterator<MaintainerTask> iter = activeTasks.iterator();
-            List<Integer> entriesToReschedule = new ArrayList<>();
 
             while (iter.hasNext()) {
                 MaintainerTask task = iter.next();
                 if (!task.isWaitingForCpu()) continue;
 
+                // Clean up cancelled tasks
                 if (task.isCancelled()) {
                     iter.remove();
                     continue;
                 }
 
-                // Collect entry indices to reschedule after iteration
-                entriesToReschedule.add(task.getEntryIndex());
-                iter.remove();
+                // Check retry limit to prevent infinite loops
+                if (task.getCpuRetryCount() >= PowerToolsServerConfig.maintainer.getMaxCpuRetryCount()) {
+                    MaintainerEntry entry = entries.get(task.getEntryIndex());
+                    if (entry != null) {
+                        entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cpu_retry_limit");
+                        entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
+                    }
+
+                    task.cancel();
+                    iter.remove();
+                    needsSync = true;
+                    continue;
+                }
+
+                taskToProcess = task;
+                break;  // Only process one per tick
             }
 
-            // Reschedule collected entries
-            for (int entryIndex : entriesToReschedule) {
-                MaintainerEntry entry = entries.get(entryIndex);
-                if (entry != null && entry.hasRecipe() && entry.isEnabled()) {
-                    scheduleCrafting(entryIndex, entry);
+            if (taskToProcess == null) return;
+
+            // If we have a cached job, try to resubmit it directly
+            ICraftingJob cachedJob = taskToProcess.getCachedJob();
+            if (cachedJob != null) {
+                // Try to submit the cached job
+                taskToProcess.setWaitingForCpu(false);
+                if (submitCraftingJob(taskToProcess, cachedJob)) {
+                    // Permanent failure - remove task
+                    activeTasks.remove(taskToProcess);
                 }
+
+                // else: task stays in activeTasks (either running or waiting again)
+                return;
+            }
+
+            // No cached job - need to reschedule for calculation
+            // This only happens for tasks that were created waiting for CPU from the start
+            int entryIndex = taskToProcess.getEntryIndex();
+            activeTasks.remove(taskToProcess);
+
+            MaintainerEntry entry = entries.get(entryIndex);
+            if (entry != null && entry.hasRecipe() && entry.isEnabled()) {
+                scheduleCrafting(entryIndex, entry);
             }
 
         } catch (GridAccessException e) {
@@ -959,11 +1050,14 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 data.writeInt(entry.getState().ordinal());
                 data.writeLong(entry.getCurrentQuantity());
 
-                // Sync error message for tooltip display
-                String errorMsg = entry.getErrorMessage();
-                data.writeBoolean(errorMsg != null);
-                if (errorMsg != null) {
-                    byte[] msgBytes = errorMsg.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                // Sync error component for tooltip display. We serialize as JSON so the client
+                // re-creates the same ITextComponent (TextComponentTranslation/args preserved)
+                // and renders it in the player's own language.
+                ITextComponent errorComp = entry.getErrorComponent();
+                String errorJson = errorComp != null ? ITextComponent.Serializer.componentToJson(errorComp) : null;
+                data.writeBoolean(errorJson != null);
+                if (errorJson != null) {
+                    byte[] msgBytes = errorJson.getBytes(java.nio.charset.StandardCharsets.UTF_8);
                     data.writeShort(msgBytes.length);
                     data.writeBytes(msgBytes);
                 }
@@ -995,14 +1089,15 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 int stateOrdinal = data.readInt();
                 long currentQty = data.readLong();
 
-                // Read error message
+                // Read error component (JSON-serialized ITextComponent)
                 boolean hasError = data.readBoolean();
-                String errorMsg = null;
+                ITextComponent errorComp = null;
                 if (hasError) {
                     int msgLen = data.readShort();
                     byte[] msgBytes = new byte[msgLen];
                     data.readBytes(msgBytes);
-                    errorMsg = new String(msgBytes, java.nio.charset.StandardCharsets.UTF_8);
+                    String errorJson = new String(msgBytes, java.nio.charset.StandardCharsets.UTF_8);
+                    errorComp = ITextComponent.Serializer.jsonToComponent(errorJson);
                 }
 
                 entry.setTargetItem(targetItem);
@@ -1014,7 +1109,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setState(MaintainerState.values()[stateOrdinal]);
                 }
                 entry.setCurrentQuantity(currentQty);
-                entry.setErrorMessage(errorMsg);
+                entry.setErrorComponent(errorComp);
             } else {
                 // Clear entry if it had a recipe before
                 if (entry.hasRecipe()) entries.set(i, new MaintainerEntry());

@@ -1,0 +1,62 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:network_component_locator"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.wireless"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.engineering_processor"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.calculation_processor"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:smooth_sky_stone_block"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:network_tool"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:network_component_locator"
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "sws",
+        "cnc",
+        "ses"
+    ],
+    "key": {
+        "s": {
+            "item": "appliedenergistics2:smooth_sky_stone_block"
+        },
+        "w": {
+            "type": "appliedenergistics2:part",
+            "part": "material.wireless"
+        },
+        "e": {
+            "type": "appliedenergistics2:part",
+            "part": "material.engineering_processor"
+        },
+        "c": {
+            "type": "appliedenergistics2:part",
+            "part": "material.calculation_processor"
+        },
+        "n": {
+            "item": "appliedenergistics2:network_tool"
+        }
+    }
+}

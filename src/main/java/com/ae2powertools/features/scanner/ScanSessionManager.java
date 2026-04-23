@@ -10,8 +10,9 @@ import java.util.UUID;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.translation.I18n;
+import net.minecraft.util.text.translation.I18n; // dead-code dependency: see getGroupedLoopResults below
 
 import appeng.api.networking.IGrid;
 
@@ -175,6 +176,8 @@ public class ScanSessionManager {
             Map<String, List<IssueLocation>> grouped = new HashMap<>();
 
             for (IssueLocation loc : getSortedLoopResults(playerPos, playerDimension)) {
+                // NOTE: This helper is currently unused. If a caller is added, swap I18n for
+                // TextComponentTranslation so the dimension key localizes per-client.
                 String dimKey = I18n.translateToLocalFormatted("gui.ae2powertools.scanner.dimension_format", loc.getDimensionName(), loc.getDimension());
                 grouped.computeIfAbsent(dimKey, k -> new ArrayList<>()).add(loc);
             }
@@ -284,14 +287,19 @@ public class ScanSessionManager {
         int chokepoints = scanner.getChokepoints().size();
         int missing = scanner.getMissingDevices().size();
 
-        // Build the message as a single component with newlines
-        StringBuilder messageBuilder = new StringBuilder();
-        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.top", nodes)).append("\n");
-        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line1", loops)).append("\n");
-        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line2", chunks)).append("\n");
-        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line3", chokepoints)).append("\n");
-        messageBuilder.append(I18n.translateToLocalFormatted("ae2powertools.scanner.complete.summary.line4", missing));
+        // Build the message as a composite component: each line is its own TextComponentTranslation
+        // so the receiving client formats it in its own locale.
+        TextComponentString root = new TextComponentString("");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.top", nodes));
+        root.appendText("\n");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line1", loops));
+        root.appendText("\n");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line2", chunks));
+        root.appendText("\n");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line3", chokepoints));
+        root.appendText("\n");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line4", missing));
 
-        return new TextComponentTranslation(messageBuilder.toString());
+        return root;
     }
 }

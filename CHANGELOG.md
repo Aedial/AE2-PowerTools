@@ -8,7 +8,90 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.4.1] - 2026-02-18
+## [1.6.0] - 2026-04-30
+### Added
+- Add Storage Level Emitter and Storage Display, alternative versions of the AE2 Level Emitter and Storage Monitor, with configurable refresh rate and more controlable matching. This should provide better performance when dealing with a lot of rapid changes, but do not need to react immediately.
+
+
+## [1.5.4] - 2026-04-22
+### Added
+- Add config for the performance limits of the Better Level Maintainer, allowing users to adjust the thresholds and behavior if the default settings are too aggressive.
+
+### Fixed
+- (Probably) fix Better Level Maintainer spamming "Failed to calculate crafting job" errors for large/complex recipes.
+
+### Changed
+- Rework the client sync of the AE2 AutoCrafter to be more responsive and less prone to desync issues. It should also lighten the load on the server by only syncing the actively viewed crafter, instead of all of them every second.
+- Eject the catalyst items from the catalyst slots when the pattern is changed or removed, to prevent them from being left out in the slots and potentially causing issues later on.
+- Move all server-translated text to the client side by sending raw status message keys and parameters instead of pre-formatted messages. This allows the client to format the messages in the player's locale instead of the server's default locale.
+
+
+## [1.5.3] - 2026-04-16
+### Added
+- Add Memory Card support for the AutoCrafter. It will copy both settings and patterns, and format blank patterns are found in the player's inventory on settings application.
+- Add a Creative tab for AE2 PowerTools (getting a tad cramped in AE2's tab)
+
+
+## [1.5.2] - 2026-04-14
+### Added
+- Add Network Advanced Component Locator: a new tool that scans the AE2 network and displays all components in a grid (like the AE2 Network Tool). Click on a component type to see all its locations sorted by distance. Selected locations are highlighted with on-screen overlays, like the Network Health Scanner.
+- Add sorting options for the Network Health Scanner display lists, allowing sorting by distance or name. Chokepoints still sort by excess channels by default, sorting by distance/name as a tiebreaker. Sorting preference is saved per-tab.
+- Right-clicking the AutoCrafter with a crafting pattern in hand will insert it into the first available slot. Opens the GUI normally if the pattern is invalid (processing) or the crafter is full.
+
+### Fixed
+- Fix Network Health Scanner not resizing GUI when opened just after a scan (or as the scan is going).
+
+
+## [1.5.1] - 2026-03-27
+### Added
+- Add Pattern Multi-Tool integration for AutoCrafter when NAE2 is installed. The PMT panel appears to the left of the GUI, providing convenient pattern storage access.
+
+### Fixed
+- Try to mitigate high CPU load in some edge cases of the Better Level Maintainer by adding some caching, throttling, and retry limits.
+- Fix some errors potentially being interpreted as not enough CPU space (because AE2 doesn't provide accurate error reporting).
+
+
+## [1.5.0-beta4] - 2026-03-09
+### Fixed
+- Fix the textures for the AutoCrafter.
+
+
+## [1.5.0-beta3] - 2026-03-02
+### Added
+- Add proper textures for Batch and Speed buttons in the AutoCrafter GUI.
+- Add "No pattern" state for entries without a pattern, instead of just "Disabled".
+
+### Fixed
+- Fix the auto-crafting state being stale in many cases due to sync issues (AE2 syncing is not made for real time).
+- Fix recipes stopping at max int items on the network.
+
+### Changed
+- Change "Idle" state to "Running normally".
+
+
+## [1.5.0-beta2] - 2026-03-01
+### Fixed
+- Fix lang files names due to .mcmeta addition.
+
+
+## [1.5.0-beta] - 2026-03-01
+### Added
+- Add AE2 AutoCrafter block.
+  - A powerful automation block that automatically crafts items from configured patterns.
+  - Supports up to 12 recipe entries, each set to a specific pattern.
+  - Pattern slot with full insertion/extraction/swapping/shift-click support.
+  - Recipe preview showing 3x3 input grid and output slot.
+  - 9-slot internal inventory per recipe for catalyst/reusable items.
+  - Configurable batch size (to craft more at once less frequently).
+  - Configurable speed (to slow down crafting, sparring performance).
+  - Overview mode showing all 12 entries at a glance.
+  - Page navigation for detailed recipe view.
+  - Full network integration: extracts inputs from ME network, inserts outputs back.
+  - State indicators: Disabled, Idle, Missing Catalyst, Missing Input, No Output Space, Simulation Failed, Holding Output.
+  - Uses Fake Player for crafting operations (compatible with mods that require player context).
+
+
+## [1.4.1] - 2026-02-19
 ### Added
 - Add tall/compact view toggle for the Better Level Maintainer GUI.
   - Tall view shows one recipe per row with full item icons, state indicators, and detailed info.

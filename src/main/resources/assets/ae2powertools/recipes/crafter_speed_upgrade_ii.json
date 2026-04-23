@@ -1,0 +1,36 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:crafter_speed_upgrade"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:interface"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:crafter_speed_upgrade",
+        "data": 1
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "uuu",
+        "uiu",
+        "uuu"
+    ],
+    "key": {
+        "u": {
+            "item": "ae2powertools:crafter_speed_upgrade",
+            "data": 0
+        },
+        "i": {
+            "item": "appliedenergistics2:interface"
+        }
+    }
+}

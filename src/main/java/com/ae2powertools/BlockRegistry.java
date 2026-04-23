@@ -14,6 +14,8 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.ae2powertools.features.crafter.BlockAutoCrafter;
+import com.ae2powertools.features.crafter.TileAutoCrafter;
 import com.ae2powertools.features.maintainer.BlockBetterLevelMaintainer;
 import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
 
@@ -25,29 +27,40 @@ import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
 public class BlockRegistry {
 
     public static BlockBetterLevelMaintainer BETTER_LEVEL_MAINTAINER;
+    public static BlockAutoCrafter AUTO_CRAFTER;
 
     public static void init() {
         BETTER_LEVEL_MAINTAINER = new BlockBetterLevelMaintainer();
+        AUTO_CRAFTER = new BlockAutoCrafter();
 
         // Register tile entities
         GameRegistry.registerTileEntity(TileBetterLevelMaintainer.class,
                 new ResourceLocation(Tags.MODID, "better_level_maintainer"));
+        GameRegistry.registerTileEntity(TileAutoCrafter.class,
+                new ResourceLocation(Tags.MODID, "auto_crafter"));
     }
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
-        event.getRegistry().registerAll(BETTER_LEVEL_MAINTAINER);
+        event.getRegistry().registerAll(
+                BETTER_LEVEL_MAINTAINER,
+                AUTO_CRAFTER
+        );
     }
 
     @SubscribeEvent
     public static void registerItemBlocks(RegistryEvent.Register<Item> event) {
-        event.getRegistry().registerAll(createItemBlock(BETTER_LEVEL_MAINTAINER));
+        event.getRegistry().registerAll(
+                createItemBlock(BETTER_LEVEL_MAINTAINER),
+                createItemBlock(AUTO_CRAFTER)
+        );
     }
 
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public static void registerModels(ModelRegistryEvent event) {
         registerBlockModel(BETTER_LEVEL_MAINTAINER);
+        registerBlockModel(AUTO_CRAFTER);
     }
 
     private static ItemBlock createItemBlock(Block block) {
