@@ -259,6 +259,13 @@ ae2powertools.config.server.crafter.tooltip=自动合成器平衡性设置
 ae2powertools.config.server.crafter.baseCraftsPerOperation=每次操作的基础合成数
 ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=每个操作周期内执行的基础合成次数（对所有批量大小应用固定倍数）
 
+ae2powertools.config.server.maintainer=更好的缓存指令器
+ae2powertools.config.server.maintainer.tooltip=更好的缓存指令器的性能设置
+ae2powertools.config.server.maintainer.maxConcurrentCalculations=最大并发计算数
+ae2powertools.config.server.maintainer.maxConcurrentCalculations.tooltip=允许同时运行的合成任务计算上限（数值越高并行计算能力越强，但可能引发卡顿）
+ae2powertools.config.server.maintainer.maxCpuRetryCount=最大CPU重试次数
+ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=任务在进入错误状态前，等待空闲CPU的最大重试次数
+
 
 # GUI - Main
 gui.ae2powertools.crafter.title=自动合成器
