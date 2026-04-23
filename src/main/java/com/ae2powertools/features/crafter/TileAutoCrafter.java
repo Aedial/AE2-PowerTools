@@ -1712,13 +1712,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         }
     }
 
-    // ==================== NETWORK SYNC ====================
-    // GUI sync is handled per-tick by ContainerAutoCrafter.detectAndSendChanges via diff
-    // packets. There is no longer a writeToStream/readFromStream override here:
-    //  - Per-listener overview & recipe diff packets cover GUI rendering needs.
-    //  - The block model (driven by upgrade tier) still uses markForUpdate in setUpgradeStack.
-    // This eliminates the per-block-update payload tax that the previous stream sync incurred.
-
     // ==================== GRID PROXY ====================
 
     @Override

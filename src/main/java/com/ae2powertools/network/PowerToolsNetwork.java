@@ -47,6 +47,7 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketUpdateMaintainerEntry.Handler.class, PacketUpdateMaintainerEntry.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSelectRecipe.Handler.class, PacketSelectRecipe.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketCraftableItemsSync.Handler.class, PacketCraftableItemsSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketMaintainerEntrySync.Handler.class, PacketMaintainerEntrySync.class, packetId++, Side.CLIENT);
 
         // AutoCrafter packets
         INSTANCE.registerMessage(PacketToggleCrafterEntry.Handler.class, PacketToggleCrafterEntry.class, packetId++, Side.SERVER);

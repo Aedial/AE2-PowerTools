@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add Storage Level Emitter and Storage Display, alternative versions of the AE2 Level Emitter and Storage Monitor, with configurable refresh rate and more controlable matching. This should provide better performance when dealing with a lot of rapid changes, but do not need to react immediately.
 
 
+## [1.5.5] - 2026-04-23
+### Changed
+- Rework the client sync of the Better Level Maintainer to use per-listener diff packets via `detectAndSendChanges` instead of every tile sending its full state to all nearby players every tick. This should make the block lighter on the server.
+
+
 ## [1.5.4] - 2026-04-22
 ### Added
 - Add config for the performance limits of the Better Level Maintainer, allowing users to adjust the thresholds and behavior if the default settings are too aggressive.

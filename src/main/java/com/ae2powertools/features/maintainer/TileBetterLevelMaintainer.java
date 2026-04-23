@@ -1,6 +1,5 @@
 package com.ae2powertools.features.maintainer;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -9,8 +8,6 @@ import java.util.concurrent.Future;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableSet;
-
-import io.netty.buffer.ByteBuf;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -44,7 +41,6 @@ import appeng.me.helpers.IGridProxyable;
 import appeng.me.helpers.MachineSource;
 import appeng.tile.AEBaseTile;
 import appeng.util.ReadableNumberConverter;
-import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.config.PowerToolsServerConfig;
@@ -102,7 +98,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     private int openRows;
 
     private int tickCounter;
-    private boolean needsSync;
 
     public TileBetterLevelMaintainer() {
         this.gridProxy = new AENetworkProxy(this, "proxy", this.getItemFromTile(this), true);
@@ -118,7 +113,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         this.openRows = 1;
         this.tickCounter = 0;
-        this.needsSync = false;
     }
 
     @Override
@@ -141,12 +135,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         // Process dirty entries (debounced frequency changes)
         processDirtyEntries();
-
-        // Sync to clients if needed
-        if (needsSync) {
-            markForUpdate();
-            needsSync = false;
-        }
     }
 
     /**
@@ -188,8 +176,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setState(MaintainerState.IDLE);
                     entry.clearError();
                 }
-
-                needsSync = true;
             }
         } catch (GridAccessException e) {
             // Grid not available
@@ -221,7 +207,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             if (newNextRunTime < worldTime) newNextRunTime = 0;
 
             entry.setNextRunTime(newNextRunTime);
-            needsSync = true;
         }
     }
 
@@ -245,8 +230,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 long currentQty = stored != null ? stored.getStackSize() : 0;
                 entry.setCurrentQuantity(currentQty);
             }
-
-            needsSync = true;
         } catch (GridAccessException e) {
             // Grid not available
         }
@@ -296,7 +279,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 task.setWaitingForCpu(true);
                 activeTasks.add(task);
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
-                needsSync = true;
                 return;
             }
 
@@ -329,8 +311,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entryIndex, targetItem, entry.getBatchSize(), world.getTotalWorldTime());
             task.setCraftingFuture(future);
             activeTasks.add(task);
-
-            needsSync = true;
 
         } catch (GridAccessException e) {
             entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_network");
@@ -373,7 +353,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                 task.cancel();
                 taskIter.remove();
-                needsSync = true;
 
                 continue;
             }
@@ -388,7 +367,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
                     entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                     taskIter.remove();
-                    needsSync = true;
                     continue;
                 }
 
@@ -417,7 +395,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setError(MaintainerState.ERROR, errorKey);
                     entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                     taskIter.remove();
-                    needsSync = true;
                     continue;
                 }
 
@@ -434,7 +411,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
                 entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                 taskIter.remove();
-                needsSync = true;
             }
         }
     }
@@ -467,7 +443,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                         "gui.ae2powertools.maintainer.error.cpu_too_small", jobSize, cpuSize);
                 entry.setError(MaintainerState.ERROR, error);
                 entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-                needsSync = true;
 
                 return true;  // Permanent failure - remove task
             }
@@ -488,7 +463,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     // This is a permanent failure for this cycle - wait for next scheduled run.
                     entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.extraction_failed");
                     entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-                    needsSync = true;
 
                     return true;  // Permanent failure - remove task, wait for next cycle
                 }
@@ -499,7 +473,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 task.setCachedJob(job);
                 task.incrementCpuRetryCount();
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
-                needsSync = true;
 
                 return false;  // Keep in activeTasks, waiting for CPU
             }
@@ -510,7 +483,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             task.setWaitingForCpu(false);
             entry.setState(MaintainerState.RUNNING);
             entry.clearError();
-            needsSync = true;
 
             return false;  // Keep in activeTasks to track crafting progress
 
@@ -563,7 +535,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
                     task.cancel();
                     iter.remove();
-                    needsSync = true;
                     continue;
                 }
 
@@ -628,7 +599,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 }
 
                 iter.remove();
-                needsSync = true;
             }
         }
     }
@@ -721,7 +691,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         updateOpenRows();
         markDirty();
-        needsSync = true;
     }
 
     public void clearEntry(int index) {
@@ -733,7 +702,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         entries.set(index, new MaintainerEntry());
         updateOpenRows();
         markDirty();
-        needsSync = true;
     }
 
     public void toggleEntryEnabled(int index) {
@@ -745,7 +713,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         if (!entry.isEnabled()) cancelTaskForEntry(index);
 
         markDirty();
-        needsSync = true;
     }
 
     private void cancelTaskForEntry(int index) {
@@ -836,8 +803,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     @Override
     public void gridChanged() {
-        // Re-check all entries when grid changes
-        needsSync = true;
+        // No work needed on grid change - we always fetch fresh grid/node references when needed.
     }
 
     @Override
@@ -930,8 +896,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             }
         }
 
-        // State change will be picked up in updateActiveTaskStates for active tasks
-        needsSync = true;
+        // State change will be picked up in updateActiveTaskStates for active tasks.
     }
 
     // --- NBT ---
@@ -1027,101 +992,39 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     // --- Client Sync ---
 
-    @Override
-    protected void writeToStream(ByteBuf data) throws IOException {
-        super.writeToStream(data);
-
-        // Write open rows and entry count
-        data.writeInt(openRows);
-        int entryCount = Math.min(entries.size(), openRows * ENTRIES_PER_ROW);
-        data.writeInt(entryCount);
-
-        // Write each entry
-        for (int i = 0; i < entryCount; i++) {
-            MaintainerEntry entry = entries.get(i);
-            data.writeBoolean(entry.hasRecipe());
-
-            if (entry.hasRecipe()) {
-                entry.getTargetItem().writeToPacket(data);
-                data.writeLong(entry.getTargetQuantity());
-                data.writeLong(entry.getBatchSize());
-                data.writeInt(entry.getFrequencySeconds());
-                data.writeBoolean(entry.isEnabled());
-                data.writeInt(entry.getState().ordinal());
-                data.writeLong(entry.getCurrentQuantity());
-
-                // Sync error component for tooltip display. We serialize as JSON so the client
-                // re-creates the same ITextComponent (TextComponentTranslation/args preserved)
-                // and renders it in the player's own language.
-                ITextComponent errorComp = entry.getErrorComponent();
-                String errorJson = errorComp != null ? ITextComponent.Serializer.componentToJson(errorComp) : null;
-                data.writeBoolean(errorJson != null);
-                if (errorJson != null) {
-                    byte[] msgBytes = errorJson.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                    data.writeShort(msgBytes.length);
-                    data.writeBytes(msgBytes);
-                }
-            }
-        }
+    /**
+     * Returns the current size of the entries list. Used by the client packet handler
+     * to determine whether a slot needs to be appended before applying a snapshot.
+     */
+    public int getEntryListSize() {
+        return entries.size();
     }
 
-    @Override
-    protected boolean readFromStream(ByteBuf data) throws IOException {
-        boolean changed = super.readFromStream(data);
+    /**
+     * Appends a fresh empty entry to the list (client-side helper).
+     */
+    public void appendEmptyEntry() {
+        entries.add(new MaintainerEntry());
+    }
 
-        int newOpenRows = data.readInt();
-        int entryCount = data.readInt();
+    /**
+     * Replaces the entry at the given index with the supplied one (client-side helper).
+     * Used to clear all transient state (error component, state ordinal, etc.) when
+     * an empty snapshot is received for a slot.
+     */
+    public void replaceEntry(int index, MaintainerEntry entry) {
+        if (index < 0 || index >= entries.size()) return;
 
-        // Ensure entries list has enough capacity
-        while (entries.size() < entryCount) entries.add(new MaintainerEntry());
+        entries.set(index, entry);
+    }
 
-        // Read each entry
-        for (int i = 0; i < entryCount; i++) {
-            MaintainerEntry entry = entries.get(i);
-            boolean hasRecipe = data.readBoolean();
-
-            if (hasRecipe) {
-                IAEItemStack targetItem = AEItemStack.fromPacket(data);
-                long targetQty = data.readLong();
-                long batchSize = data.readLong();
-                int freqSecs = data.readInt();
-                boolean enabled = data.readBoolean();
-                int stateOrdinal = data.readInt();
-                long currentQty = data.readLong();
-
-                // Read error component (JSON-serialized ITextComponent)
-                boolean hasError = data.readBoolean();
-                ITextComponent errorComp = null;
-                if (hasError) {
-                    int msgLen = data.readShort();
-                    byte[] msgBytes = new byte[msgLen];
-                    data.readBytes(msgBytes);
-                    String errorJson = new String(msgBytes, java.nio.charset.StandardCharsets.UTF_8);
-                    errorComp = ITextComponent.Serializer.jsonToComponent(errorJson);
-                }
-
-                entry.setTargetItem(targetItem);
-                entry.setTargetQuantity(targetQty);
-                entry.setBatchSize(batchSize);
-                entry.setFrequencySeconds(freqSecs);
-                entry.setEnabled(enabled);
-                if (stateOrdinal >= 0 && stateOrdinal < MaintainerState.values().length) {
-                    entry.setState(MaintainerState.values()[stateOrdinal]);
-                }
-                entry.setCurrentQuantity(currentQty);
-                entry.setErrorComponent(errorComp);
-            } else {
-                // Clear entry if it had a recipe before
-                if (entry.hasRecipe()) entries.set(i, new MaintainerEntry());
-            }
-        }
-
-        if (newOpenRows != openRows) {
-            openRows = newOpenRows;
-            changed = true;
-        }
-
-        return changed;
+    /**
+     * Sets {@link #openRows} from a client-side sync packet without invoking
+     * {@link #markDirty()}. The server is the source of truth; the client just mirrors.
+     */
+    public void setOpenRowsClient(int rows) {
+        if (rows < 1) rows = 1;
+        this.openRows = rows;
     }
 
     // --- Lifecycle ---
