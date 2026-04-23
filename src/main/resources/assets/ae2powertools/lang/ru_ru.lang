@@ -19,7 +19,7 @@ ae2powertools.config.server.crafter=Автокрафтер
 # Предметы
 item.ae2powertools.priority_tuner.name=Настройщик приоритета
 item.ae2powertools.priority_tuner.stored=Сохранённый приоритет: %s
-item.ae2powertools.priority_tuner.tip1=Крадучись + ПКМ: открыть интерфейс приоритета
+item.ae2powertools.priority_tuner.tip1=Shift + ПКМ: открыть интерфейс приоритета
 item.ae2powertools.priority_tuner.tip2=ПКМ: применить сохранённый приоритет
 item.ae2powertools.priority_tuner.tip3=В левой руке: авто-применение при установке блока
 
@@ -37,7 +37,7 @@ gui.ae2powertools.priority_tuner.title=Настройщик приоритета
 item.ae2powertools.network_health_scanner.name=Сканер состояния сети
 item.ae2powertools.network_health_scanner.tip1=ПКМ по сети для запуска сканирования
 item.ae2powertools.network_health_scanner.tip2=ПКМ в воздухе для просмотра результатов
-item.ae2powertools.network_health_scanner.tip3=Крадучись + ПКМ: переключить оверлей (%s)
+item.ae2powertools.network_health_scanner.tip3=Shift + ПКМ: переключить оверлей (%s)
 item.ae2powertools.network_health_scanner.overlay_on=ВКЛ
 item.ae2powertools.network_health_scanner.overlay_off=ВЫКЛ
 item.ae2powertools.network_health_scanner.overlay_enabled=Оверлей включён
@@ -329,7 +329,7 @@ gui.ae2powertools.crafter.error.wrong_catalyst_slot=Неправильный п�
 item.ae2powertools.network_component_locator.name=Усовершенствованный локатор компонентов сети
 item.ae2powertools.network_component_locator.tip1=ПКМ по сети для сканирования компонентов
 item.ae2powertools.network_component_locator.tip2=ПКМ в воздухе, чтобы снова открыть результаты
-item.ae2powertools.network_component_locator.tip3=Крадучись + ПКМ: переключить оверлей (%s)
+item.ae2powertools.network_component_locator.tip3=Shift + ПКМ: переключить оверлей (%s)
 item.ae2powertools.network_component_locator.overlay_on=ВКЛ
 item.ae2powertools.network_component_locator.overlay_off=ВЫКЛ
 item.ae2powertools.network_component_locator.overlay_enabled=Оверлей включён
