@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +31,7 @@ import appeng.me.GridAccessException;
 import com.ae2powertools.network.PacketCraftableItemsSync;
 import com.ae2powertools.network.PacketMaintainerEntrySync;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.Ae2FluidCraftingCompat;
 
 
 /**
@@ -54,7 +56,6 @@ public class ContainerBetterLevelMaintainer extends Container {
 
     // Craftable items sync
     private int craftableRefreshTicker = 0;
-    private List<IAEItemStack> lastCraftableItems = new ArrayList<>();
 
     // Per-listener entry diff cache. Single-player containers only ever have one
     // listener, so we keep a single snapshot array indexed by entry slot. The cache
@@ -210,6 +211,7 @@ public class ContainerBetterLevelMaintainer extends Container {
         if (!(player instanceof EntityPlayerMP)) return;
 
         List<IAEItemStack> craftableItems = new ArrayList<>();
+        Map<IAEItemStack, IAEItemStack> uniqueCraftableItemsByType = new LinkedHashMap<>();
 
         try {
             IStorageGrid storageGrid = maintainer.getProxy().getStorage();
@@ -220,42 +222,48 @@ public class ContainerBetterLevelMaintainer extends Container {
             for (IAEItemStack stack : storage.getStorageList()) {
                 if (!stack.isCraftable()) continue;
 
-                // Create a copy with the output quantity from the pattern
-                IAEItemStack craftableStack = stack.copy();
+                IAEItemStack normalizedStack = Ae2FluidCraftingCompat.canonicalize(stack);
+                if (normalizedStack == null) continue;
+
+                // Keep the canonical drop form for selection and crafting. AE2FC display is
+                // handled separately in the GUI so this remains a purely visual conversion.
+                IAEItemStack craftableStack = normalizedStack.copy();
+                long outputAmount = 1;
 
                 // Get patterns for this item to find the output quantity
                 ImmutableCollection<ICraftingPatternDetails> patterns = craftingGrid.getCraftingFor(
-                        stack, null, 0, player.world);
+                        normalizedStack, null, 0, player.world);
 
                 if (!patterns.isEmpty()) {
                     // Use the first pattern's output quantity
                     ICraftingPatternDetails pattern = patterns.iterator().next();
-                    IAEItemStack primaryOutput = pattern.getPrimaryOutput();
+                    IAEItemStack primaryOutput = Ae2FluidCraftingCompat.canonicalize(pattern.getPrimaryOutput());
                     if (primaryOutput != null) {
-                        craftableStack.setStackSize(primaryOutput.getStackSize());
-                    } else {
-                        craftableStack.setStackSize(1);
+                        outputAmount = primaryOutput.getStackSize();
                     }
-                } else {
-                    // No patterns found - default to 1
-                    craftableStack.setStackSize(1);
                 }
 
-                craftableItems.add(craftableStack);
+                craftableStack.setStackSize(outputAmount > 0 ? outputAmount : 1);
+
+                IAEItemStack existing = uniqueCraftableItemsByType.get(craftableStack);
+                if (existing == null || craftableStack.getStackSize() > existing.getStackSize()) {
+                    uniqueCraftableItemsByType.put(craftableStack, craftableStack);
+                }
             }
         } catch (GridAccessException e) {
             // Grid not available - send empty list
         }
 
+        craftableItems.addAll(uniqueCraftableItemsByType.values());
+
         // Sort by display name
         craftableItems.sort(Comparator.comparing(
-                stack -> stack.createItemStack().getDisplayName().toLowerCase()));
+                stack -> Ae2FluidCraftingCompat.getDisplayStack(stack).getDisplayName().toLowerCase()));
 
         // Send to client
         PacketCraftableItemsSync packet = new PacketCraftableItemsSync(craftableItems);
         PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) player);
 
-        lastCraftableItems = craftableItems;
     }
 
     @Override

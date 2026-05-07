@@ -11,6 +11,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.util.FormatUtil;
+import com.ae2powertools.util.Ae2FluidCraftingCompat;
 
 
 /**
@@ -116,12 +117,12 @@ public class MaintainerEntry {
     }
 
     public void setTargetItem(@Nullable IAEItemStack targetItem) {
-        this.targetItem = targetItem;
+        this.targetItem = Ae2FluidCraftingCompat.canonicalize(targetItem);
     }
 
     @Nullable
     public ItemStack getTargetItemStack() {
-        return targetItem != null ? targetItem.createItemStack() : ItemStack.EMPTY;
+        return Ae2FluidCraftingCompat.getDisplayStack(targetItem);
     }
 
     public long getTargetQuantity() {
@@ -309,9 +310,9 @@ public class MaintainerEntry {
 
     public void readFromNBT(NBTTagCompound tag) {
         if (tag.hasKey("targetItem")) {
-            targetItem = AEItemStack.fromNBT(tag.getCompoundTag("targetItem"));
+            setTargetItem(AEItemStack.fromNBT(tag.getCompoundTag("targetItem")));
         } else {
-            targetItem = null;
+            setTargetItem(null);
         }
 
         targetQuantity = tag.getLong("targetQuantity");

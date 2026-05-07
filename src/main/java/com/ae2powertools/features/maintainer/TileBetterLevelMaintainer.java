@@ -44,6 +44,7 @@ import appeng.util.ReadableNumberConverter;
 
 import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.config.PowerToolsServerConfig;
+import com.ae2powertools.util.Ae2FluidCraftingCompat;
 
 
 /**
@@ -147,8 +148,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
-            IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
             int totalSlots = openRows * ENTRIES_PER_ROW;
             for (int i = 0; i < totalSlots && i < entries.size(); i++) {
@@ -163,8 +162,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 if (worldTime < entry.getNextRunTime()) continue;
 
                 // Update current quantity
-                IAEItemStack stored = storage.getStorageList().findPrecise(entry.getTargetItem());
-                long currentQty = stored != null ? stored.getStackSize() : 0;
+                long currentQty = getStoredQuantity(storageGrid, entry.getTargetItem());
                 entry.setCurrentQuantity(currentQty);
 
                 // Check if crafting is needed
@@ -220,15 +218,11 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
-            IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
             for (MaintainerEntry entry : entries) {
                 if (!entry.hasRecipe()) continue;
 
-                IAEItemStack stored = storage.getStorageList().findPrecise(entry.getTargetItem());
-                long currentQty = stored != null ? stored.getStackSize() : 0;
-                entry.setCurrentQuantity(currentQty);
+                entry.setCurrentQuantity(getStoredQuantity(storageGrid, entry.getTargetItem()));
             }
         } catch (GridAccessException e) {
             // Grid not available
@@ -248,15 +242,25 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
-            IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-
-            IAEItemStack stored = storage.getStorageList().findPrecise(entry.getTargetItem());
-            long currentQty = stored != null ? stored.getStackSize() : 0;
-            entry.setCurrentQuantity(currentQty);
+            entry.setCurrentQuantity(getStoredQuantity(storageGrid, entry.getTargetItem()));
         } catch (GridAccessException e) {
             // Grid not available
         }
+    }
+
+    /**
+     * Reads the stored amount for the target.
+     * AE2FC fluid and gas drops are treated as transport-only forms and are ignored here,
+     * so maintained stock only reflects the dedicated fluid or gas storage channels.
+     */
+    private long getStoredQuantity(IStorageGrid storageGrid, IAEItemStack targetItem) {
+        long externalStoredAmount = Ae2FluidCraftingCompat.getExternalStoredQuantity(storageGrid, targetItem);
+        if (externalStoredAmount >= 0) return externalStoredAmount;
+
+        IMEMonitor<IAEItemStack> itemStorage = storageGrid.getInventory(
+                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+        IAEItemStack storedItems = itemStorage.getStorageList().findPrecise(targetItem);
+        return storedItems != null ? storedItems.getStackSize() : 0;
     }
 
     /**
@@ -378,8 +382,10 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     String errorKey;
                     try {
                         ICraftingGrid craftingGrid = gridProxy.getCrafting();
+                        IAEItemStack lookupTarget = Ae2FluidCraftingCompat.canonicalize(task.getTargetItem());
+                        if (lookupTarget == null) lookupTarget = task.getTargetItem();
                         boolean hasPattern = !craftingGrid.getCraftingFor(
-                                task.getTargetItem(), null, 0, world).isEmpty();
+                            lookupTarget, null, 0, world).isEmpty();
 
                         if (hasPattern) {
                             // Pattern exists but resources are missing
@@ -851,16 +857,21 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     public IAEItemStack injectCraftedItems(ICraftingLink link, IAEItemStack items, Actionable mode) {
         // The Level Maintainer receives crafted items and injects them into network storage.
         // We must handle this ourselves - AE2 delivers items TO the requester, not to storage.
+        if (items == null) return null;
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
+            if (Ae2FluidCraftingCompat.usesExternalStorage(items)) {
+                return Ae2FluidCraftingCompat.injectIntoExternalStorage(storageGrid, items, mode, actionSource);
+            }
+
             IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
             // Inject items into network storage and return any remainder.
             // Don't set error states here - transient capacity issues are normal during crafting.
             // The craft completion is tracked via ICraftingLink state in updateActiveTaskStates.
-            // FIXME: still need to track if the network was full and items were rejected, to properly set error state on entry
+            // FIXME: still need to track if item, fluid, or gas storage rejected output, to properly set error state on entry
             return storage.injectItems(items, mode, actionSource);
 
         } catch (GridAccessException e) {

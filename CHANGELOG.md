@@ -8,9 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.6.0] - 2026-04-30
+## [1.6.0] - 2026-05-10
 ### Added
 - Add Storage Level Emitter and Storage Display, alternative versions of the AE2 Level Emitter and Storage Monitor, with configurable refresh rate and more controlable matching. This should provide better performance when dealing with a lot of rapid changes, but do not need to react immediately.
+
+
+## [1.5.6] - 2026-04-29
+### Fixed
+- Fix Better Level Maintainer AE2 Fluid Crafting fluid and gas outputs being routed back into their ME storage channels instead of being counted as drop items, and show fluid or gas targets as fluid or gas in the selector and entry displays instead of raw drops.
 
 
 ## [1.5.5] - 2026-04-23
