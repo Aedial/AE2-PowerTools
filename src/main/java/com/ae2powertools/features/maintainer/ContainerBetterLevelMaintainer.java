@@ -200,6 +200,14 @@ public class ContainerBetterLevelMaintainer extends Container {
 
         lastEntrySnapshots = null;
         lastSentOpenRows = -1;
+
+        // Immediately push the craftable items list to the client when the GUI opens.
+        // Without this the selector is empty until the periodic refresh ticker fires
+        // (CRAFTABLE_REFRESH_INTERVAL = 40 ticks = 2 seconds), so the very first click
+        // on the selector inside that window shows an empty grid (race condition).
+        // Resetting the ticker keeps the periodic cadence anchored to "right after open".
+        syncCraftableItems();
+        craftableRefreshTicker = 0;
     }
 
     /**

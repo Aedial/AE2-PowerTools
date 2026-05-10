@@ -1,5 +1,6 @@
 package com.ae2powertools.features.crafter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -10,6 +11,8 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import com.mojang.authlib.GameProfile;
+
+import io.netty.buffer.ByteBuf;
 
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
@@ -28,10 +31,14 @@ import net.minecraftforge.common.util.FakePlayerFactory;
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.implementations.ICraftingPatternItem;
+import appeng.api.implementations.IPowerChannelState;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.networking.events.MENetworkChannelsChanged;
+import appeng.api.networking.events.MENetworkEventSubscribe;
+import appeng.api.networking.events.MENetworkPowerStatusChange;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
@@ -48,17 +55,19 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
 import appeng.me.helpers.MachineSource;
 import appeng.tile.AEBaseTile;
+import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
+import com.ae2powertools.util.PowerStateClientFlags;
 
 
 /**
  * Tile entity for the AE2 AutoCrafter block.
  * Automatically crafts items using patterns, with support for reusable/catalyst items.
  */
-public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHost, IGridProxyable {
+public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHost, IGridProxyable, IPowerChannelState {
 
     public static final int ENTRY_COUNT = 12;
     public static final int MIN_SPEED_TICKS = 20;
@@ -118,6 +127,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      */
     private int currentPage;
 
+    private int clientFlags;
+
     public TileAutoCrafter() {
         this.gridProxy = new AENetworkProxy(this, "proxy", this.getItemFromTile(this), true);
         this.gridProxy.setFlags(GridFlags.REQUIRE_CHANNEL);
@@ -149,6 +160,30 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             processPendingOutputs();
             processAllEntries();
         }
+    }
+
+    @Override
+    public boolean isPowered() {
+        if (Platform.isServer()) return gridProxy.isPowered();
+
+        return PowerStateClientFlags.isPowered(clientFlags);
+    }
+
+    @Override
+    public boolean isActive() {
+        if (Platform.isServer()) return gridProxy.isActive();
+
+        return PowerStateClientFlags.isActive(clientFlags);
+    }
+
+    @MENetworkEventSubscribe
+    public void onChannelStateChanged(MENetworkChannelsChanged event) {
+        markForUpdate();
+    }
+
+    @MENetworkEventSubscribe
+    public void onPowerStateChanged(MENetworkPowerStatusChange event) {
+        markForUpdate();
     }
 
     /**
@@ -1747,6 +1782,20 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     @Override
     public IGridNode getActionableNode() {
         return gridProxy.getNode();
+    }
+
+    @Override
+    protected boolean readFromStream(ByteBuf data) throws IOException {
+        boolean changed = super.readFromStream(data);
+        int oldClientFlags = clientFlags;
+        clientFlags = data.readByte() & 0xFF;
+        return changed || oldClientFlags != clientFlags;
+    }
+
+    @Override
+    protected void writeToStream(ByteBuf data) throws IOException {
+        super.writeToStream(data);
+        data.writeByte(PowerStateClientFlags.collect(gridProxy));
     }
 
     @Override

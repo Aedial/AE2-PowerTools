@@ -59,5 +59,19 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketReturnToCrafterGui.Handler.class, PacketReturnToCrafterGui.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketCrafterOverviewSync.Handler.class, PacketCrafterOverviewSync.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketCrafterRecipeSync.Handler.class, PacketCrafterRecipeSync.class, packetId++, Side.CLIENT);
+
+        // Storage Monitor packets
+        INSTANCE.registerMessage(PacketSetRefreshRate.Handler.class, PacketSetRefreshRate.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSelectMonitorContent.Handler.class, PacketSelectMonitorContent.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRequestMonitorContents.Handler.class, PacketRequestMonitorContents.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketMonitorContentsSync.Handler.class, PacketMonitorContentsSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketUpdateMonitorEntry.Handler.class, PacketUpdateMonitorEntry.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRemoveMonitorEntry.Handler.class, PacketRemoveMonitorEntry.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetMatchMode.Handler.class, PacketSetMatchMode.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetEmitterRedstoneStrength.Handler.class, PacketSetEmitterRedstoneStrength.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketStorageEntryStateSync.Handler.class, PacketStorageEntryStateSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketSyncMonitorEntries.Handler.class, PacketSyncMonitorEntries.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketOpenStorageMonitorPollingRate.Handler.class, PacketOpenStorageMonitorPollingRate.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketReturnToStorageMonitorGui.Handler.class, PacketReturnToStorageMonitorGui.class, packetId++, Side.SERVER);
     }
 }

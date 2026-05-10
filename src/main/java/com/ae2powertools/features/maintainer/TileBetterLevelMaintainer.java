@@ -1,5 +1,6 @@
 package com.ae2powertools.features.maintainer;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -8,6 +9,8 @@ import java.util.concurrent.Future;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableSet;
+
+import io.netty.buffer.ByteBuf;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -19,6 +22,7 @@ import net.minecraftforge.common.util.Constants;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
+import appeng.api.implementations.IPowerChannelState;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -27,6 +31,9 @@ import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingRequester;
+import appeng.api.networking.events.MENetworkChannelsChanged;
+import appeng.api.networking.events.MENetworkEventSubscribe;
+import appeng.api.networking.events.MENetworkPowerStatusChange;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEMonitor;
@@ -40,11 +47,13 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
 import appeng.me.helpers.MachineSource;
 import appeng.tile.AEBaseTile;
+import appeng.util.Platform;
 import appeng.util.ReadableNumberConverter;
 
 import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.util.Ae2FluidCraftingCompat;
+import com.ae2powertools.util.PowerStateClientFlags;
 
 
 /**
@@ -55,7 +64,7 @@ import com.ae2powertools.util.Ae2FluidCraftingCompat;
  *        and sometimes stay stuck there.
  */
 public class TileBetterLevelMaintainer extends AEBaseTile
-        implements ITickable, IGridProxyable, ICraftingRequester {
+    implements ITickable, IGridProxyable, ICraftingRequester, IPowerChannelState {
 
     /**
      * Number of entries per row in the GUI.
@@ -100,6 +109,8 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     private int tickCounter;
 
+    private int clientFlags;
+
     public TileBetterLevelMaintainer() {
         this.gridProxy = new AENetworkProxy(this, "proxy", this.getItemFromTile(this), true);
         this.gridProxy.setFlags(GridFlags.REQUIRE_CHANNEL);
@@ -136,6 +147,30 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         // Process dirty entries (debounced frequency changes)
         processDirtyEntries();
+    }
+
+    @Override
+    public boolean isPowered() {
+        if (Platform.isServer()) return gridProxy.isPowered();
+
+        return PowerStateClientFlags.isPowered(clientFlags);
+    }
+
+    @Override
+    public boolean isActive() {
+        if (Platform.isServer()) return gridProxy.isActive();
+
+        return PowerStateClientFlags.isActive(clientFlags);
+    }
+
+    @MENetworkEventSubscribe
+    public void onChannelStateChanged(MENetworkChannelsChanged event) {
+        markForUpdate();
+    }
+
+    @MENetworkEventSubscribe
+    public void onPowerStateChanged(MENetworkPowerStatusChange event) {
+        markForUpdate();
     }
 
     /**
@@ -999,6 +1034,20 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         data.setTag("craftingLinks", linksList);
 
         return data;
+    }
+
+    @Override
+    protected boolean readFromStream(ByteBuf data) throws IOException {
+        boolean changed = super.readFromStream(data);
+        int oldClientFlags = clientFlags;
+        clientFlags = data.readByte() & 0xFF;
+        return changed || oldClientFlags != clientFlags;
+    }
+
+    @Override
+    protected void writeToStream(ByteBuf data) throws IOException {
+        super.writeToStream(data);
+        data.writeByte(PowerStateClientFlags.collect(gridProxy));
     }
 
     // --- Client Sync ---

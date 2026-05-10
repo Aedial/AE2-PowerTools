@@ -9,7 +9,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import com.ae2powertools.AE2PowerTools;
-import com.ae2powertools.features.maintainer.GuiHandler;
+import com.ae2powertools.features.GuiHandler;
 import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
 
 

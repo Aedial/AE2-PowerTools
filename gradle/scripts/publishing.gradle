@@ -79,6 +79,12 @@ if (propertyBool('publish_to_curseforge')) {
                     optionalDependency 'jei'
                     // Optional: NAE2
                     optionalDependency 'nae2'
+
+                    // Optional: Thaumic Energistics
+                    optionalDependency 'thaumic-energistics'
+
+                    // Optional: Meknism Energistics
+                    optionalDependency 'mekanism-energistics'
                 }
             }
             options {
