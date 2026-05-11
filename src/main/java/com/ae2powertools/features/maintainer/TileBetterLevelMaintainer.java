@@ -31,6 +31,8 @@ import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingRequester;
+import appeng.api.networking.events.MENetworkBootingStatusChange;
+import appeng.api.networking.events.MENetworkCellArrayUpdate;
 import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
 import appeng.api.networking.events.MENetworkPowerStatusChange;
@@ -59,9 +61,6 @@ import com.ae2powertools.util.PowerStateClientFlags;
 /**
  * Tile entity for the Better Level Maintainer block.
  * Manages multiple crafting entries to maintain item quantities in the network.
- *
- * FIXME: After restarting, entries start in Not enough items to start crafting,
- *        and sometimes stay stuck there.
  */
 public class TileBetterLevelMaintainer extends AEBaseTile
     implements ITickable, IGridProxyable, ICraftingRequester, IPowerChannelState {
@@ -88,6 +87,12 @@ public class TileBetterLevelMaintainer extends AEBaseTile
      */
     private static final int SCHEDULE_DEBOUNCE_TICKS = 10 * 20;
 
+    /**
+     * Extra time to wait after AE2 reports the network ready or its storage cell array changes.
+     * This allows startup counts to settle before the maintainer issues fresh requests.
+     */
+    private static final int NETWORK_SETTLE_TICKS = 5 * 20;
+
 
     private final AENetworkProxy gridProxy;
     private final IActionSource actionSource;
@@ -111,6 +116,12 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     private int clientFlags;
 
+    private boolean networkInitializationPending;
+
+    private long networkSettleDeadline;
+
+    private long networkPauseStartTime;
+
     public TileBetterLevelMaintainer() {
         this.gridProxy = new AENetworkProxy(this, "proxy", this.getItemFromTile(this), true);
         this.gridProxy.setFlags(GridFlags.REQUIRE_CHANNEL);
@@ -125,6 +136,10 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         this.openRows = 1;
         this.tickCounter = 0;
+        this.clientFlags = 0;
+        this.networkInitializationPending = true;
+        this.networkSettleDeadline = Long.MAX_VALUE;
+        this.networkPauseStartTime = -1;
     }
 
     @Override
@@ -133,17 +148,21 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         tickCounter++;
 
-        // Process pending crafting jobs (lightweight: just checks if futures are done)
-        processPendingJobs();
+        boolean requestsPaused = shouldPauseRequestsForNetworkInitialization();
 
-        // Process CPU wait queue
-        processCpuWaitQueue();
+        if (!requestsPaused) {
+            // Process pending crafting jobs (lightweight: just checks if futures are done)
+            processPendingJobs();
+
+            // Process CPU wait queue
+            processCpuWaitQueue();
+        }
 
         // Check active tasks status
         updateActiveTaskStates();
 
         // Periodic check for crafting needs
-        if (tickCounter % CHECK_INTERVAL == 0) checkCraftingNeeds();
+        if (!requestsPaused && tickCounter % CHECK_INTERVAL == 0) checkCraftingNeeds();
 
         // Process dirty entries (debounced frequency changes)
         processDirtyEntries();
@@ -165,11 +184,120 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     @MENetworkEventSubscribe
     public void onChannelStateChanged(MENetworkChannelsChanged event) {
+        queueNetworkInitialization();
         markForUpdate();
     }
 
     @MENetworkEventSubscribe
     public void onPowerStateChanged(MENetworkPowerStatusChange event) {
+        queueNetworkInitialization();
+        markForUpdate();
+    }
+
+    @MENetworkEventSubscribe
+    public void onBootingStateChanged(MENetworkBootingStatusChange event) {
+        queueNetworkInitialization();
+        markForUpdate();
+    }
+
+    @MENetworkEventSubscribe
+    public void onCellArrayChanged(MENetworkCellArrayUpdate event) {
+        queueNetworkInitialization();
+        markForUpdate();
+    }
+
+    /**
+     * Re-arms the startup gate so requests only resume after AE2 finishes booting and the
+     * storage topology stays quiet for a short period. While the gate is up, per-entry
+     * timers are frozen so topology churn does not trigger a catch-up burst.
+     */
+    private void queueNetworkInitialization() {
+        if (this.networkPauseStartTime < 0 && this.world != null) {
+            this.networkPauseStartTime = this.world.getTotalWorldTime();
+        }
+
+        this.networkInitializationPending = true;
+        this.networkSettleDeadline = Long.MAX_VALUE;
+    }
+
+    /**
+     * Holds back new maintainer requests until the AE2 network has completed its boot phase
+     * and the storage providers have had time to report their final startup totals.
+     */
+    private boolean shouldPauseRequestsForNetworkInitialization() {
+        if (!gridProxy.isActive()) {
+            queueNetworkInitialization();
+            return true;
+        }
+
+        try {
+            if (gridProxy.getPath().isNetworkBooting()) {
+                queueNetworkInitialization();
+                return true;
+            }
+        } catch (GridAccessException e) {
+            queueNetworkInitialization();
+            return true;
+        }
+
+        long worldTime = world.getTotalWorldTime();
+
+        if (networkPauseStartTime < 0) networkPauseStartTime = worldTime;
+
+        if (networkInitializationPending) {
+            networkInitializationPending = false;
+            networkSettleDeadline = worldTime + NETWORK_SETTLE_TICKS;
+
+            // Prime the displayed quantities immediately while the network finishes settling.
+            refreshAllCurrentQuantities();
+            return true;
+        }
+
+        if (worldTime < networkSettleDeadline) {
+            if (tickCounter % CHECK_INTERVAL == 0) refreshAllCurrentQuantities();
+            return true;
+        }
+
+        if (networkSettleDeadline != 0) {
+            finishNetworkInitialization(worldTime);
+            networkSettleDeadline = 0;
+        }
+
+        return false;
+    }
+
+    /**
+     * Refreshes quantities after the startup gate expires and shifts each pending schedule by
+     * the paused duration so startup or topology settling does not consume the wait time.
+     */
+    private void finishNetworkInitialization(long worldTime) {
+        refreshAllCurrentQuantities();
+
+        long pausedTicks = 0;
+        if (networkPauseStartTime >= 0 && worldTime > networkPauseStartTime) {
+            pausedTicks = worldTime - networkPauseStartTime;
+        }
+
+        int totalSlots = openRows * ENTRIES_PER_ROW;
+        for (int i = 0; i < totalSlots && i < entries.size(); i++) {
+            MaintainerEntry entry = entries.get(i);
+
+            if (!entry.hasRecipe() || !entry.isEnabled()) continue;
+            if (hasActiveTask(i)) continue;
+
+            long nextRunTime = entry.getNextRunTime();
+            if (nextRunTime > 0 && pausedTicks > 0) {
+                long shiftedNextRunTime = nextRunTime + pausedTicks;
+                if (shiftedNextRunTime < worldTime) shiftedNextRunTime = 0;
+                entry.setNextRunTime(shiftedNextRunTime);
+            }
+
+            if (entry.getState().isActive()) entry.setState(MaintainerState.IDLE);
+            entry.clearError();
+        }
+
+        networkPauseStartTime = -1;
+        markDirty();
         markForUpdate();
     }
 
@@ -986,6 +1114,8 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 }
             }
         }
+
+        queueNetworkInitialization();
     }
 
     @Override
@@ -1092,24 +1222,28 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     @Override
     public void onChunkUnload() {
         super.onChunkUnload();
+        queueNetworkInitialization();
         gridProxy.onChunkUnload();
     }
 
     @Override
     public void onReady() {
         super.onReady();
+        queueNetworkInitialization();
         gridProxy.onReady();
     }
 
     @Override
     public void invalidate() {
         super.invalidate();
+        queueNetworkInitialization();
         gridProxy.invalidate();
     }
 
     @Override
     public void validate() {
         super.validate();
+        queueNetworkInitialization();
         gridProxy.validate();
     }
 }

@@ -335,9 +335,9 @@ public class MaintainerEntry {
         if (state.isActive()) state = enabled ? MaintainerState.IDLE : MaintainerState.DISABLED;
 
         lastRunTime = tag.getLong("lastRunTime");
-        // Reset nextRunTime so entries are checked immediately after restart.
-        // The checkCraftingNeeds() will reschedule them properly based on current world time.
-        nextRunTime = 0;
+        // Keep the persisted absolute schedule. The tile's startup/network-settle gate will
+        // shift it forward by the paused duration so booting time does not consume the wait.
+        nextRunTime = Math.max(0, tag.getLong("nextRunTime"));
 
         errorComponent = null;
         if (tag.hasKey("errorComponent")) {

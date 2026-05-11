@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.0-alpha2] - 2026-05-11
+### Added
+- Delay Better Level Maintainer startup requests until the AE2 network and storage cell topology have settled. This also affects topology changes like adding/removing storage cells, which should prevent a lot of weird behaviors and errors that can occur when the maintainer tries to run while the network is in an inconsistent state.
+
+
 ## [1.6.0-alpha] - 2026-05-10
 ### Added
 - Add Storage Level Emitter and Storage Display, alternative versions of the AE2 Level Emitter and Storage Monitor, with configurable refresh rate and more controlable matching. This should provide better performance when dealing with a lot of rapid changes, but do not need to react immediately.
