@@ -22,6 +22,7 @@ import net.minecraftforge.common.util.Constants;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
+import appeng.api.implementations.IPowerChannelState;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -30,6 +31,9 @@ import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingRequester;
+import appeng.api.networking.events.MENetworkChannelsChanged;
+import appeng.api.networking.events.MENetworkEventSubscribe;
+import appeng.api.networking.events.MENetworkPowerStatusChange;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEMonitor;
@@ -43,11 +47,13 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
 import appeng.me.helpers.MachineSource;
 import appeng.tile.AEBaseTile;
+import appeng.util.Platform;
 import appeng.util.ReadableNumberConverter;
-import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.config.PowerToolsServerConfig;
+import com.ae2powertools.util.Ae2FluidCraftingCompat;
+import com.ae2powertools.util.PowerStateClientFlags;
 
 
 /**
@@ -58,7 +64,7 @@ import com.ae2powertools.config.PowerToolsServerConfig;
  *        and sometimes stay stuck there.
  */
 public class TileBetterLevelMaintainer extends AEBaseTile
-        implements ITickable, IGridProxyable, ICraftingRequester {
+    implements ITickable, IGridProxyable, ICraftingRequester, IPowerChannelState {
 
     /**
      * Number of entries per row in the GUI.
@@ -102,7 +108,8 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     private int openRows;
 
     private int tickCounter;
-    private boolean needsSync;
+
+    private int clientFlags;
 
     public TileBetterLevelMaintainer() {
         this.gridProxy = new AENetworkProxy(this, "proxy", this.getItemFromTile(this), true);
@@ -118,7 +125,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         this.openRows = 1;
         this.tickCounter = 0;
-        this.needsSync = false;
     }
 
     @Override
@@ -141,12 +147,30 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         // Process dirty entries (debounced frequency changes)
         processDirtyEntries();
+    }
 
-        // Sync to clients if needed
-        if (needsSync) {
-            markForUpdate();
-            needsSync = false;
-        }
+    @Override
+    public boolean isPowered() {
+        if (Platform.isServer()) return gridProxy.isPowered();
+
+        return PowerStateClientFlags.isPowered(clientFlags);
+    }
+
+    @Override
+    public boolean isActive() {
+        if (Platform.isServer()) return gridProxy.isActive();
+
+        return PowerStateClientFlags.isActive(clientFlags);
+    }
+
+    @MENetworkEventSubscribe
+    public void onChannelStateChanged(MENetworkChannelsChanged event) {
+        markForUpdate();
+    }
+
+    @MENetworkEventSubscribe
+    public void onPowerStateChanged(MENetworkPowerStatusChange event) {
+        markForUpdate();
     }
 
     /**
@@ -159,8 +183,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
-            IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
             int totalSlots = openRows * ENTRIES_PER_ROW;
             for (int i = 0; i < totalSlots && i < entries.size(); i++) {
@@ -175,8 +197,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 if (worldTime < entry.getNextRunTime()) continue;
 
                 // Update current quantity
-                IAEItemStack stored = storage.getStorageList().findPrecise(entry.getTargetItem());
-                long currentQty = stored != null ? stored.getStackSize() : 0;
+                long currentQty = getStoredQuantity(storageGrid, entry.getTargetItem());
                 entry.setCurrentQuantity(currentQty);
 
                 // Check if crafting is needed
@@ -188,8 +209,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setState(MaintainerState.IDLE);
                     entry.clearError();
                 }
-
-                needsSync = true;
             }
         } catch (GridAccessException e) {
             // Grid not available
@@ -221,7 +240,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             if (newNextRunTime < worldTime) newNextRunTime = 0;
 
             entry.setNextRunTime(newNextRunTime);
-            needsSync = true;
         }
     }
 
@@ -235,18 +253,12 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
-            IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
             for (MaintainerEntry entry : entries) {
                 if (!entry.hasRecipe()) continue;
 
-                IAEItemStack stored = storage.getStorageList().findPrecise(entry.getTargetItem());
-                long currentQty = stored != null ? stored.getStackSize() : 0;
-                entry.setCurrentQuantity(currentQty);
+                entry.setCurrentQuantity(getStoredQuantity(storageGrid, entry.getTargetItem()));
             }
-
-            needsSync = true;
         } catch (GridAccessException e) {
             // Grid not available
         }
@@ -265,15 +277,25 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
-            IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-
-            IAEItemStack stored = storage.getStorageList().findPrecise(entry.getTargetItem());
-            long currentQty = stored != null ? stored.getStackSize() : 0;
-            entry.setCurrentQuantity(currentQty);
+            entry.setCurrentQuantity(getStoredQuantity(storageGrid, entry.getTargetItem()));
         } catch (GridAccessException e) {
             // Grid not available
         }
+    }
+
+    /**
+     * Reads the stored amount for the target.
+     * AE2FC fluid and gas drops are treated as transport-only forms and are ignored here,
+     * so maintained stock only reflects the dedicated fluid or gas storage channels.
+     */
+    private long getStoredQuantity(IStorageGrid storageGrid, IAEItemStack targetItem) {
+        long externalStoredAmount = Ae2FluidCraftingCompat.getExternalStoredQuantity(storageGrid, targetItem);
+        if (externalStoredAmount >= 0) return externalStoredAmount;
+
+        IMEMonitor<IAEItemStack> itemStorage = storageGrid.getInventory(
+                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+        IAEItemStack storedItems = itemStorage.getStorageList().findPrecise(targetItem);
+        return storedItems != null ? storedItems.getStackSize() : 0;
     }
 
     /**
@@ -296,7 +318,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 task.setWaitingForCpu(true);
                 activeTasks.add(task);
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
-                needsSync = true;
                 return;
             }
 
@@ -329,8 +350,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entryIndex, targetItem, entry.getBatchSize(), world.getTotalWorldTime());
             task.setCraftingFuture(future);
             activeTasks.add(task);
-
-            needsSync = true;
 
         } catch (GridAccessException e) {
             entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_network");
@@ -373,7 +392,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                 task.cancel();
                 taskIter.remove();
-                needsSync = true;
 
                 continue;
             }
@@ -388,7 +406,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
                     entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                     taskIter.remove();
-                    needsSync = true;
                     continue;
                 }
 
@@ -400,8 +417,10 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     String errorKey;
                     try {
                         ICraftingGrid craftingGrid = gridProxy.getCrafting();
+                        IAEItemStack lookupTarget = Ae2FluidCraftingCompat.canonicalize(task.getTargetItem());
+                        if (lookupTarget == null) lookupTarget = task.getTargetItem();
                         boolean hasPattern = !craftingGrid.getCraftingFor(
-                                task.getTargetItem(), null, 0, world).isEmpty();
+                            lookupTarget, null, 0, world).isEmpty();
 
                         if (hasPattern) {
                             // Pattern exists but resources are missing
@@ -417,7 +436,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     entry.setError(MaintainerState.ERROR, errorKey);
                     entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                     taskIter.remove();
-                    needsSync = true;
                     continue;
                 }
 
@@ -434,7 +452,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
                 entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                 taskIter.remove();
-                needsSync = true;
             }
         }
     }
@@ -467,7 +484,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                         "gui.ae2powertools.maintainer.error.cpu_too_small", jobSize, cpuSize);
                 entry.setError(MaintainerState.ERROR, error);
                 entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-                needsSync = true;
 
                 return true;  // Permanent failure - remove task
             }
@@ -488,7 +504,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     // This is a permanent failure for this cycle - wait for next scheduled run.
                     entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.extraction_failed");
                     entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-                    needsSync = true;
 
                     return true;  // Permanent failure - remove task, wait for next cycle
                 }
@@ -499,7 +514,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 task.setCachedJob(job);
                 task.incrementCpuRetryCount();
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
-                needsSync = true;
 
                 return false;  // Keep in activeTasks, waiting for CPU
             }
@@ -510,7 +524,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             task.setWaitingForCpu(false);
             entry.setState(MaintainerState.RUNNING);
             entry.clearError();
-            needsSync = true;
 
             return false;  // Keep in activeTasks to track crafting progress
 
@@ -563,7 +576,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
                     task.cancel();
                     iter.remove();
-                    needsSync = true;
                     continue;
                 }
 
@@ -628,7 +640,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 }
 
                 iter.remove();
-                needsSync = true;
             }
         }
     }
@@ -721,7 +732,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         updateOpenRows();
         markDirty();
-        needsSync = true;
     }
 
     public void clearEntry(int index) {
@@ -733,7 +743,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         entries.set(index, new MaintainerEntry());
         updateOpenRows();
         markDirty();
-        needsSync = true;
     }
 
     public void toggleEntryEnabled(int index) {
@@ -745,7 +754,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         if (!entry.isEnabled()) cancelTaskForEntry(index);
 
         markDirty();
-        needsSync = true;
     }
 
     private void cancelTaskForEntry(int index) {
@@ -836,8 +844,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     @Override
     public void gridChanged() {
-        // Re-check all entries when grid changes
-        needsSync = true;
+        // No work needed on grid change - we always fetch fresh grid/node references when needed.
     }
 
     @Override
@@ -885,16 +892,21 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     public IAEItemStack injectCraftedItems(ICraftingLink link, IAEItemStack items, Actionable mode) {
         // The Level Maintainer receives crafted items and injects them into network storage.
         // We must handle this ourselves - AE2 delivers items TO the requester, not to storage.
+        if (items == null) return null;
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
+            if (Ae2FluidCraftingCompat.usesExternalStorage(items)) {
+                return Ae2FluidCraftingCompat.injectIntoExternalStorage(storageGrid, items, mode, actionSource);
+            }
+
             IMEMonitor<IAEItemStack> storage = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
 
             // Inject items into network storage and return any remainder.
             // Don't set error states here - transient capacity issues are normal during crafting.
             // The craft completion is tracked via ICraftingLink state in updateActiveTaskStates.
-            // FIXME: still need to track if the network was full and items were rejected, to properly set error state on entry
+            // FIXME: still need to track if item, fluid, or gas storage rejected output, to properly set error state on entry
             return storage.injectItems(items, mode, actionSource);
 
         } catch (GridAccessException e) {
@@ -930,8 +942,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             }
         }
 
-        // State change will be picked up in updateActiveTaskStates for active tasks
-        needsSync = true;
+        // State change will be picked up in updateActiveTaskStates for active tasks.
     }
 
     // --- NBT ---
@@ -1025,103 +1036,55 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         return data;
     }
 
-    // --- Client Sync ---
+    @Override
+    protected boolean readFromStream(ByteBuf data) throws IOException {
+        boolean changed = super.readFromStream(data);
+        int oldClientFlags = clientFlags;
+        clientFlags = data.readByte() & 0xFF;
+        return changed || oldClientFlags != clientFlags;
+    }
 
     @Override
     protected void writeToStream(ByteBuf data) throws IOException {
         super.writeToStream(data);
-
-        // Write open rows and entry count
-        data.writeInt(openRows);
-        int entryCount = Math.min(entries.size(), openRows * ENTRIES_PER_ROW);
-        data.writeInt(entryCount);
-
-        // Write each entry
-        for (int i = 0; i < entryCount; i++) {
-            MaintainerEntry entry = entries.get(i);
-            data.writeBoolean(entry.hasRecipe());
-
-            if (entry.hasRecipe()) {
-                entry.getTargetItem().writeToPacket(data);
-                data.writeLong(entry.getTargetQuantity());
-                data.writeLong(entry.getBatchSize());
-                data.writeInt(entry.getFrequencySeconds());
-                data.writeBoolean(entry.isEnabled());
-                data.writeInt(entry.getState().ordinal());
-                data.writeLong(entry.getCurrentQuantity());
-
-                // Sync error component for tooltip display. We serialize as JSON so the client
-                // re-creates the same ITextComponent (TextComponentTranslation/args preserved)
-                // and renders it in the player's own language.
-                ITextComponent errorComp = entry.getErrorComponent();
-                String errorJson = errorComp != null ? ITextComponent.Serializer.componentToJson(errorComp) : null;
-                data.writeBoolean(errorJson != null);
-                if (errorJson != null) {
-                    byte[] msgBytes = errorJson.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                    data.writeShort(msgBytes.length);
-                    data.writeBytes(msgBytes);
-                }
-            }
-        }
+        data.writeByte(PowerStateClientFlags.collect(gridProxy));
     }
 
-    @Override
-    protected boolean readFromStream(ByteBuf data) throws IOException {
-        boolean changed = super.readFromStream(data);
+    // --- Client Sync ---
 
-        int newOpenRows = data.readInt();
-        int entryCount = data.readInt();
+    /**
+     * Returns the current size of the entries list. Used by the client packet handler
+     * to determine whether a slot needs to be appended before applying a snapshot.
+     */
+    public int getEntryListSize() {
+        return entries.size();
+    }
 
-        // Ensure entries list has enough capacity
-        while (entries.size() < entryCount) entries.add(new MaintainerEntry());
+    /**
+     * Appends a fresh empty entry to the list (client-side helper).
+     */
+    public void appendEmptyEntry() {
+        entries.add(new MaintainerEntry());
+    }
 
-        // Read each entry
-        for (int i = 0; i < entryCount; i++) {
-            MaintainerEntry entry = entries.get(i);
-            boolean hasRecipe = data.readBoolean();
+    /**
+     * Replaces the entry at the given index with the supplied one (client-side helper).
+     * Used to clear all transient state (error component, state ordinal, etc.) when
+     * an empty snapshot is received for a slot.
+     */
+    public void replaceEntry(int index, MaintainerEntry entry) {
+        if (index < 0 || index >= entries.size()) return;
 
-            if (hasRecipe) {
-                IAEItemStack targetItem = AEItemStack.fromPacket(data);
-                long targetQty = data.readLong();
-                long batchSize = data.readLong();
-                int freqSecs = data.readInt();
-                boolean enabled = data.readBoolean();
-                int stateOrdinal = data.readInt();
-                long currentQty = data.readLong();
+        entries.set(index, entry);
+    }
 
-                // Read error component (JSON-serialized ITextComponent)
-                boolean hasError = data.readBoolean();
-                ITextComponent errorComp = null;
-                if (hasError) {
-                    int msgLen = data.readShort();
-                    byte[] msgBytes = new byte[msgLen];
-                    data.readBytes(msgBytes);
-                    String errorJson = new String(msgBytes, java.nio.charset.StandardCharsets.UTF_8);
-                    errorComp = ITextComponent.Serializer.jsonToComponent(errorJson);
-                }
-
-                entry.setTargetItem(targetItem);
-                entry.setTargetQuantity(targetQty);
-                entry.setBatchSize(batchSize);
-                entry.setFrequencySeconds(freqSecs);
-                entry.setEnabled(enabled);
-                if (stateOrdinal >= 0 && stateOrdinal < MaintainerState.values().length) {
-                    entry.setState(MaintainerState.values()[stateOrdinal]);
-                }
-                entry.setCurrentQuantity(currentQty);
-                entry.setErrorComponent(errorComp);
-            } else {
-                // Clear entry if it had a recipe before
-                if (entry.hasRecipe()) entries.set(i, new MaintainerEntry());
-            }
-        }
-
-        if (newOpenRows != openRows) {
-            openRows = newOpenRows;
-            changed = true;
-        }
-
-        return changed;
+    /**
+     * Sets {@link #openRows} from a client-side sync packet without invoking
+     * {@link #markDirty()}. The server is the source of truth; the client just mirrors.
+     */
+    public void setOpenRowsClient(int rows) {
+        if (rows < 1) rows = 1;
+        this.openRows = rows;
     }
 
     // --- Lifecycle ---

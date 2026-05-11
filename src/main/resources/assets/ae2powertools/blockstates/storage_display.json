@@ -1,0 +1,10 @@
+{
+    "variants": {
+        "facing=north": { "model": "ae2powertools:storage_display" },
+        "facing=south": { "model": "ae2powertools:storage_display", "y": 180 },
+        "facing=west":  { "model": "ae2powertools:storage_display", "y": 270 },
+        "facing=east":  { "model": "ae2powertools:storage_display", "y": 90 },
+        "facing=up":    { "model": "ae2powertools:storage_display", "x": 270 },
+        "facing=down":  { "model": "ae2powertools:storage_display", "x": 90 }
+    }
+}

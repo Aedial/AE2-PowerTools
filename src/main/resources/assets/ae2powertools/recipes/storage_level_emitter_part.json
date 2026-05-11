@@ -1,0 +1,17 @@
+{
+    "conditions": [
+        {
+            "type": "minecraft:item_exists",
+            "item": "ae2powertools:storage_level_emitter_part"
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:storage_level_emitter_part"
+    },
+    "type": "forge:ore_shapeless",
+    "ingredients": [
+        {
+            "item": "ae2powertools:storage_level_emitter"
+        }
+    ]
+}

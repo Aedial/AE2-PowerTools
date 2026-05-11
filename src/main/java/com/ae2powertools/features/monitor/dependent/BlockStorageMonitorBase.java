@@ -1,0 +1,82 @@
+package com.ae2powertools.features.monitor.dependent;
+
+import java.util.List;
+
+import net.minecraft.block.Block;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.client.resources.I18n;
+import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
+
+import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.Tags;
+import com.ae2powertools.features.GuiHandler;
+import com.ae2powertools.PowerToolsCreativeTab;
+
+
+/**
+ * Abstract base class for all storage monitoring blocks (Storage Display, Storage Level Emitter).
+ * Provides shared constructor setup, tooltip rendering, tile entity creation,
+ * and GUI opening on right-click.
+ */
+public abstract class BlockStorageMonitorBase extends Block {
+
+    public BlockStorageMonitorBase(String name) {
+        super(Material.IRON);
+        setRegistryName(Tags.MODID, name);
+        setTranslationKey(Tags.MODID + "." + name);
+        setCreativeTab(PowerToolsCreativeTab.instance);
+        setHardness(2.0F);
+        setResistance(10.0F);
+    }
+
+    /**
+     * Returns the tooltip translation key for the first line
+     * (e.g. "tile.ae2powertools.storage_display.tooltip").
+     */
+    protected abstract String getTooltipKey();
+
+    /**
+     * Returns the expected tile entity class for this block.
+     * Used by {@link #onBlockActivated} to validate the tile before opening the GUI.
+     */
+    protected abstract Class<? extends TileEntity> getTileClass();
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+        super.addInformation(stack, world, tooltip, flag);
+        tooltip.add(TextFormatting.AQUA + I18n.format(getTooltipKey()));
+    }
+
+    @Override
+    public boolean hasTileEntity(IBlockState state) {
+        return true;
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state,
+                                     EntityPlayer player, EnumHand hand,
+                                     EnumFacing facing, float hitX, float hitY, float hitZ) {
+        if (world.isRemote) return true;
+
+        TileEntity te = world.getTileEntity(pos);
+        if (getTileClass().isInstance(te)) {
+            player.openGui(AE2PowerTools.instance, GuiHandler.GUI_STORAGE_MONITOR, world,
+                    pos.getX(), pos.getY(), pos.getZ());
+            return true;
+        }
+
+        return false;
+    }
+}

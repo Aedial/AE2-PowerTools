@@ -10,7 +10,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
-import com.ae2powertools.features.maintainer.GuiHandler;
+import com.ae2powertools.features.GuiHandler;
 import com.ae2powertools.features.scanner.ScannerTickHandler;
 import com.ae2powertools.network.PowerToolsNetwork;
 
@@ -41,6 +41,7 @@ public class AE2PowerTools {
         PowerToolsCreativeTab.init();
         ItemRegistry.init();
         BlockRegistry.init();
+        PartModelRegistry.init();
         PowerToolsNetwork.init();
         proxy.preInit(event);
     }
