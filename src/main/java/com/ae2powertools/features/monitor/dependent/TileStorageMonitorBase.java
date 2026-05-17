@@ -119,6 +119,12 @@ public abstract class TileStorageMonitorBase extends AEBaseTile
     public void setMatchMode(MatchMode mode) { monitorLogic.setMatchMode(mode); }
 
     @Override
+    public boolean isHysteresisEnabled() { return monitorLogic.isHysteresisEnabled(); }
+
+    @Override
+    public void setHysteresisEnabled(boolean hysteresisEnabled) { monitorLogic.setHysteresisEnabled(hysteresisEnabled); }
+
+    @Override
     public boolean isConditionMet() { return monitorLogic.isConditionMet(); }
 
     @Override

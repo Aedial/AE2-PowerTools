@@ -1,5 +1,6 @@
 package com.ae2powertools.features.monitor.dependent;
 
+import java.awt.Rectangle;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ import com.ae2powertools.network.PacketOpenStorageMonitorPollingRate;
 import com.ae2powertools.network.PacketRequestMonitorContents;
 import com.ae2powertools.network.PacketSelectMonitorContent;
 import com.ae2powertools.network.PacketSetEmitterRedstoneStrength;
+import com.ae2powertools.network.PacketSetHysteresisMode;
 import com.ae2powertools.network.PacketSetMatchMode;
 import com.ae2powertools.network.PacketUpdateMonitorEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
@@ -57,9 +59,10 @@ import com.ae2powertools.util.PollingRateUtils;
  *   border that is left uncolored (so cells don't visually merge). Cell pitch
  *   is therefore 51x23.
  * - Per-cell zones:
- *     - Icon zone:   16x16 at local (3, 3)
+ *     - Icon zone:   16x16 at local (3, 3), with the current quantity rendered over it
  *     - Comparison:  10x10 at local (20, 6), straddles left/right halves
- *     - Numbers:     16x16+ at local (31, 3), current quantity / threshold
+ *     - Thresholds:  16x16+ at local (31, 3), one threshold in normal mode and
+ *       top/bottom increasing/decreasing thresholds in hysteresis mode
  *   Background tint covers the inner 50x22 area:
  *     - Grey       if entry is disabled
  *     - Translucent green if condition met
@@ -71,7 +74,8 @@ import com.ae2powertools.util.PollingRateUtils;
  *      then continue with normal hit detection on the underlying click.
  *   2. Inside the comparison 10x10 region: cycle the comparison.
  *   3. Otherwise inside the left half (localX < 25): open content selector for that cell.
- *   4. Otherwise inside the right half (localX >= 25): show count field for that cell.
+ *   4. Otherwise inside the threshold side (localX >= 25): show the count field for that
+ *      threshold. Hysteresis mode splits that side into upper / lower halves.
  * <p>
  * Hover feedback uses the same three-zone partition: whichever zone the mouse
  * is in gets a 0x40FFFFFF white overlay. This makes interactive areas obvious.
@@ -120,7 +124,7 @@ public class GuiStorageMonitor extends GuiContainer {
     private static final int ICON_X = 3, ICON_Y = 3, ICON_SIZE = 16;
     private static final int CMP_X = 20, CMP_Y = 6, CMP_SIZE = 10;
     private static final int NUM_X = 31, NUM_Y = 3, NUM_SIZE = 16;
-    /** X coordinate that splits the cell into left (icon/selector) vs right (threshold) halves. */
+    /** X coordinate that splits the cell into selector vs threshold halves. */
     private static final int LEFT_RIGHT_SPLIT = 25;
 
     // --- Comparison arrow texture sheet (64x64, 2x2 grid of 20x20 arrows) ---
@@ -136,6 +140,7 @@ public class GuiStorageMonitor extends GuiContainer {
     // --- Match-mode side button (sits OUTSIDE the GUI on the left) ---
     private static final int SIDE_BTN_SIZE = 16;
     private static final int SIDE_BTN_X_OFFSET = -SIDE_BTN_SIZE - 2;
+    private static final int SIDE_BTN_SPACING = 4;
     private static final int MATCH_MODE_BTN_Y = 4;
     private static final int REDSTONE_SIGNAL_BTN_Y = MATCH_MODE_BTN_Y + SIDE_BTN_SIZE + 4;
 
@@ -172,7 +177,9 @@ public class GuiStorageMonitor extends GuiContainer {
     private static final int SELECTOR_SCROLL_THUMB_H = 15;
 
     /** Identifies which sub-zone of a cell a coordinate falls into. */
-    private enum CellZone { NONE, COMPARATOR, LEFT, RIGHT }
+    private enum CellZone { NONE, COMPARATOR, SELECTOR, UPPER_THRESHOLD, LOWER_THRESHOLD }
+
+    private enum ThresholdField { UPPER, LOWER }
 
     /** Precomputed hit test result for a grid cell hover/click. */
     private static final class GridHit {
@@ -192,6 +199,10 @@ public class GuiStorageMonitor extends GuiContainer {
     private int matchBtnX, matchBtnY;
     private boolean matchBtnHovered;
 
+    /** Host-level hysteresis toggle side button. */
+    private int hysteresisBtnX, hysteresisBtnY;
+    private boolean hysteresisBtnHovered;
+
     /** Emitter-only redstone-strength button. */
     private GuiImgButton redstoneSignalBtn;
 
@@ -202,6 +213,7 @@ public class GuiStorageMonitor extends GuiContainer {
     private GuiTextField countField;
     /** Index of the entry currently being edited via the count field, or -1 when hidden. */
     private int countFieldEntryIndex = -1;
+    private ThresholdField countFieldTarget = ThresholdField.UPPER;
 
     // --- Selector modal state ---
     private boolean selectorOpen;
@@ -232,6 +244,9 @@ public class GuiStorageMonitor extends GuiContainer {
 
         matchBtnX = guiLeft + SIDE_BTN_X_OFFSET;
         matchBtnY = guiTop + MATCH_MODE_BTN_Y;
+        hysteresisBtnX = matchBtnX;
+
+        int nextSideButtonY = guiTop + MATCH_MODE_BTN_Y + SIDE_BTN_SIZE + SIDE_BTN_SPACING;
 
         if (container.supportsEmitterRedstoneStrength()) {
             redstoneSignalBtn = new GuiImgButton(
@@ -240,7 +255,11 @@ public class GuiStorageMonitor extends GuiContainer {
                 Settings.REDSTONE_EMITTER,
                 RedstoneMode.LOW_SIGNAL);
             this.buttonList.add(redstoneSignalBtn);
+
+            nextSideButtonY = redstoneSignalBtn.y + SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
+
+        hysteresisBtnY = nextSideButtonY;
 
         // Wrench tab button: top-right, sticking out beyond the GUI's right edge
         // like AE2's standard tab buttons. Width 22, height 22 (set by GuiTabButton itself).
@@ -351,6 +370,8 @@ public class GuiStorageMonitor extends GuiContainer {
         // Side-button hover tooltip.
         if (matchBtnHovered) drawMatchModeTooltip(mouseX, mouseY);
 
+        if (hysteresisBtnHovered) drawHysteresisTooltip(mouseX, mouseY);
+
         if (isRedstoneSignalButtonHovered(mouseX, mouseY)) {
             drawRedstoneSignalTooltip(mouseX, mouseY);
         }
@@ -374,31 +395,59 @@ public class GuiStorageMonitor extends GuiContainer {
     private void drawSideButtons(int mouseX, int mouseY) {
         matchBtnHovered = mouseX >= matchBtnX && mouseX < matchBtnX + SIDE_BTN_SIZE
             && mouseY >= matchBtnY && mouseY < matchBtnY + SIDE_BTN_SIZE;
+        hysteresisBtnHovered = mouseX >= hysteresisBtnX && mouseX < hysteresisBtnX + SIDE_BTN_SIZE
+            && mouseY >= hysteresisBtnY && mouseY < hysteresisBtnY + SIDE_BTN_SIZE;
 
         // Reset GL state so the button doesn't inherit lighting/depth from prior draws.
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        mc.getTextureManager().bindTexture(AE2_STATES);
-        // Standard AE2 button frame (bottom-right cell of states.png).
-        drawTexturedModalRect(matchBtnX, matchBtnY, 240, 240, SIDE_BTN_SIZE, SIDE_BTN_SIZE);
+        drawLabeledSideButton(
+            matchBtnX, matchBtnY,
+            container.getSyncMatchMode().getSymbol(),
+            0xFFFFFFFF,
+            matchBtnHovered
+        );
 
-        // Letter label centered in the button to indicate the match mode
-        String label = container.getSyncMatchMode().getSymbol();
-        int labelW = fontRenderer.getStringWidth(label);
-        fontRenderer.drawString(label,
-            matchBtnX + (SIDE_BTN_SIZE - labelW) / 2,
-            matchBtnY + (SIDE_BTN_SIZE - 8) / 2,
-            0xFFFFFFFF);
-
-        if (matchBtnHovered) {
-            drawRect(matchBtnX + 1, matchBtnY + 1,
-                matchBtnX + SIDE_BTN_SIZE - 1, matchBtnY + SIDE_BTN_SIZE - 1,
-                0x40FFFFFF);
-        }
+        // TODO: replace with the actual hysteresis state icon once we have one
+        drawLabeledSideButton(
+            hysteresisBtnX, hysteresisBtnY,
+            "H",
+            container.isSyncHysteresisEnabled() ? 0xFF88FF88 : 0xFFA0A0A0,
+            hysteresisBtnHovered
+        );
 
         GlStateManager.enableDepth();
+    }
+
+    private void drawLabeledSideButton(int x, int y, String label, int color, boolean hovered) {
+        mc.getTextureManager().bindTexture(AE2_STATES);
+        drawTexturedModalRect(x, y, 240, 240, SIDE_BTN_SIZE, SIDE_BTN_SIZE);
+
+        int labelW = fontRenderer.getStringWidth(label);
+        fontRenderer.drawString(label,
+            x + (SIDE_BTN_SIZE - labelW) / 2,
+            y + (SIDE_BTN_SIZE - 8) / 2,
+            color);
+
+        if (hovered) {
+            drawRect(x + 1, y + 1, x + SIDE_BTN_SIZE - 1, y + SIDE_BTN_SIZE - 1, 0x40FFFFFF);
+        }
+    }
+
+    private void drawTexturedSideButton(int x, int y, int textureWidth, int textureHeight,
+            ResourceLocation texture, boolean hovered) {
+        mc.getTextureManager().bindTexture(AE2_STATES);
+        drawTexturedModalRect(x, y, 15 * 16, 15 * 16, SIDE_BTN_SIZE, SIDE_BTN_SIZE);
+
+        mc.getTextureManager().bindTexture(texture);
+        drawScaledCustomSizeModalRect(x, y, 0, 0, SIDE_BTN_SIZE, SIDE_BTN_SIZE,
+                                      textureWidth, textureHeight, textureWidth, textureHeight);
+
+        if (hovered) {
+            drawRect(x + 1, y + 1, x + SIDE_BTN_SIZE - 1, y + SIDE_BTN_SIZE - 1, 0x40FFFFFF);
+        }
     }
 
     private void drawMatchModeTooltip(int mouseX, int mouseY) {
@@ -406,6 +455,17 @@ public class GuiStorageMonitor extends GuiContainer {
         tt.add(I18n.format("gui.ae2powertools.storage_emitter.match_mode",
             container.getSyncMatchMode().name()));
         tt.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.match_mode.click_toggle") + "§r");
+        GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
+    }
+
+    private void drawHysteresisTooltip(int mouseX, int mouseY) {
+        String prefix = "gui.ae2powertools.storage_emitter.hysteresis";
+        List<String> tt = new ArrayList<>();
+        tt.add(I18n.format(
+            prefix,
+            I18n.format(prefix + (container.isSyncHysteresisEnabled() ? ".on" : ".off"))
+        ));
+        tt.add("§7" + I18n.format(prefix + ".click_toggle") + "§r");
         GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
     }
 
@@ -439,23 +499,36 @@ public class GuiStorageMonitor extends GuiContainer {
 
         if (!tooltip.isEmpty()) tooltip.add("");
 
+        String prefix = "gui.ae2powertools.storage_emitter.";
+
         if (entry.hasResource()) {
+            String symbol = entry.getComparison().getSymbol();
+
             tooltip.add(TextFormatting.GRAY + I18n.format(
-                "gui.ae2powertools.storage_emitter.current_quantity",
-                formatWithCommas(entry.getLastQuantity())));
-            tooltip.add(TextFormatting.GRAY + I18n.format(
-                "gui.ae2powertools.storage_emitter.current_target",
-                entry.getComparison().getSymbol(),
-                formatWithCommas(entry.getThreshold()),
-                formatTargetProgress(entry)));
+                prefix + "current_quantity", formatWithCommas(entry.getLastQuantity())));
+
+
+            if (container.isSyncHysteresisEnabled()) {
+                tooltip.add(TextFormatting.GRAY + I18n.format(
+                    prefix + "active_target", symbol,
+                    formatWithCommas(entry.getActiveThreshold(true)), formatTargetProgress(entry)));
+                tooltip.add(TextFormatting.GRAY + I18n.format(
+                    prefix + "increasing_target", symbol, formatWithCommas(entry.getThreshold())));
+                tooltip.add(TextFormatting.GRAY + I18n.format(
+                    prefix + "decreasing_target", symbol, formatWithCommas(entry.getLowerThreshold())));
+            } else {
+                tooltip.add(TextFormatting.GRAY + I18n.format(
+                    prefix + "current_target", symbol,
+                    formatWithCommas(entry.getThreshold()), formatTargetProgress(entry)));
+            }
         } else {
-            tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.storage_emitter.empty_slot"));
+            tooltip.add(TextFormatting.GRAY + I18n.format(prefix + "empty_slot"));
         }
 
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.storage_emitter.controls.title"));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.storage_emitter.controls.scroll"));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.storage_emitter.controls.toggle"));
+        tooltip.add(TextFormatting.AQUA + I18n.format(prefix + "controls.title"));
+        tooltip.add(TextFormatting.GRAY + I18n.format(prefix + "controls.scroll"));
+        tooltip.add(TextFormatting.GRAY + I18n.format(prefix + "controls.toggle"));
 
         return tooltip;
     }
@@ -489,7 +562,7 @@ public class GuiStorageMonitor extends GuiContainer {
 
     private int getTargetProgressPercent(MonitoredEntry entry) {
         long quantity = Math.max(0, entry.getLastQuantity());
-        long threshold = Math.max(0, entry.getThreshold());
+        long threshold = Math.max(0, entry.getActiveThreshold(container.isSyncHysteresisEnabled()));
 
         if (entry.getComparison() == ComparisonMode.GREATER
                 || entry.getComparison() == ComparisonMode.GREATER_EQUAL) {
@@ -580,7 +653,7 @@ public class GuiStorageMonitor extends GuiContainer {
      * click would do (see {@link #handleEntryClick}).
      */
     private void drawZoneHover(int x, int y, int mouseX, int mouseY, MonitoredEntry entry) {
-        CellZone zone = pickZone(x, y, mouseX, mouseY);
+        CellZone zone = pickZone(x, y, mouseX, mouseY, container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return;
 
         int hl = 0x40FFFFFF;
@@ -588,11 +661,19 @@ public class GuiStorageMonitor extends GuiContainer {
             case COMPARATOR:
                 drawRect(x + CMP_X, y + CMP_Y, x + CMP_X + CMP_SIZE, y + CMP_Y + CMP_SIZE, hl);
                 break;
-            case LEFT:
+            case SELECTOR:
                 drawRect(x, y, x + LEFT_RIGHT_SPLIT, y + INNER_H, hl);
                 break;
-            case RIGHT:
-                drawRect(x + LEFT_RIGHT_SPLIT, y, x + INNER_W, y + INNER_H, hl);
+            case UPPER_THRESHOLD:
+                drawRect(
+                    x + LEFT_RIGHT_SPLIT,
+                    y,
+                    x + INNER_W,
+                    y + (container.isSyncHysteresisEnabled() ? INNER_H / 2 : INNER_H),
+                    hl);
+                break;
+            case LOWER_THRESHOLD:
+                drawRect(x + LEFT_RIGHT_SPLIT, y + INNER_H / 2, x + INNER_W, y + INNER_H, hl);
                 break;
             default:
                 break;
@@ -603,7 +684,7 @@ public class GuiStorageMonitor extends GuiContainer {
      * Returns the zone the given screen-space mouse coordinate is in for a cell at (x,y).
      * Comparator takes priority over left/right because it visually overlaps both halves.
      */
-    private static CellZone pickZone(int x, int y, int mouseX, int mouseY) {
+    private static CellZone pickZone(int x, int y, int mouseX, int mouseY, boolean hysteresisEnabled) {
         if (mouseX < x || mouseX >= x + INNER_W || mouseY < y || mouseY >= y + INNER_H) return CellZone.NONE;
 
         int localX = mouseX - x;
@@ -612,11 +693,14 @@ public class GuiStorageMonitor extends GuiContainer {
         if (localX >= CMP_X && localX < CMP_X + CMP_SIZE
                 && localY >= CMP_Y && localY < CMP_Y + CMP_SIZE) return CellZone.COMPARATOR;
 
-        return localX < LEFT_RIGHT_SPLIT ? CellZone.LEFT : CellZone.RIGHT;
+        if (localX < LEFT_RIGHT_SPLIT) return CellZone.SELECTOR;
+        if (!hysteresisEnabled) return CellZone.UPPER_THRESHOLD;
+
+        return localY < INNER_H / 2 ? CellZone.UPPER_THRESHOLD : CellZone.LOWER_THRESHOLD;
     }
 
     private void drawEntryContent(int x, int y, MonitoredEntry entry) {
-        // Comparator + numbers are drawn for ALL entries (including resource-less placeholders)
+        // Comparator + thresholds are drawn for ALL entries (including resource-less placeholders)
         // because the user can pre-configure those before picking a resource for the slot.
         if (entry != null) {
             drawComparison(x + CMP_X, y + CMP_Y, entry.getComparison());
@@ -625,6 +709,10 @@ public class GuiStorageMonitor extends GuiContainer {
 
         // Icon zone shows either the resource or a clickable "+" placeholder.
         drawEntryIcon(x + ICON_X, y + ICON_Y, entry);
+
+        if (entry != null && entry.hasResource()) {
+            drawCurrentQuantity(x + ICON_X, y + ICON_Y, entry);
+        }
     }
 
     private void drawComparison(int x, int y, ComparisonMode mode) {
@@ -674,6 +762,10 @@ public class GuiStorageMonitor extends GuiContainer {
             int w = fontRenderer.getStringWidth(plus);
             fontRenderer.drawString(plus, x + (ICON_SIZE - w) / 2, y + (ICON_SIZE - 8) / 2, 0xFFAAAAAA);
             return;
+        } else {
+            // Keep a dark plate behind every icon so translucent resources and overlay text
+            // stay readable regardless of the slot tint below them.
+            drawRect(x, y, x + ICON_SIZE, y + ICON_SIZE, 0x20000000);
         }
 
         GlStateManager.enableTexture2D();
@@ -682,30 +774,60 @@ public class GuiStorageMonitor extends GuiContainer {
         MonitoredResourceRenderer.renderIcon(entry.getResource(), x, y, ICON_SIZE);
     }
 
-    private void drawEntryNumbers(int x, int y, MonitoredEntry entry) {
-        // Slim form keeps numbers compact enough to fit in 16 px.
+    private void drawCurrentQuantity(int x, int y, MonitoredEntry entry) {
         String currentStr = ReadableNumberConverter.INSTANCE.toSlimReadableForm(entry.getLastQuantity());
-        String thresholdStr = ReadableNumberConverter.INSTANCE.toSlimReadableForm(entry.getThreshold());
         int color = entry.isEnabled() ? 0xFFFFFFFF : 0xFF808080;
 
-        // Half-size text: scale by 0.5 around the cell origin, so a 16x16 box has
-        // 32x32 of drawable space in the scaled coord system. Stack the two numbers
-        // vertically with a 1 px gap between them, centered horizontally.
-        // We pop right after to avoid leaking the scaled matrix into other GUI passes.
+        int textW = fontRenderer.getStringWidth(currentStr);
+        int scaledIconSize = ICON_SIZE * 2;
+        int textX = scaledIconSize - textW;
+        int textY = scaledIconSize - fontRenderer.FONT_HEIGHT + 1;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0);
+        GlStateManager.scale(0.5F, 0.5F, 1.0F);
+        fontRenderer.drawStringWithShadow(currentStr, textX, textY, color);
+        GlStateManager.popMatrix();
+    }
+
+    private void drawEntryNumbers(int x, int y, MonitoredEntry entry) {
+        boolean hysteresisEnabled = container.isSyncHysteresisEnabled();
+        String upperStr = ReadableNumberConverter.INSTANCE.toSlimReadableForm(entry.getThreshold());
+        String lowerStr = ReadableNumberConverter.INSTANCE.toSlimReadableForm(entry.getLowerThreshold());
+        int activeColor = entry.isEnabled() ? 0xFFFFFFFF : 0xFF808080;
+        int inactiveColor = entry.isEnabled() ? 0xFFC0C0C0 : 0xFF707070;
+
+        // Draw half-scale so we are not cramming 2x 8px height numbers into the 22px available
+        // TODO: should we skip the 0.5x scale if we have hysteresis disabled and are only drawing one number?
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0);
         GlStateManager.scale(0.5F, 0.5F, 1.0F);
 
         int scaledBoxW = NUM_SIZE * 2;
-        int currentW = fontRenderer.getStringWidth(currentStr);
-        int thresholdW = fontRenderer.getStringWidth(thresholdStr);
+        if (!hysteresisEnabled) {
+            int thresholdW = fontRenderer.getStringWidth(upperStr);
+            int textY = 12;
+            fontRenderer.drawStringWithShadow(upperStr, (scaledBoxW - thresholdW) / 2f, textY, activeColor);
+            GlStateManager.popMatrix();
+            return;
+        }
 
-        // Vertical layout in the half-scaled space: ~3 px top padding, line, 1 px gap, line.
-        int line1Y = 6;
-        int line2Y = line1Y + fontRenderer.FONT_HEIGHT + 2;
+        boolean upperActive = entry.usesUpperThreshold(true);
+        int upperW = fontRenderer.getStringWidth(upperStr);
+        int lowerW = fontRenderer.getStringWidth(lowerStr);
 
-        fontRenderer.drawStringWithShadow(currentStr, (scaledBoxW - currentW) / 2f, line1Y, color);
-        fontRenderer.drawStringWithShadow(thresholdStr, (scaledBoxW - thresholdW) / 2f, line2Y, color);
+        // TODO: draw a line between the two numbers to separate them
+
+        fontRenderer.drawStringWithShadow(
+            upperStr,
+            (scaledBoxW - upperW) / 2f,
+            4,
+            upperActive ? activeColor : inactiveColor);
+        fontRenderer.drawStringWithShadow(
+            lowerStr,
+            (scaledBoxW - lowerW) / 2f,
+            18,
+            upperActive ? inactiveColor : activeColor);
 
         GlStateManager.popMatrix();
     }
@@ -719,10 +841,14 @@ public class GuiStorageMonitor extends GuiContainer {
             0xFF000000);
 
         // GuiTextField doesn't support centering natively, so we manually draw the text on top.
+        String label = getCountFieldLabel();
         String txt = countField.getText();
         int textW = fontRenderer.getStringWidth(txt);
-        int textX = countField.x + (COUNT_FIELD_W - textW) / 2;
         int textY = countField.y + (COUNT_FIELD_H - 8) / 2 + 1;
+        fontRenderer.drawString(label, countField.x + 4, textY, 0xFFAAAAAA);
+
+        int labelRight = countField.x + fontRenderer.getStringWidth(label) + 8;
+        int textX = Math.max(labelRight, countField.x + (COUNT_FIELD_W - textW) / 2);
         fontRenderer.drawString(txt, textX, textY, 0xFFFFFFFF);
 
         // Blinking cursor approximation, positioned just after the text up to the cursor index.
@@ -732,6 +858,16 @@ public class GuiStorageMonitor extends GuiContainer {
             int caretX = textX + fontRenderer.getStringWidth(beforeCursor);
             drawRect(caretX, textY - 1, caretX + 1, textY + 9, 0xFFFFFFFF);
         }
+    }
+
+    private String getCountFieldLabel() {
+        String prefix = "gui.ae2powertools.storage_emitter.";
+        if (!container.isSyncHysteresisEnabled()) {
+            return I18n.format(prefix + "target_label");
+        }
+
+        return I18n.format(countFieldTarget == ThresholdField.UPPER
+            ? prefix + "increasing_label" : prefix + "decreasing_label");
     }
 
     // ====================== SELECTOR MODAL ======================
@@ -975,6 +1111,11 @@ public class GuiStorageMonitor extends GuiContainer {
             return;
         }
 
+        if (hysteresisBtnHovered && mouseButton == 0) {
+            toggleHysteresisMode();
+            return;
+        }
+
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
         // Per-cell hit detection. Reject clicks outside the grid early.
@@ -995,17 +1136,17 @@ public class GuiStorageMonitor extends GuiContainer {
 
         int idx = row * GRID_COLS + col;
 
-        handleEntryClick(idx, localX, localY, mouseButton, dismissedField);
+        handleEntryClick(idx, localX, localY, mouseButton);
     }
 
-    private void handleEntryClick(int idx, int localX, int localY, int mouseButton, boolean dismissedField) {
+    private void handleEntryClick(int idx, int localX, int localY, int mouseButton) {
         List<MonitoredEntry> entries = container.getHost().getEntries();
         if (idx < 0 || idx >= entries.size()) return;
 
         MonitoredEntry entry = entries.get(idx);
 
         if (mouseButton == 1) {
-            sendEntryUpdate(idx, entry.getComparison(), entry.getThreshold(), !entry.isEnabled());
+            sendEntryUpdate(idx, entry.getComparison(), entry.getThreshold(), entry.getLowerThreshold(), !entry.isEnabled());
             return;
         }
 
@@ -1014,7 +1155,7 @@ public class GuiStorageMonitor extends GuiContainer {
         // Use the same zone picker as the hover highlight so click and visual feedback agree.
         // pickZone expects screen-space coords; we pass (0, 0) as the cell origin so localX/localY
         // are evaluated against the inner cell rect.
-        CellZone zone = pickZone(0, 0, localX, localY);
+        CellZone zone = pickZone(0, 0, localX, localY, container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return;
 
         switch (zone) {
@@ -1022,12 +1163,16 @@ public class GuiStorageMonitor extends GuiContainer {
                 cycleComparison(idx);
                 return;
 
-            case LEFT:
+            case SELECTOR:
                 openSelector(idx);
                 return;
 
-            case RIGHT:
-                showCountField(idx);
+            case UPPER_THRESHOLD:
+                showCountField(idx, ThresholdField.UPPER);
+                return;
+
+            case LOWER_THRESHOLD:
+                showCountField(idx, ThresholdField.LOWER);
                 return;
 
             default: return;
@@ -1128,9 +1273,13 @@ public class GuiStorageMonitor extends GuiContainer {
         int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
 
         GridHit hit = getGridHit(mouseX, mouseY);
-        if (hit == null || hit.zone != CellZone.RIGHT) return;
+        if (hit == null) return;
+        if (hit.zone != CellZone.UPPER_THRESHOLD && hit.zone != CellZone.LOWER_THRESHOLD) return;
 
-        adjustEntryThreshold(hit.index, scroll > 0);
+        adjustEntryThreshold(
+            hit.index,
+            hit.zone == CellZone.LOWER_THRESHOLD ? ThresholdField.LOWER : ThresholdField.UPPER,
+            scroll > 0);
     }
 
     // ====================== STATE TRANSITIONS ======================
@@ -1154,7 +1303,7 @@ public class GuiStorageMonitor extends GuiContainer {
         int localY = gy - row * CELL_H;
         if (localX >= INNER_W || localY >= INNER_H) return null;
 
-        CellZone zone = pickZone(0, 0, localX, localY);
+        CellZone zone = pickZone(0, 0, localX, localY, container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return null;
 
         return new GridHit(row * GRID_COLS + col, zone);
@@ -1164,6 +1313,11 @@ public class GuiStorageMonitor extends GuiContainer {
         MatchMode next = container.getSyncMatchMode().next();
         PowerToolsNetwork.INSTANCE.sendToServer(
             new PacketSetMatchMode(container.getHost(), next));
+    }
+
+    private void toggleHysteresisMode() {
+        PowerToolsNetwork.INSTANCE.sendToServer(
+            new PacketSetHysteresisMode(container.getHost(), !container.isSyncHysteresisEnabled()));
     }
 
     private void syncEmitterRedstoneButton() {
@@ -1191,26 +1345,39 @@ public class GuiStorageMonitor extends GuiContainer {
 
         MonitoredEntry e = entries.get(idx);
         ComparisonMode next = e.getComparison().next();
-        sendEntryUpdate(idx, next, e.getThreshold(), e.isEnabled());
+        sendEntryUpdate(idx, next, e.getThreshold(), e.getLowerThreshold(), e.isEnabled());
     }
 
-    private void adjustEntryThreshold(int idx, boolean doubleTarget) {
+    private void adjustEntryThreshold(int idx, ThresholdField target, boolean doubleTarget) {
         List<MonitoredEntry> entries = container.getHost().getEntries();
         if (idx < 0 || idx >= entries.size()) return;
 
         MonitoredEntry entry = entries.get(idx);
-        long oldThreshold = entry.getThreshold();
+        long oldThreshold = getThresholdValue(entry, target);
         long newThreshold = doubleTarget ? doubleThreshold(oldThreshold) : oldThreshold / 2;
         if (newThreshold == oldThreshold) return;
 
-        entry.setThreshold(newThreshold);
+        setThresholdValue(entry, target, newThreshold);
 
-        if (countField != null && countField.getVisible() && countFieldEntryIndex == idx) {
+        if (countField != null && countField.getVisible() && countFieldEntryIndex == idx && countFieldTarget == target) {
             countField.setText(formatWithCommas(newThreshold));
             countField.setCursorPositionEnd();
         }
 
-        sendEntryUpdate(idx, entry.getComparison(), newThreshold, entry.isEnabled());
+        sendEntryUpdate(idx, entry.getComparison(), entry.getThreshold(), entry.getLowerThreshold(), entry.isEnabled());
+    }
+
+    private long getThresholdValue(MonitoredEntry entry, ThresholdField target) {
+        return target == ThresholdField.UPPER ? entry.getThreshold() : entry.getLowerThreshold();
+    }
+
+    private void setThresholdValue(MonitoredEntry entry, ThresholdField target, long value) {
+        if (target == ThresholdField.UPPER) {
+            entry.setThreshold(value);
+            return;
+        }
+
+        entry.setLowerThreshold(value);
     }
 
     private long doubleThreshold(long threshold) {
@@ -1220,19 +1387,20 @@ public class GuiStorageMonitor extends GuiContainer {
         return threshold * 2;
     }
 
-    private void sendEntryUpdate(int idx, ComparisonMode comparison, long threshold, boolean enabled) {
+    private void sendEntryUpdate(int idx, ComparisonMode comparison, long threshold, long lowerThreshold, boolean enabled) {
         PowerToolsNetwork.INSTANCE.sendToServer(
-            new PacketUpdateMonitorEntry(container.getHost(), idx, comparison, threshold, enabled));
+            new PacketUpdateMonitorEntry(container.getHost(), idx, comparison, threshold, lowerThreshold, enabled));
     }
 
-    private void showCountField(int idx) {
+    private void showCountField(int idx, ThresholdField target) {
         List<MonitoredEntry> entries = container.getHost().getEntries();
         if (idx < 0 || idx >= entries.size()) return;
 
         countFieldEntryIndex = idx;
+        countFieldTarget = target;
         countField.setVisible(true);
         countField.setFocused(true);
-        countField.setText(formatWithCommas(entries.get(idx).getThreshold()));
+        countField.setText(formatWithCommas(getThresholdValue(entries.get(idx), target)));
         countField.setCursorPositionEnd();
 
         Keyboard.enableRepeatEvents(true);
@@ -1246,6 +1414,7 @@ public class GuiStorageMonitor extends GuiContainer {
         countField.setVisible(false);
         countField.setFocused(false);
         countFieldEntryIndex = -1;
+        countFieldTarget = ThresholdField.UPPER;
 
         Keyboard.enableRepeatEvents(false);
     }
@@ -1262,7 +1431,13 @@ public class GuiStorageMonitor extends GuiContainer {
 
         long value = parseCommaNumber(countField.getText());
         MonitoredEntry e = entries.get(countFieldEntryIndex);
-        sendEntryUpdate(countFieldEntryIndex, e.getComparison(), value, e.isEnabled());
+        if (countFieldTarget == ThresholdField.UPPER) {
+            e.setThreshold(value);
+        } else {
+            e.setLowerThreshold(value);
+        }
+
+        sendEntryUpdate(countFieldEntryIndex, e.getComparison(), e.getThreshold(), e.getLowerThreshold(), e.isEnabled());
     }
 
     /**
@@ -1296,14 +1471,19 @@ public class GuiStorageMonitor extends GuiContainer {
      * Exclusion zones for JEI's overlay so its sidebar doesn't paint over our
      * out-of-frame side button. Mirrors GuiBetterLevelMaintainer's helper of the same name.
      * <p>
-     * The match-mode (AND/OR) button sits OUTSIDE guiLeft to the left, so JEI thinks
-     * that area is free space and happily covers it with its filter UI; we have to
-     * declare it explicitly. The polling-rate wrench tab button is inside the GUI
-     * bounds and doesn't need to be listed.
+     * The side buttons sit OUTSIDE guiLeft to the left, so JEI thinks that area is
+     * free space and happily covers it with its filter UI; we have to declare them
+     * explicitly. The polling-rate wrench tab button is inside the GUI bounds and
+     * doesn't need to be listed.
      */
-    public List<java.awt.Rectangle> getJEIExclusionArea() {
-        List<java.awt.Rectangle> areas = new ArrayList<>();
-        areas.add(new java.awt.Rectangle(matchBtnX, matchBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
+    public List<Rectangle> getJEIExclusionArea() {
+        List<Rectangle> areas = new ArrayList<>();
+        areas.add(new Rectangle(matchBtnX, matchBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
+        areas.add(new Rectangle(hysteresisBtnX, hysteresisBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
+        if (redstoneSignalBtn != null) {
+            areas.add(new Rectangle(redstoneSignalBtn.x, redstoneSignalBtn.y,
+                                    redstoneSignalBtn.width, redstoneSignalBtn.height));
+        }
         return areas;
     }
 }

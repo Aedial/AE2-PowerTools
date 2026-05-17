@@ -10,7 +10,7 @@ import com.ae2powertools.features.monitor.dependent.ComparisonMode;
 
 
 /**
- * A single monitoring entry: a resource to watch, a comparison operator, and a threshold.
+ * A single monitoring entry: a resource to watch, a comparison operator, and one or two thresholds.
  * Each entry independently evaluates to a boolean (quantity COMP threshold),
  * then AND/OR across all entries determines the overall condition.
  *
@@ -31,7 +31,10 @@ public class MonitoredEntry {
     @Nullable
     private final MonitoredResource resource;
     private ComparisonMode comparison;
+    /** Upper / increasing threshold. Also the single threshold used when hysteresis is disabled. */
     private long threshold;
+    /** Lower / decreasing threshold. Ignored unless hysteresis mode is enabled on the host. */
+    private long lowerThreshold;
 
     /** Whether this entry counts toward the overall AND/OR condition. */
     private boolean enabled;
@@ -39,18 +42,27 @@ public class MonitoredEntry {
     /** Last looked-up quantity from the network. Transient, not persisted. */
     private transient long lastQuantity;
 
-    /** Last evaluation result (transient, used for GUI feedback). Even disabled entries get evaluated for display. */
+    /**
+     * Last evaluation result, used both for GUI feedback and to preserve the latched hysteresis
+     * state across chunk unloads / world reloads.
+     */
     private transient boolean lastConditionMet;
 
     public MonitoredEntry(MonitoredResource resource, ComparisonMode comparison, long threshold) {
-        this(resource, comparison, threshold, true);
+        this(resource, comparison, threshold, threshold, true);
     }
 
     public MonitoredEntry(@Nullable MonitoredResource resource, ComparisonMode comparison, long threshold, boolean enabled) {
+        this(resource, comparison, threshold, threshold, enabled);
+    }
+
+    public MonitoredEntry(@Nullable MonitoredResource resource, ComparisonMode comparison, long threshold, long lowerThreshold, boolean enabled) {
         this.resource = resource;
         this.comparison = comparison;
-        this.threshold = threshold;
         this.enabled = enabled;
+
+        setThreshold(threshold);
+        setLowerThreshold(lowerThreshold);
     }
 
     /**
@@ -59,7 +71,7 @@ public class MonitoredEntry {
      * can pre-configure a slot before selecting a resource for it.
      */
     public static MonitoredEntry empty() {
-        return new MonitoredEntry(null, ComparisonMode.GREATER_EQUAL, 0, true);
+        return new MonitoredEntry(null, ComparisonMode.GREATER_EQUAL, 0, 0, true);
     }
 
     /**
@@ -67,7 +79,7 @@ public class MonitoredEntry {
      * Used when the user picks a resource from the selector before configuring thresholds.
      */
     public static MonitoredEntry withDefaults(MonitoredResource resource) {
-        return new MonitoredEntry(resource, ComparisonMode.GREATER_EQUAL, 0, true);
+        return new MonitoredEntry(resource, ComparisonMode.GREATER_EQUAL, 0, 0, true);
     }
 
     // --- Evaluation ---
@@ -78,8 +90,20 @@ public class MonitoredEntry {
      * so the GUI can show live feedback for every entry.
      */
     public boolean evaluate(long networkQuantity) {
+        return evaluate(networkQuantity, false);
+    }
+
+    /**
+     * Evaluates the entry against either the single threshold or the active hysteresis bound.
+     * Hysteresis uses the previous condition state as the latch: entries that are currently off
+     * test against the boundary that turns them on, while entries that are currently on test
+     * against the boundary that turns them off.
+     */
+    public boolean evaluate(long networkQuantity, boolean hysteresisEnabled) {
         this.lastQuantity = networkQuantity;
-        this.lastConditionMet = comparison.test(networkQuantity, threshold);
+
+        long activeThreshold = getActiveThreshold(hysteresisEnabled);
+        this.lastConditionMet = comparison.test(networkQuantity, activeThreshold);
 
         return this.lastConditionMet;
     }
@@ -114,6 +138,15 @@ public class MonitoredEntry {
     public void setThreshold(long threshold) {
         // Negative thresholds clamp to 0 since AE2 quantities can't go negative.
         this.threshold = Math.max(0, threshold);
+        if (lowerThreshold > this.threshold) lowerThreshold = this.threshold;
+    }
+
+    public long getLowerThreshold() {
+        return lowerThreshold;
+    }
+
+    public void setLowerThreshold(long lowerThreshold) {
+        this.lowerThreshold = Math.max(0, Math.min(lowerThreshold, threshold));
     }
 
     public boolean isEnabled() {
@@ -144,12 +177,37 @@ public class MonitoredEntry {
         this.lastConditionMet = lastConditionMet;
     }
 
+    public long getActiveThreshold(boolean hysteresisEnabled) {
+        if (!hysteresisEnabled) return threshold;
+
+        switch (comparison) {
+            case GREATER:
+            case GREATER_EQUAL:
+                return lastConditionMet ? lowerThreshold : threshold;
+
+            case LESS:
+            case LESS_EQUAL:
+                return lastConditionMet ? threshold : lowerThreshold;
+
+            default:
+                return threshold;
+        }
+    }
+
+    public boolean usesUpperThreshold(boolean hysteresisEnabled) {
+        if (!hysteresisEnabled) return true;
+
+        return getActiveThreshold(true) == threshold;
+    }
+
     // --- NBT serialization ---
 
     private static final String NBT_RESOURCE = "Resource";
     private static final String NBT_COMPARISON = "Comparison";
     private static final String NBT_THRESHOLD = "Threshold";
+    private static final String NBT_LOWER_THRESHOLD = "LowerThreshold";
     private static final String NBT_ENABLED = "Enabled";
+    private static final String NBT_LAST_CONDITION_MET = "LastConditionMet";
 
     public NBTTagCompound writeToNBT() {
         NBTTagCompound tag = new NBTTagCompound();
@@ -158,7 +216,9 @@ public class MonitoredEntry {
         if (resource != null) tag.setTag(NBT_RESOURCE, resource.writeToNBT());
         tag.setInteger(NBT_COMPARISON, comparison.getId());
         tag.setLong(NBT_THRESHOLD, threshold);
+        tag.setLong(NBT_LOWER_THRESHOLD, lowerThreshold);
         tag.setBoolean(NBT_ENABLED, enabled);
+        tag.setBoolean(NBT_LAST_CONDITION_MET, lastConditionMet);
 
         return tag;
     }
@@ -173,9 +233,15 @@ public class MonitoredEntry {
 
         ComparisonMode comparison = ComparisonMode.fromId(tag.getInteger(NBT_COMPARISON));
         long threshold = tag.getLong(NBT_THRESHOLD);
+        long lowerThreshold = tag.hasKey(NBT_LOWER_THRESHOLD)
+            ? tag.getLong(NBT_LOWER_THRESHOLD)
+            : threshold;
         boolean enabled = tag.getBoolean(NBT_ENABLED);
 
-        return new MonitoredEntry(resource, comparison, threshold, enabled);
+        MonitoredEntry entry = new MonitoredEntry(resource, comparison, threshold, lowerThreshold, enabled);
+        if (tag.hasKey(NBT_LAST_CONDITION_MET)) entry.setLastConditionMet(tag.getBoolean(NBT_LAST_CONDITION_MET));
+
+        return entry;
     }
 
     // --- ByteBuf serialization (for network packets) ---
@@ -185,6 +251,7 @@ public class MonitoredEntry {
         if (resource != null) resource.writeToBuf(buf);
         buf.writeInt(comparison.getId());
         buf.writeLong(threshold);
+        buf.writeLong(lowerThreshold);
         buf.writeBoolean(enabled);
     }
 
@@ -192,8 +259,9 @@ public class MonitoredEntry {
         MonitoredResource resource = buf.readBoolean() ? MonitoredResource.readFromBuf(buf) : null;
         ComparisonMode comparison = ComparisonMode.fromId(buf.readInt());
         long threshold = buf.readLong();
+        long lowerThreshold = buf.readLong();
         boolean enabled = buf.readBoolean();
 
-        return new MonitoredEntry(resource, comparison, threshold, enabled);
+        return new MonitoredEntry(resource, comparison, threshold, lowerThreshold, enabled);
     }
 }

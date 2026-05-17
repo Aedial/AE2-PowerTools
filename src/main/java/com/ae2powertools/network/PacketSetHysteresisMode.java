@@ -8,65 +8,53 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.dependent.IStorageMonitorHost;
 import com.ae2powertools.features.monitor.dependent.StorageMonitorHostResolver;
 
 
 /**
- * Client -> server packet to remove a monitored entry by index.
+ * Client -> server packet to toggle hysteresis mode on a monitor host.
  */
-public class PacketRemoveMonitorEntry implements IMessage {
+public class PacketSetHysteresisMode implements IMessage {
 
     private BlockPos pos;
     /** -1 for block-tile hosts, AEPartLocation ordinal for cable parts. */
     private byte side;
-    private int index;
+    private boolean hysteresisEnabled;
 
-    public PacketRemoveMonitorEntry() {}
+    public PacketSetHysteresisMode() {}
 
-    public PacketRemoveMonitorEntry(IStorageMonitorHost host, int index) {
+    public PacketSetHysteresisMode(IStorageMonitorHost host, boolean hysteresisEnabled) {
         this.pos = host.getHostPos();
         this.side = StorageMonitorHostResolver.encodeSide(host.getHostSide());
-        this.index = index;
+        this.hysteresisEnabled = hysteresisEnabled;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         pos = BlockPos.fromLong(buf.readLong());
         side = buf.readByte();
-        index = buf.readInt();
+        hysteresisEnabled = buf.readBoolean();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeLong(pos.toLong());
         buf.writeByte(side);
-        buf.writeInt(index);
+        buf.writeBoolean(hysteresisEnabled);
     }
 
-    public static class Handler implements IMessageHandler<PacketRemoveMonitorEntry, IMessage> {
+    public static class Handler implements IMessageHandler<PacketSetHysteresisMode, IMessage> {
 
         @Override
-        public IMessage onMessage(PacketRemoveMonitorEntry message, MessageContext ctx) {
+        public IMessage onMessage(PacketSetHysteresisMode message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
 
             player.getServerWorld().addScheduledTask(() -> {
                 IStorageMonitorHost host = StorageMonitorHostResolver.resolve(player.world, message.pos, message.side);
                 if (host == null) return;
 
-                java.util.List<MonitoredEntry> entries = host.getEntries();
-                if (message.index < 0 || message.index >= entries.size()) return;
-
-                MonitoredEntry old = entries.get(message.index);
-                MonitoredEntry cleared = new MonitoredEntry(
-                    null,
-                    old.getComparison(),
-                    old.getThreshold(),
-                    old.getLowerThreshold(),
-                    old.isEnabled()
-                );
-                host.setEntry(message.index, cleared);
+                host.setHysteresisEnabled(message.hysteresisEnabled);
             });
 
             return null;

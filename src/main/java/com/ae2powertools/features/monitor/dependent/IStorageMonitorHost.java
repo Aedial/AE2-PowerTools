@@ -46,6 +46,10 @@ public interface IStorageMonitorHost {
 
     void setMatchMode(MatchMode mode);
 
+    boolean isHysteresisEnabled();
+
+    void setHysteresisEnabled(boolean hysteresisEnabled);
+
     // --- Condition ---
 
     /**

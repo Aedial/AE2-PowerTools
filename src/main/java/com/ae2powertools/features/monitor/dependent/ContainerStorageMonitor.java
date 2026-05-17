@@ -46,6 +46,9 @@ public class ContainerStorageMonitor extends AEBaseContainer {
     @GuiSync(4)
     public int emitterRedstoneSignalStrength;
 
+    @GuiSync(5)
+    public int hysteresisEnabled;
+
     // --- Cached per-entry state for change detection (server-side only) ---
     /** Cached quantities for each entry, used to detect changes worth syncing to the client. */
     private long[] cachedQuantities = new long[0];
@@ -184,6 +187,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         this.emitterRedstoneSignalStrength = supportsEmitterRedstoneStrength()
             ? ((IEmitterRedstoneStrengthHost) host).getRedstoneSignalStrength().getId()
             : EmitterRedstoneStrength.WEAK.getId();
+        this.hysteresisEnabled = host.isHysteresisEnabled() ? 1 : 0;
     }
 
     // --- Client-side getters ---
@@ -209,6 +213,10 @@ public class ContainerStorageMonitor extends AEBaseContainer {
 
     public EmitterRedstoneStrength getSyncEmitterRedstoneSignalStrength() {
         return EmitterRedstoneStrength.fromId(emitterRedstoneSignalStrength);
+    }
+
+    public boolean isSyncHysteresisEnabled() {
+        return hysteresisEnabled != 0;
     }
 
     public IStorageMonitorHost getHost() {

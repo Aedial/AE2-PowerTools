@@ -16,7 +16,7 @@ import com.ae2powertools.features.monitor.dependent.StorageMonitorHostResolver;
 
 /**
  * Client -> server packet to update an existing monitored entry's settings
- * (comparison mode, threshold, enabled flag) without changing its resource.
+ * (comparison mode, thresholds, enabled flag) without changing its resource.
  *
  * If the index is out of range, the packet is ignored.
  */
@@ -28,16 +28,18 @@ public class PacketUpdateMonitorEntry implements IMessage {
     private int index;
     private int comparisonId;
     private long threshold;
+    private long lowerThreshold;
     private boolean enabled;
 
     public PacketUpdateMonitorEntry() {}
 
-    public PacketUpdateMonitorEntry(IStorageMonitorHost host, int index, ComparisonMode comparison, long threshold, boolean enabled) {
+    public PacketUpdateMonitorEntry(IStorageMonitorHost host, int index, ComparisonMode comparison, long threshold, long lowerThreshold, boolean enabled) {
         this.pos = host.getHostPos();
         this.side = StorageMonitorHostResolver.encodeSide(host.getHostSide());
         this.index = index;
         this.comparisonId = comparison.getId();
         this.threshold = threshold;
+        this.lowerThreshold = lowerThreshold;
         this.enabled = enabled;
     }
 
@@ -48,6 +50,7 @@ public class PacketUpdateMonitorEntry implements IMessage {
         index = buf.readInt();
         comparisonId = buf.readInt();
         threshold = buf.readLong();
+        lowerThreshold = buf.readLong();
         enabled = buf.readBoolean();
     }
 
@@ -58,6 +61,7 @@ public class PacketUpdateMonitorEntry implements IMessage {
         buf.writeInt(index);
         buf.writeInt(comparisonId);
         buf.writeLong(threshold);
+        buf.writeLong(lowerThreshold);
         buf.writeBoolean(enabled);
     }
 
@@ -78,6 +82,7 @@ public class PacketUpdateMonitorEntry implements IMessage {
                     old.getResource(),
                     ComparisonMode.fromId(message.comparisonId),
                     message.threshold,
+                    message.lowerThreshold,
                     message.enabled
                 );
 

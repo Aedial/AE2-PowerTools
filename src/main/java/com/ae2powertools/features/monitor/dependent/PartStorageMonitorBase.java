@@ -165,6 +165,9 @@ public abstract class PartStorageMonitorBase extends AEBasePart
     @Override public MatchMode getMatchMode() { return monitorLogic.getMatchMode(); }
     @Override public void setMatchMode(MatchMode mode) { monitorLogic.setMatchMode(mode); }
 
+    @Override public boolean isHysteresisEnabled() { return monitorLogic.isHysteresisEnabled(); }
+    @Override public void setHysteresisEnabled(boolean hysteresisEnabled) { monitorLogic.setHysteresisEnabled(hysteresisEnabled); }
+
     @Override public boolean isConditionMet() { return monitorLogic.isConditionMet(); }
     @Override public long getFirstEntryQuantity() { return monitorLogic.getFirstEntryQuantity(); }
     @Override public MonitorLogic getMonitorLogic() { return monitorLogic; }
