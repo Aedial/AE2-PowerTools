@@ -20,7 +20,7 @@ import com.ae2powertools.features.monitor.dependent.StorageMonitorHostResolver;
 /**
  * Client → server packet:
  * - If {@code targetIndex} is >= 0 and {@code content} is non-null: replace the resource of
- *   the entry at that index, preserving its comparison/threshold/enabled flag.
+ *   the entry at that index, preserving its comparison/thresholds/enabled flag.
  * - If {@code content} is null: clear all entries (legacy "clear" behavior).
  * <p>
  * Carries the side byte (-1 for tiles, AEPartLocation ordinal for parts) so the server
@@ -98,6 +98,7 @@ public class PacketSelectMonitorContent implements IMessage {
                     message.content,
                     old.getComparison(),
                     old.getThreshold(),
+                    old.getLowerThreshold(),
                     old.isEnabled()
                 );
 

@@ -8,6 +8,20 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.0-alpha3] - 2026-05-12
+### Added
+- Add condition persistence to the Storage Monitor and Storage Level Emitter, allowing them to maintain their state over restarts and chunk unloads. This way, machines relaying on the quantity condition won't be disrupted by temporary issues or restarts.
+- Add an optional hysteresis mode with separate increasing and decreasing thresholds for each monitored entry.
+
+### Changed
+- Move live quantity to the left side, with the resource icon, in the Storage Level Emitter / Storage Display's GUI.
+
+
+## [1.6.0-alpha2] - 2026-05-11
+### Added
+- Delay Better Level Maintainer startup requests until the AE2 network and storage cell topology have settled. This also affects topology changes like adding/removing storage cells, which should prevent a lot of weird behaviors and errors that can occur when the maintainer tries to run while the network is in an inconsistent state.
+
+
 ## [1.6.0-alpha] - 2026-05-10
 ### Added
 - Add Storage Level Emitter and Storage Display, alternative versions of the AE2 Level Emitter and Storage Monitor, with configurable refresh rate and more controlable matching. This should provide better performance when dealing with a lot of rapid changes, but do not need to react immediately.

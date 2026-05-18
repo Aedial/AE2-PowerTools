@@ -68,6 +68,7 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketUpdateMonitorEntry.Handler.class, PacketUpdateMonitorEntry.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketRemoveMonitorEntry.Handler.class, PacketRemoveMonitorEntry.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetMatchMode.Handler.class, PacketSetMatchMode.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetHysteresisMode.Handler.class, PacketSetHysteresisMode.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetEmitterRedstoneStrength.Handler.class, PacketSetEmitterRedstoneStrength.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketStorageEntryStateSync.Handler.class, PacketStorageEntryStateSync.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketSyncMonitorEntries.Handler.class, PacketSyncMonitorEntries.class, packetId++, Side.CLIENT);

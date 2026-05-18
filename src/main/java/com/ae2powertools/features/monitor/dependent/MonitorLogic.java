@@ -76,6 +76,9 @@ public class MonitorLogic {
     /** How multiple entries are combined: AND = all must be met, OR = any must be met */
     private MatchMode matchMode = MatchMode.AND;
 
+    /** Whether entries use separate increasing/decreasing thresholds instead of a single bound. */
+    private boolean hysteresisEnabled;
+
     /** Whether the overall condition (AND/OR across all entries) is currently met */
     private boolean conditionMet;
 
@@ -128,7 +131,7 @@ public class MonitorLogic {
             if (!entry.isEnabled() || !entry.hasResource()) continue;
 
             long qty = lookupQuantity(storage, entry.getResource());
-            entry.evaluate(qty);
+            entry.evaluate(qty, hysteresisEnabled);
         }
 
         // Second pass: combine only the ENABLED entries' results (resource-less ones don't count).
@@ -242,7 +245,7 @@ public class MonitorLogic {
                 if (entry.isEnabled() || !entry.hasResource()) continue;
 
                 long qty = lookupQuantity(storage, entry.getResource());
-                entry.evaluate(qty);
+                entry.evaluate(qty, hysteresisEnabled);
             }
         } catch (GridAccessException e) {
             // Network unavailable, leave last known quantities in place.
@@ -458,6 +461,15 @@ public class MonitorLogic {
         host.markDirtyAndSave();
     }
 
+    public boolean isHysteresisEnabled() {
+        return hysteresisEnabled;
+    }
+
+    public void setHysteresisEnabled(boolean hysteresisEnabled) {
+        this.hysteresisEnabled = hysteresisEnabled;
+        host.markDirtyAndSave();
+    }
+
     public boolean isConditionMet() {
         return conditionMet;
     }
@@ -480,10 +492,12 @@ public class MonitorLogic {
     private static final String NBT_REFRESH_RATE = "RefreshRate";
     private static final String NBT_ENTRIES = "Entries";
     private static final String NBT_MATCH_MODE = "MatchMode";
+    private static final String NBT_HYSTERESIS_ENABLED = "HysteresisEnabled";
 
     public void writeToNBT(NBTTagCompound tag) {
         tag.setInteger(NBT_REFRESH_RATE, refreshRate);
         tag.setInteger(NBT_MATCH_MODE, matchMode.getId());
+        tag.setBoolean(NBT_HYSTERESIS_ENABLED, hysteresisEnabled);
 
         if (!entries.isEmpty()) {
             NBTTagList list = new NBTTagList();
@@ -497,6 +511,7 @@ public class MonitorLogic {
     public void readFromNBT(NBTTagCompound tag) {
         refreshRate = tag.hasKey(NBT_REFRESH_RATE) ? tag.getInteger(NBT_REFRESH_RATE) : DEFAULT_REFRESH_RATE;
         matchMode = tag.hasKey(NBT_MATCH_MODE) ? MatchMode.fromId(tag.getInteger(NBT_MATCH_MODE)) : MatchMode.AND;
+        hysteresisEnabled = tag.getBoolean(NBT_HYSTERESIS_ENABLED);
 
         // Always start fresh with a full-size grid of placeholders, then overwrite slots from NBT.
         // This handles older saves that had < 24 entries and prevents drift from the GUI's
