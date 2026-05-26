@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.0-alpha4] - 2026-05-26
+### Fixed
+- Fix PMT not having a JEI exclusion zone for the AutoCrafter.
+- Fix Better Level Maintainer delaying some entries for far too long after AE2 network or storage topology changes.
+
+
 ## [1.6.0-alpha3] - 2026-05-12
 ### Added
 - Add condition persistence to the Storage Monitor and Storage Level Emitter, allowing them to maintain their state over restarts and chunk unloads. This way, machines relaying on the quantity condition won't be disrupted by temporary issues or restarts.

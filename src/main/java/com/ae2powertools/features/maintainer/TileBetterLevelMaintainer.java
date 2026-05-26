@@ -242,9 +242,9 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         long worldTime = world.getTotalWorldTime();
 
-        if (networkPauseStartTime < 0) networkPauseStartTime = worldTime;
-
         if (networkInitializationPending) {
+            if (networkPauseStartTime < 0) networkPauseStartTime = worldTime;
+
             networkInitializationPending = false;
             networkSettleDeadline = worldTime + NETWORK_SETTLE_TICKS;
 

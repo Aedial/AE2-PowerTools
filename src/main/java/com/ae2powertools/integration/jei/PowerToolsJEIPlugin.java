@@ -11,6 +11,7 @@ import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.gui.IAdvancedGuiHandler;
 import mezz.jei.api.ingredients.IIngredientRegistry;
 
+import com.ae2powertools.features.crafter.GuiAutoCrafter;
 import com.ae2powertools.features.maintainer.GuiBetterLevelMaintainer;
 import com.ae2powertools.features.monitor.dependent.GuiStorageMonitor;
 
@@ -26,6 +27,8 @@ public class PowerToolsJEIPlugin implements IModPlugin {
     public void register(IModRegistry registry) {
         // Register advanced GUI handler for maintainer GUI
         registry.addAdvancedGuiHandlers(new MaintainerGuiHandler());
+        // AutoCrafter: the Pattern Multi-Tool panel extends outside the base GUI.
+        registry.addAdvancedGuiHandlers(new AutoCrafterGuiHandler());
         // Storage Emitter / Display: the AND/OR side button sits outside guiLeft
         // and would otherwise be hidden under JEI's overlay panel.
         registry.addAdvancedGuiHandlers(new StorageMonitorGuiHandler());
@@ -79,6 +82,31 @@ public class PowerToolsJEIPlugin implements IModPlugin {
         @Nullable
         @Override
         public Object getIngredientUnderMouse(@Nonnull GuiBetterLevelMaintainer gui, int mouseX, int mouseY) {
+            return null;
+        }
+    }
+
+    /**
+     * GUI handler for the AutoCrafter GUI.
+     * Provides JEI with the exclusion zone for the Pattern Multi-Tool panel.
+     */
+    public static class AutoCrafterGuiHandler implements IAdvancedGuiHandler<GuiAutoCrafter> {
+
+        @Override
+        @Nonnull
+        public Class<GuiAutoCrafter> getGuiContainerClass() {
+            return GuiAutoCrafter.class;
+        }
+
+        @Nullable
+        @Override
+        public List<Rectangle> getGuiExtraAreas(@Nonnull GuiAutoCrafter gui) {
+            return gui.getJEIExclusionArea();
+        }
+
+        @Nullable
+        @Override
+        public Object getIngredientUnderMouse(@Nonnull GuiAutoCrafter gui, int mouseX, int mouseY) {
             return null;
         }
     }
