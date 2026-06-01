@@ -9,7 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -20,11 +19,13 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import com.ae2powertools.features.scanner.ChannelChokepoint;
 import com.ae2powertools.features.scanner.ChannelChokepoint.DirectionFlow;
 import com.ae2powertools.features.scanner.ChunkLocation;
+import com.ae2powertools.features.scanner.FatalNetworkError;
 import com.ae2powertools.features.scanner.IssueLocation;
 import com.ae2powertools.features.scanner.MissingChannelDevice;
 import com.ae2powertools.features.scanner.NetworkScanner;
 import com.ae2powertools.features.scanner.ScanSessionManager;
 import com.ae2powertools.features.scanner.ScannerClientState;
+import com.ae2powertools.features.scanner.ScannerTextHelper;
 import com.ae2powertools.features.scanner.ScannerClientState.ChunkLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.ChokeLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.ConnectionFlowClient;
@@ -47,6 +48,7 @@ public class PacketScannerSync implements IMessage {
     private List<ChunkLocationData> chunkLocations;
     private List<MissingDeviceData> missingDevices;
     private List<ChokeLocationData> chokeLocations;
+    private List<FatalErrorData> fatalErrors;
 
     /**
      * Data structure for transmitting loop locations.
@@ -167,11 +169,35 @@ public class PacketScannerSync implements IMessage {
         }
     }
 
+    /**
+     * Data structure for transmitting fatal network errors.
+     */
+    private static class FatalErrorData {
+        int categoryOrdinal;
+        BlockPos pos;
+        int dimension;
+        String dimensionName;
+        String description;
+        BlockPos sourcePos;
+
+        FatalErrorData() {}
+
+        FatalErrorData(FatalNetworkError error) {
+            this.categoryOrdinal = error.getCategory().ordinal();
+            this.pos = error.getPos();
+            this.dimension = error.getDimension();
+            this.dimensionName = error.getDimensionName();
+            this.description = error.getDescription();
+            this.sourcePos = error.getSourcePos();
+        }
+    }
+
     public PacketScannerSync() {
         this.loopLocations = new ArrayList<>();
         this.chunkLocations = new ArrayList<>();
         this.missingDevices = new ArrayList<>();
         this.chokeLocations = new ArrayList<>();
+        this.fatalErrors = new ArrayList<>();
     }
 
     public PacketScannerSync(ScanSessionManager.ScanSession session, long deviceId) {
@@ -181,6 +207,7 @@ public class PacketScannerSync implements IMessage {
         this.chunkLocations = new ArrayList<>();
         this.missingDevices = new ArrayList<>();
         this.chokeLocations = new ArrayList<>();
+        this.fatalErrors = new ArrayList<>();
 
         if (session != null) {
             NetworkScanner scanner = session.getScanner();
@@ -248,6 +275,10 @@ public class PacketScannerSync implements IMessage {
                 }
 
                 chokeLocations.add(chokeData);
+            }
+
+            for (FatalNetworkError error : scanner.getFatalErrors()) {
+                fatalErrors.add(new FatalErrorData(error));
             }
         } else {
             this.isComplete = true;
@@ -343,6 +374,21 @@ public class PacketScannerSync implements IMessage {
 
             chokeLocations.add(data);
         }
+
+        int fatalCount = buf.readInt();
+        fatalErrors = new ArrayList<>(fatalCount);
+        for (int i = 0; i < fatalCount; i++) {
+            FatalErrorData data = new FatalErrorData();
+            data.categoryOrdinal = buf.readInt();
+            data.pos = new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
+            data.dimension = buf.readInt();
+            data.dimensionName = ByteBufUtils.readUTF8String(buf);
+            data.description = ByteBufUtils.readUTF8String(buf);
+            if (buf.readBoolean()) {
+                data.sourcePos = new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
+            }
+            fatalErrors.add(data);
+        }
     }
 
     @Override
@@ -412,6 +458,23 @@ public class PacketScannerSync implements IMessage {
                 ByteBufUtils.writeUTF8String(buf, flowData.connectedDescription);
             }
         }
+
+        buf.writeInt(fatalErrors.size());
+        for (FatalErrorData data : fatalErrors) {
+            buf.writeInt(data.categoryOrdinal);
+            buf.writeInt(data.pos.getX());
+            buf.writeInt(data.pos.getY());
+            buf.writeInt(data.pos.getZ());
+            buf.writeInt(data.dimension);
+            ByteBufUtils.writeUTF8String(buf, data.dimensionName);
+            ByteBufUtils.writeUTF8String(buf, data.description);
+            buf.writeBoolean(data.sourcePos != null);
+            if (data.sourcePos != null) {
+                buf.writeInt(data.sourcePos.getX());
+                buf.writeInt(data.sourcePos.getY());
+                buf.writeInt(data.sourcePos.getZ());
+            }
+        }
     }
 
     public static class Handler implements IMessageHandler<PacketScannerSync, IMessage> {
@@ -424,16 +487,7 @@ public class PacketScannerSync implements IMessage {
 
                 ScannerClientState.setActiveSession(deviceId, message.hasSession);
                 ScannerClientState.setScanComplete(deviceId, message.isComplete);
-                ITextComponent statusComponent = null;
-                if (message.statusMessage != null && !message.statusMessage.isEmpty()) {
-                    // Best-effort: malformed JSON falls back to a plain string component.
-                    try {
-                        statusComponent = ITextComponent.Serializer.jsonToComponent(message.statusMessage);
-                    } catch (Exception e) {
-                        statusComponent = new TextComponentString(message.statusMessage);
-                    }
-                }
-                if (statusComponent == null) statusComponent = new TextComponentString("");
+                ITextComponent statusComponent = ScannerTextHelper.deserializeComponent(message.statusMessage);
                 ScannerClientState.setStatusMessage(deviceId, statusComponent);
 
                 // Set loop locations
@@ -444,7 +498,7 @@ public class PacketScannerSync implements IMessage {
                         data.dimension,
                         data.dimensionName,
                         data.blockName,
-                        data.description,
+                        ScannerTextHelper.resolveForDisplay(data.description),
                         data.isLoaded
                     ));
                 }
@@ -470,7 +524,7 @@ public class PacketScannerSync implements IMessage {
                         data.dimension,
                         data.dimensionName,
                         data.itemStack,
-                        data.description
+                        ScannerTextHelper.resolveForDisplay(data.description)
                     ));
                 }
                 ScannerClientState.setMissingDevices(deviceId, clientMissing);
@@ -485,7 +539,7 @@ public class PacketScannerSync implements IMessage {
                             flowData.channels,
                             flowData.demandedChannels,
                             flowData.connectedPos,
-                            flowData.connectedDescription
+                            ScannerTextHelper.resolveForDisplay(flowData.connectedDescription)
                         ));
                     }
 
@@ -494,7 +548,7 @@ public class PacketScannerSync implements IMessage {
                         data.dimension,
                         data.dimensionName,
                         data.blockName,
-                        data.description,
+                        ScannerTextHelper.resolveForDisplay(data.description),
                         data.usedChannels,
                         data.demandedChannels,
                         data.capacity,
@@ -502,6 +556,20 @@ public class PacketScannerSync implements IMessage {
                     ));
                 }
                 ScannerClientState.setChokeLocations(deviceId, clientChokes);
+
+                List<FatalNetworkError> clientFatal = new ArrayList<>();
+                for (FatalErrorData data : message.fatalErrors) {
+                    FatalNetworkError.Category category = FatalNetworkError.Category.values()[data.categoryOrdinal];
+                    clientFatal.add(new FatalNetworkError(
+                        category,
+                        data.pos,
+                        data.dimension,
+                        data.dimensionName,
+                        ScannerTextHelper.resolveForDisplay(data.description),
+                        data.sourcePos
+                    ));
+                }
+                ScannerClientState.setFatalErrors(deviceId, clientFatal);
             });
 
             return null;

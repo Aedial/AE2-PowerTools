@@ -85,7 +85,6 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
     private static final int TALL_SLICE_START_Y = 19;
     private static final int TALL_SLICE_END_Y = 42;
     private static final int TALL_SLICE_HEIGHT = TALL_SLICE_END_Y - TALL_SLICE_START_Y; // 23 pixels
-    private static final int TALL_ENTRY_HEIGHT = TALL_SLICE_HEIGHT;
     private static final int TALL_MARGIN = 10; // margin from screen edges
     private static final int TALL_STATUS_OFFSET = 18; // offset from bottom of GUI to status bar
 

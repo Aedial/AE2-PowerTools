@@ -12,7 +12,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.translation.I18n; // dead-code dependency: see getGroupedLoopResults below
+// import net.minecraft.util.text.translation.I18n; // dead-code dependency: see getGroupedLoopResults below
 
 import appeng.api.networking.IGrid;
 
@@ -172,6 +172,7 @@ public class ScanSessionManager {
         /**
          * Group sorted loop results by dimension for tree display.
          */
+        /*
         public Map<String, List<IssueLocation>> getGroupedLoopResults(BlockPos playerPos, int playerDimension) {
             Map<String, List<IssueLocation>> grouped = new HashMap<>();
 
@@ -183,7 +184,7 @@ public class ScanSessionManager {
             }
 
             return grouped;
-        }
+        } */
     }
 
     /**
@@ -286,6 +287,7 @@ public class ScanSessionManager {
         int chunks = scanner.getUnloadedChunks().size();
         int chokepoints = scanner.getChokepoints().size();
         int missing = scanner.getMissingDevices().size();
+        int fatal = scanner.getFatalErrors().size();
 
         // Build the message as a composite component: each line is its own TextComponentTranslation
         // so the receiving client formats it in its own locale.
@@ -299,6 +301,8 @@ public class ScanSessionManager {
         root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line3", chokepoints));
         root.appendText("\n");
         root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line4", missing));
+        root.appendText("\n");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line5", fatal));
 
         return root;
     }

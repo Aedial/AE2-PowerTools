@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
@@ -20,6 +21,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.ae2powertools.features.scanner.FatalNetworkError.Category;
 import com.ae2powertools.features.scanner.ScannerClientState.ChunkLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.ChokeLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.LoopLocationClient;
@@ -31,7 +33,7 @@ import com.ae2powertools.network.PowerToolsNetwork;
 
 
 /**
- * GUI for displaying network health scan results with tabs and dimension categories.
+ * GUI for displaying network health scan results with tabs and grouped categories.
  */
 @SideOnly(Side.CLIENT)
 public class GuiNetworkHealthScanner extends GuiScreen {
@@ -84,8 +86,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private int maxScroll = 0;
     private boolean isDraggingScrollbar = false;
 
-    // Collapsed dimensions
-    private final Map<String, Boolean> collapsedDimensions = new HashMap<>();
+    // Collapsed row groups
+    private final Map<String, Boolean> collapsedGroups = new HashMap<>();
 
     // Cached display rows and max text width
     private List<DisplayRow> displayRows = null;
@@ -113,15 +115,21 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         final Type type;
         final String text;
-        final String dimensionKey;    // For categories
+        final String groupKey;        // For categories
+        final String tooltipKey;      // Optional tooltip for category rows
         final int locationIndex;       // For entries
         final boolean isLastInCategory;
 
         // Category constructor
-        DisplayRow(String dimensionKey, String text) {
+        DisplayRow(String groupKey, String text) {
+            this(groupKey, text, null);
+        }
+
+        DisplayRow(String groupKey, String text, String tooltipKey) {
             this.type = Type.CATEGORY;
-            this.dimensionKey = dimensionKey;
+            this.groupKey = groupKey;
             this.text = text;
+            this.tooltipKey = tooltipKey;
             this.locationIndex = -1;
             this.isLastInCategory = false;
         }
@@ -129,8 +137,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         // Entry constructor
         DisplayRow(int index, String text, boolean isLastInCategory) {
             this.type = Type.ENTRY;
-            this.dimensionKey = null;
+            this.groupKey = null;
             this.text = text;
+            this.tooltipKey = null;
             this.locationIndex = index;
             this.isLastInCategory = isLastInCategory;
         }
@@ -199,8 +208,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             + cancelWidth + 10;
         guiWidth = Math.max(guiWidth, minButtonsWidth);
 
-        // Minimum height to fit all 4 tabs: HEADER_HEIGHT + 4 tabs + 3 spacers (2px each)
-        int minTabsHeight = HEADER_HEIGHT + 4 * TAB_SIZE + 3 * 2;
+        // Minimum height to fit all 5 tabs: HEADER_HEIGHT + 5 tabs + 4 spacers (2px each)
+        int minTabsHeight = HEADER_HEIGHT + 5 * TAB_SIZE + 4 * 2;
 
         // Calculate height based on number of rows (fit as many as possible up to max)
         int availableContentHeight = maxGuiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
@@ -270,10 +279,12 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             rebuildLoopRows();
         } else if (currentTab == Tab.UNLOADED_CHUNKS) {
             rebuildChunkRows();
+        } else if (currentTab == Tab.CHOKEPOINTS) {
+            rebuildChokeRows();
         } else if (currentTab == Tab.MISSING_CHANNELS) {
             rebuildMissingRows();
         } else {
-            rebuildChokeRows();
+            rebuildFatalRows();
         }
 
         // Calculate footer content and height
@@ -339,10 +350,10 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             }
 
             // Skip entries if dimension is collapsed
-            if (collapsedDimensions.getOrDefault(dimKey, false)) continue;
+            if (collapsedGroups.getOrDefault(dimKey, false)) continue;
 
             // Check if this is the last entry in its category
-            boolean isLast = isLastLoopInCategory(sorted, i, loc.dimensionName, loc.dimension);
+            boolean isLast = isLastLoopInCategory(sorted, i);
 
             // Format entry text
             BlockPos pos = loc.pos;
@@ -390,10 +401,10 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             }
 
             // Skip entries if dimension is collapsed
-            if (collapsedDimensions.getOrDefault(dimKey, false)) continue;
+            if (collapsedGroups.getOrDefault(dimKey, false)) continue;
 
             // Check if this is the last entry in its category
-            boolean isLast = isLastChunkInCategory(sorted, i, loc.dimensionName, loc.dimension);
+            boolean isLast = isLastChunkInCategory(sorted, i);
 
             // Format entry text
             double distance = 0;
@@ -408,24 +419,24 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         }
     }
 
-    private boolean isLastLoopInCategory(List<LoopLocationClient> sorted, int index, String dimName, int dim) {
-        for (int j = index + 1; j < sorted.size(); j++) {
-            LoopLocationClient nextLoc = sorted.get(j);
-            if (nextLoc.dimensionName.equals(dimName) && nextLoc.dimension == dim) return false;
-            break;
-        }
+    /**
+     * Rows are grouped by the same sort order used to render them, so only the next
+     * adjacent item can extend the current tree branch.
+     */
+    private <T> boolean isLastInSortedGroup(List<T> sorted, int index, BiPredicate<T, T> sameGroup) {
+        if (index >= sorted.size() - 1) return true;
 
-        return true;
+        return !sameGroup.test(sorted.get(index), sorted.get(index + 1));
     }
 
-    private boolean isLastChunkInCategory(List<ChunkLocationClient> sorted, int index, String dimName, int dim) {
-        for (int j = index + 1; j < sorted.size(); j++) {
-            ChunkLocationClient nextLoc = sorted.get(j);
-            if (nextLoc.dimensionName.equals(dimName) && nextLoc.dimension == dim) return false;
-            break;
-        }
+    private boolean isLastLoopInCategory(List<LoopLocationClient> sorted, int index) {
+        return isLastInSortedGroup(sorted, index,
+            (current, next) -> next.dimensionName.equals(current.dimensionName) && next.dimension == current.dimension);
+    }
 
-        return true;
+    private boolean isLastChunkInCategory(List<ChunkLocationClient> sorted, int index) {
+        return isLastInSortedGroup(sorted, index,
+            (current, next) -> next.dimensionName.equals(current.dimensionName) && next.dimension == current.dimension);
     }
 
     private void rebuildMissingRows() {
@@ -458,10 +469,10 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             }
 
             // Skip entries if dimension is collapsed
-            if (collapsedDimensions.getOrDefault(dimKey, false)) continue;
+            if (collapsedGroups.getOrDefault(dimKey, false)) continue;
 
             // Check if this is the last entry in its category
-            boolean isLast = isLastMissingInCategory(sorted, i, loc.dimensionName, loc.dimension);
+            boolean isLast = isLastMissingInCategory(sorted, i);
 
             // Format entry text: display name [x,y,z] - distance
             BlockPos pos = loc.pos;
@@ -479,14 +490,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         }
     }
 
-    private boolean isLastMissingInCategory(List<MissingDeviceClient> sorted, int index, String dimName, int dim) {
-        for (int j = index + 1; j < sorted.size(); j++) {
-            MissingDeviceClient nextLoc = sorted.get(j);
-            if (nextLoc.dimensionName.equals(dimName) && nextLoc.dimension == dim) return false;
-            break;
-        }
-
-        return true;
+    private boolean isLastMissingInCategory(List<MissingDeviceClient> sorted, int index) {
+        return isLastInSortedGroup(sorted, index,
+            (current, next) -> next.dimensionName.equals(current.dimensionName) && next.dimension == current.dimension);
     }
 
     private void rebuildChokeRows() {
@@ -519,10 +525,10 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             }
 
             // Skip entries if dimension is collapsed
-            if (collapsedDimensions.getOrDefault(dimKey, false)) continue;
+            if (collapsedGroups.getOrDefault(dimKey, false)) continue;
 
             // Check if this is the last entry in its category
-            boolean isLast = isLastChokeInCategory(sorted, i, loc.dimensionName, loc.dimension);
+            boolean isLast = isLastChokeInCategory(sorted, i);
 
             // Format entry text: description [x,y,z] demanded/capacity (-excess) - distance
             BlockPos pos = loc.pos;
@@ -543,14 +549,58 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         }
     }
 
-    private boolean isLastChokeInCategory(List<ChokeLocationClient> sorted, int index, String dimName, int dim) {
-        for (int j = index + 1; j < sorted.size(); j++) {
-            ChokeLocationClient nextLoc = sorted.get(j);
-            if (nextLoc.dimensionName.equals(dimName) && nextLoc.dimension == dim) return false;
-            break;
+    private boolean isLastChokeInCategory(List<ChokeLocationClient> sorted, int index) {
+        return isLastInSortedGroup(sorted, index,
+            (current, next) -> next.dimensionName.equals(current.dimensionName) && next.dimension == current.dimension);
+    }
+
+    private void rebuildFatalRows() {
+        List<FatalNetworkError> sorted = ScannerClientState.getSortedFatalErrors();
+        List<FatalNetworkError> original = ScannerClientState.getFatalErrors();
+        if (sorted.isEmpty()) return;
+
+        Map<Category, Integer> categoryCounts = new HashMap<>();
+        for (FatalNetworkError error : sorted) {
+            categoryCounts.merge(error.getCategory(), 1, Integer::sum);
         }
 
-        return true;
+        Category lastCategory = null;
+        for (int i = 0; i < sorted.size(); i++) {
+            FatalNetworkError error = sorted.get(i);
+            int originalIndex = original.indexOf(error);
+            Category category = error.getCategory();
+            String groupKey = category.name();
+
+            if (category != lastCategory) {
+                int count = categoryCounts.getOrDefault(category, 0);
+                String categoryText = I18n.format(category.getTitleKey()) + " (" + count + ")";
+                displayRows.add(new DisplayRow(groupKey, categoryText, category.getTooltipKey()));
+                maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(categoryText));
+                lastCategory = category;
+            }
+
+            if (collapsedGroups.getOrDefault(groupKey, false)) continue;
+
+            boolean isLast = isLastFatalInCategory(sorted, i);
+
+            BlockPos pos = error.getPos();
+            String posStr = String.format("[%d, %d, %d]", pos.getX(), pos.getY(), pos.getZ());
+
+            double distance = 0;
+            if (mc.player != null && mc.player.dimension == error.getDimension()) {
+                distance = error.getDistanceFrom(mc.player.getPosition());
+            }
+            String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
+            String text = ScannerClientState.getFatalErrorDisplayText(error) + " " + posStr + distStr;
+
+            displayRows.add(new DisplayRow(originalIndex, text, isLast));
+            maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
+        }
+    }
+
+    private boolean isLastFatalInCategory(List<FatalNetworkError> sorted, int index) {
+        return isLastInSortedGroup(sorted, index,
+            (current, next) -> next.getCategory() == current.getCategory());
     }
 
     @Override
@@ -640,6 +690,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         // Draw tooltips last (on top of everything)
         drawTabTooltips(mouseX, mouseY);
         drawSortButtonTooltip(mouseX, mouseY);
+        drawRowTooltips(mouseX, mouseY);
     }
 
     private void drawRow(DisplayRow row, int x, int y, int width, boolean hovered) {
@@ -648,7 +699,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             drawRect(x - 2, y, x + width + 2, y + ROW_HEIGHT, COLOR_CATEGORY_BG);
 
             // Draw collapse indicator
-            boolean collapsed = collapsedDimensions.getOrDefault(row.dimensionKey, false);
+            boolean collapsed = collapsedGroups.getOrDefault(row.groupKey, false);
             String indicator = collapsed ? "▶" : "▼";
             fontRenderer.drawString(indicator, x + 2, y + (ROW_HEIGHT - fontRenderer.FONT_HEIGHT) / 2,
                 COLOR_CATEGORY_TEXT);
@@ -755,8 +806,13 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         // Tab 3: Channel chokepoints (info - blue count color)
         int chokeCount = ScannerClientState.getChokeLocations().size();
-        drawSingleTab(mouseX, mouseY, tabY, 3, Tab.CHOKEPOINTS, currentTab,
+        tabY = drawSingleTab(mouseX, mouseY, tabY, 3, Tab.CHOKEPOINTS, currentTab,
             "⚡", chokeCount, chokeCount > 0 ? 0xFF66AAFF : COLOR_TEXT_DIM);
+
+        // Tab 4: Fatal errors (critical - red count color)
+        int fatalCount = ScannerClientState.getFatalErrors().size();
+        drawSingleTab(mouseX, mouseY, tabY, 4, Tab.FATAL_ERRORS, currentTab,
+            "!", fatalCount, fatalCount > 0 ? 0xFFFF4444 : COLOR_TEXT_DIM);
     }
 
     /**
@@ -812,11 +868,24 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         } else if (hoveredTabIndex == 3) {
             int count = ScannerClientState.getChokeLocations().size();
             tooltip.add(I18n.format("gui.ae2powertools.scanner.tab_chokepoints", count));
+        } else if (hoveredTabIndex == 4) {
+            int count = ScannerClientState.getFatalErrors().size();
+            tooltip.add(I18n.format("gui.ae2powertools.scanner.tab_fatal", count));
         }
 
         if (!tooltip.isEmpty()) {
             drawHoveringText(tooltip, mouseX, mouseY);
         }
+    }
+
+    private void drawRowTooltips(int mouseX, int mouseY) {
+        if (displayRows == null || hoveredRowIndex < 0 || hoveredRowIndex >= displayRows.size()) return;
+
+        DisplayRow row = displayRows.get(hoveredRowIndex);
+        if (row.type != DisplayRow.Type.CATEGORY || row.tooltipKey == null) return;
+
+        List<String> tooltip = fontRenderer.listFormattedStringToWidth(I18n.format(row.tooltipKey), 240);
+        if (!tooltip.isEmpty()) drawHoveringText(tooltip, mouseX, mouseY);
     }
 
     /**
@@ -909,6 +978,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int tab1Y = tab0Y + TAB_SIZE + 2;
         int tab2Y = tab1Y + TAB_SIZE + 2;
         int tab3Y = tab2Y + TAB_SIZE + 2;
+        int tab4Y = tab3Y + TAB_SIZE + 2;
 
         if (mouseX >= guiLeft && mouseX < guiLeft + TAB_SIZE) {
             if (mouseY >= tab0Y && mouseY < tab0Y + TAB_SIZE) {
@@ -954,6 +1024,17 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
                 return;
             }
+
+            if (mouseY >= tab4Y && mouseY < tab4Y + TAB_SIZE) {
+                if (ScannerClientState.getCurrentTab() != Tab.FATAL_ERRORS) {
+                    ScannerClientState.setCurrentTab(Tab.FATAL_ERRORS);
+                    scrollOffset = 0;
+                    rebuildDisplayRows();
+                    recalculateLayout();
+                }
+
+                return;
+            }
         }
 
         // Calculate content area
@@ -978,8 +1059,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
             if (row.type == DisplayRow.Type.CATEGORY) {
                 // Toggle category collapse
-                boolean collapsed = collapsedDimensions.getOrDefault(row.dimensionKey, false);
-                collapsedDimensions.put(row.dimensionKey, !collapsed);
+                boolean collapsed = collapsedGroups.getOrDefault(row.groupKey, false);
+                collapsedGroups.put(row.groupKey, !collapsed);
                 rebuildDisplayRows();
             } else {
                 // Selection logic: if all or none selected, focus only this one

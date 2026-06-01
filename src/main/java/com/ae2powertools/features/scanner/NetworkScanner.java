@@ -9,7 +9,6 @@ import java.util.Set;
 
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
-import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -223,8 +222,11 @@ public class NetworkScanner {
 
         int chokeCount = channelScanner != null ? channelScanner.getChokepoints().size() : 0;
         int missingCount = channelScanner != null ? channelScanner.getMissingDevices().size() : 0;
+        int fatalCount = channelScanner != null ? channelScanner.getFatalErrors().size() : 0;
 
-        if (detectedLoops.isEmpty() && unloadedChunks.isEmpty() && chokeCount == 0 && missingCount == 0) {
+        // Loops are not counted, because they are not necessarily "issues".
+        // Just a catch to be aware of.
+        if (unloadedChunks.isEmpty() && chokeCount == 0 && missingCount == 0 && fatalCount == 0) {
             statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_issues", nodesProcessed);
         } else {
             statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.found_issues", nodesProcessed);
@@ -321,7 +323,7 @@ public class NetworkScanner {
         boolean isLoaded = nodeWorld != null && nodeWorld.isBlockLoaded(pos);
         IBlockState blockState = isLoaded ? nodeWorld.getBlockState(pos) : Blocks.AIR.getDefaultState();
 
-        String description = getNodeDescription(node);
+        String description = ScannerTextHelper.getNodeDescription(node);
         IssueLocation loopLoc = new IssueLocation(pos, dimension, dimName, blockState, isLoaded, description);
         detectedLoops.add(loopLoc);
     }
@@ -342,7 +344,7 @@ public class NetworkScanner {
 
         if (isLoaded) blockState = nodeWorld.getBlockState(pos);
 
-        String description = getNodeDescription(node);
+        String description = ScannerTextHelper.getNodeDescription(node);
         IssueLocation loopLoc = new IssueLocation(pos, dimension, dimName, blockState, isLoaded, description);
         detectedLoops.add(loopLoc);
     }
@@ -403,39 +405,6 @@ public class NetworkScanner {
         }
 
         return null;
-    }
-
-    /**
-     * Get a human-readable description of a grid node.
-     * Uses the machine representation's display name for localized output.
-     */
-    private String getNodeDescription(IGridNode node) {
-        // NOTE: This produces a String that's later concatenated into other strings (and ends
-        // up baked into network packets), so we can't return a deferred ITextComponent here.
-        if (node == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
-
-        // Try to get the localized name from the machine representation
-        try {
-            ItemStack representation = node.getGridBlock().getMachineRepresentation();
-
-            if (!representation.isEmpty()) return representation.getDisplayName();
-        } catch (Exception e) {
-            // Fall through to class name fallback
-        }
-
-        // Fallback: clean up class name
-        IGridHost host = node.getMachine();
-        if (host == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
-
-        String className = host.getClass().getSimpleName();
-
-        if (className.startsWith("Tile")) {
-            className = className.substring(4);
-        } else if (className.startsWith("Part")) {
-            className = className.substring(4);
-        }
-
-        return className;
     }
 
     /**
@@ -503,6 +472,12 @@ public class NetworkScanner {
 
     public Set<MissingChannelDevice> getMissingDevices() {
         if (channelScanner != null) return channelScanner.getMissingDevices();
+
+        return new HashSet<>();
+    }
+
+    public Set<FatalNetworkError> getFatalErrors() {
+        if (channelScanner != null) return channelScanner.getFatalErrors();
 
         return new HashSet<>();
     }

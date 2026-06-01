@@ -28,8 +28,12 @@ import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
+import appeng.block.networking.BlockCableBus;
+import appeng.fluids.parts.PartFluidStorageBus;
+import appeng.helpers.IInterfaceHost;
 import appeng.me.cluster.IAECluster;
 import appeng.me.cluster.IAEMultiBlock;
+import appeng.parts.misc.PartStorageBus;
 import appeng.tile.networking.TileController;
 
 import com.ae2powertools.AE2PowerTools;
@@ -89,6 +93,40 @@ public class ChannelScanner {
     // Results
     private final Set<ChannelChokepoint> chokepoints = new HashSet<>();
     private final Set<MissingChannelDevice> missingDevices = new HashSet<>();
+    private final Set<FatalNetworkError> fatalErrors = new HashSet<>();
+
+    /**
+     * Target key used by both storage buses and interfaces.
+     * The side is only relevant when the target block can host multiple parts.
+     */
+    private static class TargetLocation {
+        final int dimension;
+        final BlockPos pos;
+        final EnumFacing side;
+
+        TargetLocation(int dimension, BlockPos pos, EnumFacing side) {
+            this.dimension = dimension;
+            this.pos = pos;
+            this.side = side;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof TargetLocation)) return false;
+
+            TargetLocation other = (TargetLocation) obj;
+            return dimension == other.dimension && pos.equals(other.pos) && side == other.side;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Integer.hashCode(dimension);
+            result = 31 * result + pos.hashCode();
+            result = 31 * result + (side != null ? side.hashCode() : 0);
+            return result;
+        }
+    }
 
     /**
      * BFS node that tracks the tree structure and channel counts.
@@ -292,6 +330,7 @@ public class ChannelScanner {
             // All demands propagated, now identify chokepoints and missing channels
             identifyChokepoints();
             identifyMissingChannelDevices();
+            identifyFatalErrors();
             isComplete = true;
 
             if (chokepoints.isEmpty()) {
@@ -368,7 +407,7 @@ public class ChannelScanner {
             World nodeWorld = getNodeWorld(bfsNode.gridNode);
             IBlockState blockState = (nodeWorld != null && nodeWorld.isBlockLoaded(pos))
                 ? nodeWorld.getBlockState(pos) : Blocks.AIR.getDefaultState();
-            String description = getNodeDescription(bfsNode.gridNode);
+            String description = ScannerTextHelper.getNodeDescription(bfsNode.gridNode);
 
             ChannelChokepoint chokepoint = new ChannelChokepoint(
                 pos, dimension, dimName, blockState, description,
@@ -411,12 +450,129 @@ public class ChannelScanner {
                 // Fall back to empty stack
             }
 
-            String description = getNodeDescription(node);
+            String description = ScannerTextHelper.getNodeDescription(node);
             MissingChannelDevice device = new MissingChannelDevice(
                 pos, dimension, dimName, itemStack, description
             );
             missingDevices.add(device);
         }
+    }
+
+    /**
+     * Detect fatal storage configuration problems after the tree is fully built.
+     * This pass only looks at active nodes we already discovered on the main grid.
+     */
+    private void identifyFatalErrors() {
+        Map<TargetLocation, List<IGridNode>> storageBusesByExactTarget = new HashMap<>();
+        Map<TargetLocation, List<IGridNode>> storageBusesByDuplicateTarget = new HashMap<>();
+        Set<TargetLocation> interfaceTargets = new HashSet<>();
+
+        for (BfsNode bfsNode : nodeMap.values()) {
+            IGridNode node = bfsNode.gridNode;
+
+            TargetLocation storageBusTarget = getStorageBusTarget(node);
+            if (storageBusTarget != null) {
+                storageBusesByExactTarget.computeIfAbsent(storageBusTarget, key -> new ArrayList<>()).add(node);
+
+                TargetLocation duplicateTarget = getDuplicateStorageTargetKey(node, storageBusTarget);
+                storageBusesByDuplicateTarget.computeIfAbsent(duplicateTarget, key -> new ArrayList<>()).add(node);
+            }
+
+            interfaceTargets.addAll(getInterfaceTargets(node));
+        }
+
+        for (Map.Entry<TargetLocation, List<IGridNode>> entry : storageBusesByDuplicateTarget.entrySet()) {
+            List<IGridNode> storageBuses = entry.getValue();
+
+            if (storageBuses.size() > 1) {
+                for (IGridNode storageBus : storageBuses) {
+                    addFatalError(FatalNetworkError.Category.DUPLICATE_STORAGE_TARGET, storageBus, entry.getKey().pos);
+                }
+            }
+        }
+
+        for (Map.Entry<TargetLocation, List<IGridNode>> entry : storageBusesByExactTarget.entrySet()) {
+            TargetLocation target = entry.getKey();
+            List<IGridNode> storageBuses = entry.getValue();
+
+            if (interfaceTargets.contains(target)) {
+                for (IGridNode storageBus : storageBuses) {
+                    addFatalError(FatalNetworkError.Category.SAME_NETWORK_INTERFACE_LINK, storageBus, target.pos);
+                }
+            }
+        }
+    }
+
+    private TargetLocation getDuplicateStorageTargetKey(IGridNode node, TargetLocation exactTarget) {
+        if (isCableMultipartTarget(node, exactTarget.pos)) return exactTarget;
+
+        return new TargetLocation(exactTarget.dimension, exactTarget.pos, null);
+    }
+
+    private boolean isCableMultipartTarget(IGridNode node, BlockPos targetPos) {
+        World nodeWorld = getNodeWorld(node);
+        if (nodeWorld == null || !nodeWorld.isBlockLoaded(targetPos)) return false;
+
+        return nodeWorld.getBlockState(targetPos).getBlock() instanceof BlockCableBus;
+    }
+
+    private TargetLocation getStorageBusTarget(IGridNode node) {
+        IGridHost host = node.getMachine();
+        TileEntity hostTile;
+        EnumFacing facing;
+
+        if (host instanceof PartStorageBus) {
+            PartStorageBus storageBus = (PartStorageBus) host;
+            if (storageBus.getHost() == null) return null;
+
+            hostTile = storageBus.getHost().getTile();
+            facing = storageBus.getSide().getFacing();
+        } else if (host instanceof PartFluidStorageBus) {
+            PartFluidStorageBus storageBus = (PartFluidStorageBus) host;
+            if (storageBus.getHost() == null) return null;
+
+            hostTile = storageBus.getHost().getTile();
+            facing = storageBus.getSide().getFacing();
+        } else {
+            return null;
+        }
+
+        if (hostTile == null || hostTile.getWorld() == null || facing == null) return null;
+
+        int dimension = hostTile.getWorld().provider.getDimension();
+        BlockPos targetPos = hostTile.getPos().offset(facing);
+        EnumFacing targetSide = facing.getOpposite();
+        return new TargetLocation(dimension, targetPos, targetSide);
+    }
+
+    private Set<TargetLocation> getInterfaceTargets(IGridNode node) {
+        Set<TargetLocation> targets = new HashSet<>();
+        IGridHost host = node.getMachine();
+        if (!(host instanceof IInterfaceHost)) return targets;
+
+        IInterfaceHost interfaceHost = (IInterfaceHost) host;
+        TileEntity tile = interfaceHost.getTileEntity();
+        if (tile == null || tile.getWorld() == null) return targets;
+
+        int dimension = tile.getWorld().provider.getDimension();
+        for (EnumFacing side : interfaceHost.getTargets()) {
+            if (side == null) continue;
+
+            targets.add(new TargetLocation(dimension, tile.getPos(), side));
+        }
+
+        return targets;
+    }
+
+    private void addFatalError(FatalNetworkError.Category category, IGridNode node, BlockPos pos) {
+        if (pos == null) return;
+
+        int dimension = getNodeDimension(node);
+        String dimName = getNodeDimensionName(node);
+        String description = ScannerTextHelper.getNodeDescription(node);
+        BlockPos sourcePos = getNodePosition(node);
+
+        fatalErrors.add(new FatalNetworkError(category, pos, dimension, dimName, description, sourcePos));
     }
 
     /**
@@ -427,16 +583,19 @@ public class ChannelScanner {
         if (bfsNode.parent != null) {
             BlockPos parentPos = getNodePosition(bfsNode.parent.gridNode);
             EnumFacing direction = getConnectionDirection(bfsNode.gridNode, bfsNode.connectionFromParent);
-            String parentDesc = getNodeDescription(bfsNode.parent.gridNode);
+            String parentDesc = ScannerTextHelper.getNodeDescription(bfsNode.parent.gridNode);
 
             // Parent carries all the demand (toward controller)
             int parentChannels = bfsNode.connectionFromParent != null
                 ? bfsNode.connectionFromParent.getUsedChannels() : 0;
 
-            String toControllerSuffix = " " + new TextComponentTranslation("ae2powertools.scanner.channel.to_controller").getFormattedText();
+            String parentDescWithDirection = ScannerTextHelper.appendTranslatedSuffix(
+                parentDesc,
+                "ae2powertools.scanner.channel.to_controller"
+            );
             DirectionFlow parentFlow = new DirectionFlow(
                 direction, parentChannels, bfsNode.channelDemand,
-                parentPos, parentDesc + toControllerSuffix
+                parentPos, parentDescWithDirection
             );
             chokepoint.addConnectionFlow(parentFlow);
         }
@@ -445,7 +604,7 @@ public class ChannelScanner {
         for (BfsNode child : bfsNode.children) {
             BlockPos childPos = getNodePosition(child.gridNode);
             EnumFacing direction = getConnectionDirection(bfsNode.gridNode, child.connectionFromParent);
-            String childDesc = getNodeDescription(child.gridNode);
+            String childDesc = ScannerTextHelper.getNodeDescription(child.gridNode);
 
             int childChannels = child.connectionFromParent != null
                 ? child.connectionFromParent.getUsedChannels() : 0;
@@ -497,41 +656,6 @@ public class ChannelScanner {
         }
 
         return null;
-    }
-
-    /**
-     * Get a human-readable description of a grid node.
-     * Uses the machine representation's display name for localized output.
-     * TODO: should move localization to client side and return ITextComponent here.
-     */
-    private String getNodeDescription(IGridNode node) {
-        // NOTE: Returns a String because the value is concatenated into other strings and
-        // baked into network packets. We resolve translations eagerly via getFormattedText()
-        // (server-side resolution, English fallback) to match the previous behavior.
-        if (node == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
-
-        // Try to get the localized name from the machine representation
-        try {
-            ItemStack representation = node.getGridBlock().getMachineRepresentation();
-
-            if (!representation.isEmpty()) return representation.getDisplayName();
-        } catch (Exception e) {
-            // Fall through to class name fallback
-        }
-
-        // Fallback: clean up class name
-        IGridHost host = node.getMachine();
-        if (host == null) return new TextComponentTranslation("ae2powertools.common.unknown").getFormattedText();
-
-        String className = host.getClass().getSimpleName();
-
-        if (className.startsWith("Tile")) {
-            className = className.substring(4);
-        } else if (className.startsWith("Part")) {
-            className = className.substring(4);
-        }
-
-        return className;
     }
 
     /**
@@ -589,6 +713,10 @@ public class ChannelScanner {
 
     public Set<MissingChannelDevice> getMissingDevices() {
         return missingDevices;
+    }
+
+    public Set<FatalNetworkError> getFatalErrors() {
+        return fatalErrors;
     }
 
     public int getNodesProcessed() {

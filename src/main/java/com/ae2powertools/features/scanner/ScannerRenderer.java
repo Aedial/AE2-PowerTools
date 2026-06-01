@@ -55,6 +55,8 @@ public class ScannerRenderer {
     private static final int MISSING_COLOR = 0xFF6666;
     // Chokepoint color (cyan/blue)
     private static final int CHOKE_COLOR = 0x66AAFF;
+    // Fatal error color (strong red)
+    private static final int FATAL_COLOR = 0xFF4444;
 
     /**
      * Render the scanner overlay on the HUD for info about the positions (top-left corner).
@@ -122,7 +124,7 @@ public class ScannerRenderer {
                 lines.add(loc.getDisplayName() + " " + posStr + ": " + distanceStr);
                 colors.add(MISSING_COLOR);
             }
-        } else {
+        } else if (currentTab == Tab.CHOKEPOINTS) {
             List<ChokeLocationClient> selected = ScannerClientState.getSelectedChokes();
 
             for (ChokeLocationClient loc : selected) {
@@ -136,6 +138,19 @@ public class ScannerRenderer {
                 String excessStr = excess > 0 ? " (-" + excess + ")" : "";
                 lines.add(loc.description + " " + posStr + " " + channelStr + excessStr + ": " + distanceStr);
                 colors.add(CHOKE_COLOR);
+            }
+        } else {
+            List<FatalNetworkError> selected = ScannerClientState.getSelectedFatalErrors();
+
+            for (FatalNetworkError error : selected) {
+                if (error.getDimension() != playerDim) continue;
+
+                double distance = error.getDistanceFrom(playerPos);
+                String distanceStr = formatDistance(distance);
+                String posStr = String.format("[%d, %d, %d]", error.getPos().getX(), error.getPos().getY(),
+                    error.getPos().getZ());
+                lines.add(ScannerClientState.getFatalErrorDisplayText(error) + " " + posStr + ": " + distanceStr);
+                colors.add(FATAL_COLOR);
             }
         }
 
@@ -205,8 +220,10 @@ public class ScannerRenderer {
             renderChunkLocations(mc, player, playerDim, playerPos, partialTicks);
         } else if (currentTab == Tab.MISSING_CHANNELS) {
             renderMissingLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks);
-        } else {
+        } else if (currentTab == Tab.CHOKEPOINTS) {
             renderChokeLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks);
+        } else {
+            renderFatalLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks);
         }
     }
 
@@ -326,6 +343,53 @@ public class ScannerRenderer {
                 double distance = loc.getDistanceFrom(playerPos);
                 if (distance > WIREFRAME_MAX_DISTANCE) {
                     DirectionArrowRenderer.drawDirectionArrow(player, loc.pos, MISSING_COLOR, distance, partialTicks);
+                }
+            }
+        }
+    }
+
+    /**
+     * Render fatal error location markers.
+     */
+    private void renderFatalLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
+            double playerX, double playerY, double playerZ, float partialTicks) {
+        List<FatalNetworkError> selected = ScannerClientState.getSelectedFatalErrors();
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(-playerX, -playerY, -playerZ);
+
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableLighting();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.disableDepth();
+        GlStateManager.depthMask(false);
+        GlStateManager.glLineWidth(3.0F);
+
+        for (FatalNetworkError error : selected) {
+            if (error.getDimension() != playerDim) continue;
+
+            double distance = error.getDistanceFrom(playerPos);
+            if (distance <= WIREFRAME_MAX_DISTANCE) {
+                BlockHighlightRenderer.renderBlockOutline(error.getPos(), 1.0f, 0.27f, 0.27f, 0.8f);
+            }
+        }
+
+        GlStateManager.depthMask(true);
+        GlStateManager.enableDepth();
+        GlStateManager.disableBlend();
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableLighting();
+        GlStateManager.popMatrix();
+
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
+            for (FatalNetworkError error : selected) {
+                if (error.getDimension() != playerDim) continue;
+
+                double distance = error.getDistanceFrom(playerPos);
+                if (distance > WIREFRAME_MAX_DISTANCE) {
+                    DirectionArrowRenderer.drawDirectionArrow(player, error.getPos(), FATAL_COLOR, distance, partialTicks);
                 }
             }
         }

@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.1-alpha] - 2026-06-01
+### Added
+- Add a Fatal Errors tab to the Network Health Scanner, for the detection of duplicate storage bus targets and storage buses that point back into interfaces on the same network.
+ 
+
 ## [1.6.0-alpha4] - 2026-05-26
 ### Fixed
 - Fix PMT not having a JEI exclusion zone for the AutoCrafter.
