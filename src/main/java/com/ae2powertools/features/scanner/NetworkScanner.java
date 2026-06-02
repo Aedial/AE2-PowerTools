@@ -1,5 +1,11 @@
 package com.ae2powertools.features.scanner;
 
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -7,24 +13,38 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import com.google.common.collect.ImmutableSetMultimap;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompressedStreamTools;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.storage.RegionFileCache;
 import net.minecraftforge.common.ForgeChunkManager;
-
-import com.google.common.collect.ImmutableSetMultimap;
+import net.minecraftforge.common.util.Constants;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
+import appeng.api.implementations.parts.IPartCable;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingGrid;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
+import appeng.api.util.AEColor;
+import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
 import appeng.me.cluster.IAECluster;
 import appeng.me.cluster.IAEMultiBlock;
@@ -42,6 +62,14 @@ import com.ae2powertools.AE2PowerTools;
  */
 public class NetworkScanner {
 
+    private static final String TEMP_NODE_TAG = "node";
+    private static final String AE2STUFF_WIRELESS_CLASS = "net.bdew.ae2stuff.machines.wireless.TileWireless";
+    private static final String AE2STUFF_WIRELESS_HUB_CLASS = "net.bdew.ae2stuff.machines.wireless.TileWirelessHub";
+    private static final String NODE_TAG_PROXY = "proxy";
+    private static final String NODE_TAG_OUTER = "outer";
+    private static final String NODE_TAG_PART = "part";
+    private static final String NODE_TAG_AE2STUFF = "ae_node";
+
     private static final int MAX_NODES_PER_TICK = 100;
     private static final int MAX_TOTAL_NODES = 1000000;
 
@@ -50,6 +78,7 @@ public class NetworkScanner {
 
     // Cache of forced chunks per dimension (lazy-loaded)
     private final Map<Integer, ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket>> forcedChunksCache = new HashMap<>();
+    private final Map<ChunkLocation, Map<BlockPos, SavedTileData>> savedChunkDataCache = new HashMap<>();
 
     // BFS state
     private final Queue<PathNode> openList = new LinkedList<>();
@@ -70,7 +99,7 @@ public class NetworkScanner {
     private boolean isComplete = false;
     private boolean hasController = false;
     private int nodesProcessed = 0;
-    private ITextComponent statusMessage = new net.minecraft.util.text.TextComponentString("");
+    private ITextComponent statusMessage = new TextComponentString("");
 
     /**
      * Wrapper to track the path to each node during BFS.
@@ -86,6 +115,26 @@ public class NetworkScanner {
             this.parent = parent;
             this.connectionFromParent = connection;
             this.depth = depth;
+        }
+    }
+
+    private static class SavedTileData {
+        final Set<Long> nodeIds;
+        final SavedCableData centerCable;
+
+        SavedTileData(Set<Long> nodeIds, SavedCableData centerCable) {
+            this.nodeIds = nodeIds;
+            this.centerCable = centerCable;
+        }
+    }
+
+    private static class SavedCableData {
+        final AEColor color;
+        final EnumSet<EnumFacing> blockedSides;
+
+        SavedCableData(AEColor color, EnumSet<EnumFacing> blockedSides) {
+            this.color = color;
+            this.blockedSides = blockedSides;
         }
     }
 
@@ -245,6 +294,10 @@ public class NetworkScanner {
         IGridHost currentHost = node.getMachine();
         IAECluster currentCluster = getClusterOf(currentHost);
 
+        checkChunkLoaded(node);
+        checkAdjacentUnloadedChunks(node);
+        checkAe2StuffWirelessChunks(node);
+
         for (IGridConnection connection : node.getConnections()) {
             IGridNode neighbor = connection.getOtherSide(node);
             if (neighbor == null) continue;
@@ -281,9 +334,6 @@ public class NetworkScanner {
                         clusterEntryPoints.put(neighborCluster, neighborPos);
                     }
                 }
-
-                // Check if the node's chunk is loaded
-                checkChunkLoaded(neighbor);
             }
         }
     }
@@ -353,30 +403,102 @@ public class NetworkScanner {
      * Check if a node's chunk is force-loaded (chunkloaded) and track non-chunkloaded chunks.
      * Note: This checks for FORCED chunk loading (chunkloaders), not just loaded chunks.
      * Chunks can be loaded temporarily when players are nearby but not force-loaded.
-     *
-     * LIMITATION: This can only detect non-force-loaded chunks for nodes we can actually visit,
-     * meaning the chunk must be currently loaded (player nearby, spawn chunks, etc.). We cannot
-     * detect network components in chunks that are fully unloaded without loading them first.
-     *
-     * Potential workarounds (all with significant drawbacks):
-     * - Load chunks along cable paths temporarily (causes network forceUpdates, server lag)
-     * - Track quantum bridge endpoints and check their target chunks (complex, bridges may be unloaded)
-     *   Same issues as above.
-     * - Persist network topology to disk and compare against live scan (stale data issues)
-     * - Use IGridStorage to serialize/deserialize network state (may not include all location data)
-     *
-     * For now, we accept this limitation and only report what we can see in currently loaded chunks.
+     * <p>
+     * LIMITATION: Quantum Network Bridges are invisible to the grid until they are loaded,
+     * so we cannot detect their target chunks if they are not loaded.
+     * A solution may be to persist the last known target chunk of each bridge in the chunk data,
+     * but I'd rather not do that, as it is quite invasive on AE2's code.
      */
     private void checkChunkLoaded(IGridNode node) {
         BlockPos pos = getNodePosition(node);
         if (pos == null) return;
 
-        int dimension = getNodeDimension(node);
-        String dimName = getNodeDimensionName(node);
         World nodeWorld = getNodeWorld(node);
         if (nodeWorld == null) return;
 
-        ChunkPos chunkPos = new ChunkPos(pos);
+        addUnloadedChunkIfNotForced(nodeWorld, new ChunkPos(pos));
+    }
+
+    /**
+     * Probe the first unloaded chunk directly adjacent to a loaded node by reading saved chunk NBT.
+     * This keeps the scan local and avoids activating chunks or rebuilding the live grid.
+     * <p>
+     * TODO: Quantum bridge endpoints still need an explicit persisted endpoint index.
+     * Their unloaded target is not adjacent, so the local chunk-boundary probe cannot discover it.
+     */
+    private void checkAdjacentUnloadedChunks(IGridNode node) {
+        if (!node.getGridBlock().isWorldAccessible()) return;
+
+        BlockPos pos = getNodePosition(node);
+        if (pos == null) return;
+
+        World nodeWorld = getNodeWorld(node);
+        if (!(nodeWorld instanceof WorldServer)) return;
+
+        long gridStorageId = getGridStorageId(node);
+        if (gridStorageId < 0) return;
+
+        ChunkPos currentChunk = new ChunkPos(pos);
+        EnumSet<EnumFacing> connectableSides = node.getGridBlock().getConnectableSides();
+
+        for (EnumFacing side : connectableSides) {
+            BlockPos adjacentPos = pos.offset(side);
+            if (nodeWorld.isBlockLoaded(adjacentPos)) continue;
+
+            ChunkPos adjacentChunk = new ChunkPos(adjacentPos);
+            if (adjacentChunk.equals(currentChunk)) continue;
+
+            if (!hasSavedConnectionAt((WorldServer) nodeWorld, node, side, adjacentPos, adjacentChunk,
+                gridStorageId)) continue;
+
+            addUnloadedChunkIfNotForced(nodeWorld, adjacentChunk);
+        }
+    }
+
+    private void checkAe2StuffWirelessChunks(IGridNode node) {
+        World nodeWorld = getNodeWorld(node);
+        if (!(nodeWorld instanceof WorldServer)) return;
+
+        IGridHost host = node.getMachine();
+
+        if (hasClassName(host, AE2STUFF_WIRELESS_HUB_CLASS)) {
+            Object[] linkSlots = (Object[]) invokeNoArg(host, "links");
+            if (linkSlots == null) return;
+
+            for (Object linkSlot : linkSlots) {
+                checkAe2StuffWirelessLink((WorldServer) nodeWorld, linkSlot);
+            }
+
+            return;
+        }
+
+        if (hasClassName(host, AE2STUFF_WIRELESS_CLASS)) {
+            checkAe2StuffWirelessLink((WorldServer) nodeWorld, invokeNoArg(host, "link"));
+        }
+    }
+
+    private void checkAe2StuffWirelessLink(WorldServer nodeWorld, Object linkSlot) {
+        BlockPos targetPos = extractAe2StuffLinkTarget(linkSlot);
+        if (targetPos == null || nodeWorld.isBlockLoaded(targetPos)) return;
+
+        addUnloadedChunkIfNotForced(nodeWorld, new ChunkPos(targetPos));
+    }
+
+    private BlockPos extractAe2StuffLinkTarget(Object linkSlot) {
+        if (!invokeBooleanNoArg(linkSlot, "isDefined")) return null;
+
+        Object option = invokeNoArg(linkSlot, "value");
+        if (!invokeBooleanNoArg(option, "isDefined")) return null;
+
+        Object value = invokeNoArg(option, "get");
+        if (value instanceof BlockPos) return (BlockPos) value;
+
+        return null;
+    }
+
+    private void addUnloadedChunkIfNotForced(World nodeWorld, ChunkPos chunkPos) {
+        int dimension = nodeWorld.provider.getDimension();
+        String dimName = nodeWorld.provider.getDimensionType().getName();
 
         // Get forced chunks for this dimension (cached)
         ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket> forcedChunks = forcedChunksCache.computeIfAbsent(
@@ -387,6 +509,172 @@ public class NetworkScanner {
         if (!forcedChunks.containsKey(chunkPos)) {
             unloadedChunks.add(new ChunkLocation(chunkPos, dimension, dimName));
         }
+    }
+
+    private long getGridStorageId(IGridNode node) {
+        NBTTagCompound nodeData = new NBTTagCompound();
+
+        // Serialize the node into a temporary in-memory tag so we can read the
+        // existing grid storage id
+        node.saveToNBT(TEMP_NODE_TAG, nodeData);
+        if (!nodeData.hasKey(TEMP_NODE_TAG, Constants.NBT.TAG_COMPOUND)) return -1;
+
+        return nodeData.getCompoundTag(TEMP_NODE_TAG).getLong("g");
+    }
+
+    private boolean hasSavedConnectionAt(WorldServer nodeWorld, IGridNode node, EnumFacing side, BlockPos targetPos,
+        ChunkPos targetChunk, long gridStorageId) {
+        Map<BlockPos, SavedTileData> savedTileDataByPos = getSavedChunkTileData(nodeWorld, targetChunk);
+        SavedTileData savedTileData = savedTileDataByPos.get(targetPos);
+        if (savedTileData == null) return false;
+
+        if (savedTileData.nodeIds.contains(gridStorageId)) return true;
+
+        return isSavedCableContinuation(node, side, savedTileData.centerCable);
+    }
+
+    private boolean isSavedCableContinuation(IGridNode node, EnumFacing side, SavedCableData savedCableData) {
+        if (savedCableData == null) return false;
+        if (savedCableData.blockedSides.contains(side.getOpposite())) return false;
+
+        IGridHost host = node.getMachine();
+        if (!(host instanceof IPartCable)) return false;
+
+        // Fresh-start AE2 networks can keep stale grid storage ids in unloaded cable chunks
+        // until those chunks load once and re-merge. Fall back to the saved cable-bus shape
+        // so direct cable continuations across the chunk border are still detected.
+        return ((IPartCable) host).getCableColor().matches(savedCableData.color);
+    }
+
+    private Map<BlockPos, SavedTileData> getSavedChunkTileData(WorldServer nodeWorld, ChunkPos chunkPos) {
+        ChunkLocation cacheKey = new ChunkLocation(chunkPos, nodeWorld.provider.getDimension(),
+            nodeWorld.provider.getDimensionType().getName());
+
+        Map<BlockPos, SavedTileData> cached = savedChunkDataCache.get(cacheKey);
+        if (cached != null) return cached;
+
+        Map<BlockPos, SavedTileData> parsed = loadSavedChunkTileData(nodeWorld, chunkPos);
+        savedChunkDataCache.put(cacheKey, parsed);
+
+        return parsed;
+    }
+
+    private Map<BlockPos, SavedTileData> loadSavedChunkTileData(WorldServer nodeWorld, ChunkPos chunkPos) {
+        try (DataInputStream inputStream = RegionFileCache.getChunkInputStream(nodeWorld.getChunkSaveLocation(),
+            chunkPos.x, chunkPos.z)) {
+            if (inputStream == null) return Collections.emptyMap();
+
+            NBTTagCompound chunkData = CompressedStreamTools.read(inputStream);
+            if (chunkData == null || !chunkData.hasKey("Level", Constants.NBT.TAG_COMPOUND)) {
+                return Collections.emptyMap();
+            }
+
+            NBTTagCompound levelData = chunkData.getCompoundTag("Level");
+            NBTTagList tileEntities = levelData.getTagList("TileEntities", Constants.NBT.TAG_COMPOUND);
+            Map<BlockPos, SavedTileData> savedTileDataByPos = new HashMap<>();
+
+            for (int i = 0; i < tileEntities.tagCount(); i++) {
+                NBTTagCompound tileData = tileEntities.getCompoundTagAt(i);
+                SavedTileData savedTileData = collectSavedTileData(tileData);
+                if (savedTileData == null) continue;
+
+                BlockPos pos = new BlockPos(tileData.getInteger("x"), tileData.getInteger("y"),
+                    tileData.getInteger("z"));
+                savedTileDataByPos.put(pos, savedTileData);
+            }
+
+            return savedTileDataByPos;
+        } catch (IOException e) {
+            AE2PowerTools.LOGGER.warn("Failed reading saved chunk data for scanner at {}:{} in dim {}",
+                chunkPos.x, chunkPos.z, nodeWorld.provider.getDimension(), e);
+
+            return Collections.emptyMap();
+        }
+    }
+
+    private SavedTileData collectSavedTileData(NBTTagCompound tileData) {
+        Set<Long> nodeIds = collectSavedNodeIds(tileData);
+        SavedCableData savedCableData = collectSavedCenterCable(tileData);
+
+        if (nodeIds.isEmpty() && savedCableData == null) return null;
+
+        return new SavedTileData(nodeIds, savedCableData);
+    }
+
+    private SavedCableData collectSavedCenterCable(NBTTagCompound tileData) {
+        String centerKey = "def:" + AEPartLocation.INTERNAL.ordinal();
+        if (!tileData.hasKey(centerKey, Constants.NBT.TAG_COMPOUND)) return null;
+
+        ItemStack centerPartStack = new ItemStack(tileData.getCompoundTag(centerKey));
+        if (centerPartStack.isEmpty()) return null;
+        if (!(centerPartStack.getItem() instanceof IPartItem)) return null;
+
+        IPart centerPart = ((IPartItem) centerPartStack.getItem()).createPartFromItemStack(centerPartStack.copy());
+        if (!(centerPart instanceof IPartCable)) return null;
+
+        EnumSet<EnumFacing> blockedSides = EnumSet.noneOf(EnumFacing.class);
+        for (EnumFacing side : EnumFacing.values()) {
+            String sideKey = "def:" + side.ordinal();
+            if (tileData.hasKey(sideKey, Constants.NBT.TAG_COMPOUND)) {
+                blockedSides.add(side);
+            }
+        }
+
+        return new SavedCableData(((IPartCable) centerPart).getCableColor(), blockedSides);
+    }
+
+    private Set<Long> collectSavedNodeIds(NBTTagCompound tileData) {
+        Set<Long> nodeIds = new HashSet<>();
+
+        collectSavedNodeId(tileData, NODE_TAG_PROXY, nodeIds);
+        collectSavedNodeId(tileData, NODE_TAG_OUTER, nodeIds);
+        collectSavedNodeId(tileData, NODE_TAG_PART, nodeIds);
+        collectSavedNodeId(tileData, NODE_TAG_AE2STUFF, nodeIds);
+
+        // 6 sides + 1 internal = 7 possible node tags for connections
+        for (int i = 0; i < 7; i++) {
+            String extraKey = "extra:" + i;
+            if (!tileData.hasKey(extraKey, Constants.NBT.TAG_COMPOUND)) continue;
+
+            NBTTagCompound extraData = tileData.getCompoundTag(extraKey);
+            collectSavedNodeId(extraData, NODE_TAG_PROXY, nodeIds);
+            collectSavedNodeId(extraData, NODE_TAG_OUTER, nodeIds);
+            collectSavedNodeId(extraData, NODE_TAG_PART, nodeIds);
+            collectSavedNodeId(extraData, NODE_TAG_AE2STUFF, nodeIds);
+        }
+
+        return nodeIds;
+    }
+
+    private void collectSavedNodeId(NBTTagCompound data, String key, Set<Long> nodeIds) {
+        if (!data.hasKey(key, Constants.NBT.TAG_COMPOUND)) return;
+
+        NBTTagCompound nodeData = data.getCompoundTag(key);
+        if (!nodeData.hasKey("g")) return;
+
+        nodeIds.add(nodeData.getLong("g"));
+    }
+
+    private boolean hasClassName(Object target, String className) {
+        return target != null && target.getClass().getName().equals(className);
+    }
+
+    private Object invokeNoArg(Object target, String methodName) {
+        if (target == null) return null;
+
+        try {
+            Method method = target.getClass().getMethod(methodName);
+
+            return method.invoke(target);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            return null;
+        }
+    }
+
+    private boolean invokeBooleanNoArg(Object target, String methodName) {
+        Object value = invokeNoArg(target, methodName);
+
+        return value instanceof Boolean && (Boolean) value;
     }
 
     /**

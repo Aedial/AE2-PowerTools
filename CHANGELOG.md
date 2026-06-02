@@ -8,10 +8,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.1-alpha2] - 2026-06-02
+### Added
+- Improve the Network Health Scanner's unloaded chunk detection so it can detect adjacent chunks that are not chunkloaded, nor loaded by any player. Unloaded Quantum Network Bridges are still not detected, as the grid has no way to know about their existence until they are loaded.
+- Add Wireless Connectors (AE2 Stuff) to the Network Health Scanner's list of components to check for unloaded chunks. The Wireless Hub only reports the 32 first connections in its NBT, so misconfigured hubs with more than 32 connections can have undetected unloaded chunks.
+
+
 ## [1.6.1-alpha] - 2026-06-01
 ### Added
 - Add a Fatal Errors tab to the Network Health Scanner, for the detection of duplicate storage bus targets and storage buses that point back into interfaces on the same network.
- 
 
 ## [1.6.0-alpha4] - 2026-05-26
 ### Fixed
