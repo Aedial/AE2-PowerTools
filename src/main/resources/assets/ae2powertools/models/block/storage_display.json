@@ -1,0 +1,41 @@
+{
+    "parent": "block/block",
+    "textures": {
+        "particle": "appliedenergistics2:blocks/storage_monitor",
+        "base":   "appliedenergistics2:blocks/storage_monitor",
+        "corner": "ae2powertools:blocks/display_color_corner",
+        "center": "ae2powertools:blocks/display_color_center",
+        "front": "ae2powertools:blocks/monitor_front"
+    },
+    "elements": [
+        {
+            "__comment": "Frame cube. The 'north' face is intentionally omitted; the screen-front jigsaw (corner + center) provides it.",
+            "from": [0, 0, 0],
+            "to":   [16, 16, 16],
+            "faces": {
+                "north": { "texture": "#front", "cullface": "north" },
+                "south": { "texture": "#base", "cullface": "south" },
+                "east":  { "texture": "#base", "cullface": "east"  },
+                "west":  { "texture": "#base", "cullface": "west"  },
+                "up":    { "texture": "#base", "cullface": "up"    },
+                "down":  { "texture": "#base", "cullface": "down"  }
+            }
+        },
+        {
+            "__comment": "Center backdrop on the front face. Tint index 1 -> DisplayBlockColor.CENTER.",
+            "from": [0, 0, 0],
+            "to":   [16, 16, 1],
+            "faces": {
+                "north": { "texture": "#center", "tintindex": 1 }
+            }
+        },
+        {
+            "__comment": "Corner color indicators on the front face. Tint index 0 -> DisplayBlockColor reads the live corner color from the tile's DisplayLogic.",
+            "from": [0, 0, 0],
+            "to":   [16, 16, 1],
+            "faces": {
+                "north": { "texture": "#corner", "tintindex": 0 }
+            }
+        }
+    ]
+}

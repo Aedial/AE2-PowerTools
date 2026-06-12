@@ -22,6 +22,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.storage.data.IAEItemStack;
+import appeng.client.render.StackSizeRenderer;
 import appeng.util.ReadableNumberConverter;
 
 import com.ae2powertools.Tags;
@@ -29,6 +30,7 @@ import com.ae2powertools.client.PowerToolsClientConfig;
 import com.ae2powertools.network.PacketSelectRecipe;
 import com.ae2powertools.network.PacketUpdateMaintainerEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.Ae2FluidCraftingCompat;
 import com.ae2powertools.util.FormatUtil;
 
 
@@ -83,7 +85,6 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
     private static final int TALL_SLICE_START_Y = 19;
     private static final int TALL_SLICE_END_Y = 42;
     private static final int TALL_SLICE_HEIGHT = TALL_SLICE_END_Y - TALL_SLICE_START_Y; // 23 pixels
-    private static final int TALL_ENTRY_HEIGHT = TALL_SLICE_HEIGHT;
     private static final int TALL_MARGIN = 10; // margin from screen edges
     private static final int TALL_STATUS_OFFSET = 18; // offset from bottom of GUI to status bar
 
@@ -104,6 +105,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
     private static final int SLOT_SIZE = 18;
 
     private final ContainerBetterLevelMaintainer container;
+    private final StackSizeRenderer stackSizeRenderer = new StackSizeRenderer();
 
     // Main GUI state
     private GuiTextField searchField;
@@ -570,7 +572,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
             selectorFiltered.addAll(selectorItems);
         } else {
             for (IAEItemStack stack : selectorItems) {
-                if (stack.createItemStack().getDisplayName().toLowerCase().contains(term)) {
+                if (Ae2FluidCraftingCompat.getDisplayStack(stack).getDisplayName().toLowerCase().contains(term)) {
                     selectorFiltered.add(stack);
                 }
             }
@@ -617,7 +619,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
 
                 if (itemIdx >= 0 && itemIdx < selectorFiltered.size()) {
                     IAEItemStack aeStack = selectorFiltered.get(itemIdx);
-                    ItemStack stack = aeStack.createItemStack();
+                    ItemStack stack = Ae2FluidCraftingCompat.getDisplayStack(aeStack);
 
                     GlStateManager.enableDepth();
                     RenderHelper.enableGUIStandardItemLighting();
@@ -625,8 +627,8 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
 
                     long qty = aeStack.getStackSize();
                     if (qty > 1) {
-                        String qtyStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(qty);
-                        itemRender.renderItemOverlayIntoGUI(fontRenderer, stack, x + 1, y + 1, qtyStr);
+                        // Match the terminal's scaled overlay so larger outputs stay readable.
+                        stackSizeRenderer.renderStackSize(fontRenderer, aeStack, x + 1, y + 1);
                     }
 
                     RenderHelper.disableStandardItemLighting();
@@ -657,7 +659,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
         if (itemIdx < 0 || itemIdx >= selectorFiltered.size()) return;
 
         IAEItemStack aeStack = selectorFiltered.get(itemIdx);
-        ItemStack stack = aeStack.createItemStack();
+        ItemStack stack = Ae2FluidCraftingCompat.getDisplayStack(aeStack);
 
         List<String> tooltip = new ArrayList<>();
         ITooltipFlag flag = mc.gameSettings.advancedItemTooltips

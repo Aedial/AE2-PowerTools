@@ -3,7 +3,10 @@ package com.ae2powertools.features.maintainer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.collect.ImmutableCollection;
 
@@ -26,7 +29,9 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.me.GridAccessException;
 
 import com.ae2powertools.network.PacketCraftableItemsSync;
+import com.ae2powertools.network.PacketMaintainerEntrySync;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.Ae2FluidCraftingCompat;
 
 
 /**
@@ -51,7 +56,13 @@ public class ContainerBetterLevelMaintainer extends Container {
 
     // Craftable items sync
     private int craftableRefreshTicker = 0;
-    private List<IAEItemStack> lastCraftableItems = new ArrayList<>();
+
+    // Per-listener entry diff cache. Single-player containers only ever have one
+    // listener, so we keep a single snapshot array indexed by entry slot. The cache
+    // is reset (and a full snapshot resent) every time addListener fires.
+    // null entries in the array mean "never sent", forcing the next diff to send them.
+    private MaintainerEntrySnapshot[] lastEntrySnapshots = null;
+    private int lastSentOpenRows = -1;
 
     // Client-side craftable items (synced from server)
     @SideOnly(Side.CLIENT)
@@ -127,6 +138,76 @@ public class ContainerBetterLevelMaintainer extends Container {
             craftableRefreshTicker = 0;
             syncCraftableItems();
         }
+
+        // Diff-sync the per-entry state.
+        // Only entries whose snapshot actually changed are bundled into the packet, and the
+        // packet is sent only when something changed (entries OR openRows).
+        sendEntryDiff();
+    }
+
+    /**
+     * Diff-syncs visible entry snapshots and the openRows count to the listener.
+     * Skips sending entirely when nothing changed.
+     */
+    private void sendEntryDiff() {
+        if (!(player instanceof EntityPlayerMP)) return;
+
+        int currentOpenRows = maintainer.getOpenRows();
+        int totalSlots = currentOpenRows * TileBetterLevelMaintainer.ENTRIES_PER_ROW;
+
+        // Grow the cache array as openRows grows. Existing snapshots are preserved so we
+        // don't re-send unchanged entries when a new row opens.
+        if (lastEntrySnapshots == null || lastEntrySnapshots.length < totalSlots) {
+            MaintainerEntrySnapshot[] grown = new MaintainerEntrySnapshot[totalSlots];
+            if (lastEntrySnapshots != null) {
+                System.arraycopy(lastEntrySnapshots, 0, grown, 0, lastEntrySnapshots.length);
+            }
+            lastEntrySnapshots = grown;
+        }
+
+        Map<Integer, MaintainerEntrySnapshot> changed = null;
+        for (int i = 0; i < totalSlots; i++) {
+            MaintainerEntry entry = maintainer.getEntry(i);
+            MaintainerEntrySnapshot current = MaintainerEntrySnapshot.fromEntry(entry);
+            MaintainerEntrySnapshot cached = lastEntrySnapshots[i];
+
+            if (cached != null && cached.equals(current)) continue;
+
+            lastEntrySnapshots[i] = current;
+            if (changed == null) changed = new HashMap<>();
+            changed.put(i, current);
+        }
+
+        boolean openRowsChanged = currentOpenRows != lastSentOpenRows;
+        if (changed == null && !openRowsChanged) return;
+
+        lastSentOpenRows = currentOpenRows;
+        Map<Integer, MaintainerEntrySnapshot> payload = changed != null ? changed : Collections.emptyMap();
+        PowerToolsNetwork.INSTANCE.sendTo(
+                new PacketMaintainerEntrySync(currentOpenRows, payload),
+                (EntityPlayerMP) player);
+    }
+
+    @Override
+    public void addListener(IContainerListener listener) {
+        super.addListener(listener);
+
+        // Force a full snapshot send to the new listener on the next detectAndSendChanges tick.
+        // Resetting the cache is sufficient: every snapshot will diff against null and be
+        // sent. The container only ever has one listener (single-player GUI), so resetting
+        // the shared cache is safe.
+        if (!(listener instanceof EntityPlayerMP) || player.world.isRemote) return;
+
+        lastEntrySnapshots = null;
+        lastSentOpenRows = -1;
+
+        // Immediately push the craftable items list to the client when the GUI opens.
+        // Without this the selector is empty until the periodic refresh ticker fires
+        // (CRAFTABLE_REFRESH_INTERVAL = 40 ticks = 2 seconds), so the very first click
+        // on the selector inside that window shows an empty grid (race condition).
+        // Resetting the ticker keeps the periodic cadence anchored to "right after open".
+        syncCraftableItems();
+        craftableRefreshTicker = 0;
     }
 
     /**
@@ -138,6 +219,7 @@ public class ContainerBetterLevelMaintainer extends Container {
         if (!(player instanceof EntityPlayerMP)) return;
 
         List<IAEItemStack> craftableItems = new ArrayList<>();
+        Map<IAEItemStack, IAEItemStack> uniqueCraftableItemsByType = new LinkedHashMap<>();
 
         try {
             IStorageGrid storageGrid = maintainer.getProxy().getStorage();
@@ -148,42 +230,48 @@ public class ContainerBetterLevelMaintainer extends Container {
             for (IAEItemStack stack : storage.getStorageList()) {
                 if (!stack.isCraftable()) continue;
 
-                // Create a copy with the output quantity from the pattern
-                IAEItemStack craftableStack = stack.copy();
+                IAEItemStack normalizedStack = Ae2FluidCraftingCompat.canonicalize(stack);
+                if (normalizedStack == null) continue;
+
+                // Keep the canonical drop form for selection and crafting. AE2FC display is
+                // handled separately in the GUI so this remains a purely visual conversion.
+                IAEItemStack craftableStack = normalizedStack.copy();
+                long outputAmount = 1;
 
                 // Get patterns for this item to find the output quantity
                 ImmutableCollection<ICraftingPatternDetails> patterns = craftingGrid.getCraftingFor(
-                        stack, null, 0, player.world);
+                        normalizedStack, null, 0, player.world);
 
                 if (!patterns.isEmpty()) {
                     // Use the first pattern's output quantity
                     ICraftingPatternDetails pattern = patterns.iterator().next();
-                    IAEItemStack primaryOutput = pattern.getPrimaryOutput();
+                    IAEItemStack primaryOutput = Ae2FluidCraftingCompat.canonicalize(pattern.getPrimaryOutput());
                     if (primaryOutput != null) {
-                        craftableStack.setStackSize(primaryOutput.getStackSize());
-                    } else {
-                        craftableStack.setStackSize(1);
+                        outputAmount = primaryOutput.getStackSize();
                     }
-                } else {
-                    // No patterns found - default to 1
-                    craftableStack.setStackSize(1);
                 }
 
-                craftableItems.add(craftableStack);
+                craftableStack.setStackSize(outputAmount > 0 ? outputAmount : 1);
+
+                IAEItemStack existing = uniqueCraftableItemsByType.get(craftableStack);
+                if (existing == null || craftableStack.getStackSize() > existing.getStackSize()) {
+                    uniqueCraftableItemsByType.put(craftableStack, craftableStack);
+                }
             }
         } catch (GridAccessException e) {
             // Grid not available - send empty list
         }
 
+        craftableItems.addAll(uniqueCraftableItemsByType.values());
+
         // Sort by display name
         craftableItems.sort(Comparator.comparing(
-                stack -> stack.createItemStack().getDisplayName().toLowerCase()));
+                stack -> Ae2FluidCraftingCompat.getDisplayStack(stack).getDisplayName().toLowerCase()));
 
         // Send to client
         PacketCraftableItemsSync packet = new PacketCraftableItemsSync(craftableItems);
         PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) player);
 
-        lastCraftableItems = craftableItems;
     }
 
     @Override

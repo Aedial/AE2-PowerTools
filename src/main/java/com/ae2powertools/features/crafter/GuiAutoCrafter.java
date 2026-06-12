@@ -1,5 +1,6 @@
 package com.ae2powertools.features.crafter;
 
+import java.awt.Rectangle;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1395,6 +1396,23 @@ public class GuiAutoCrafter extends GuiContainer {
     private long getSyncedMetricsTotal(int entryIndex) {
         if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return 0L;
         return syncedMetricsTotal[entryIndex];
+    }
+
+    // ==================== JEI INTEGRATION ====================
+
+    /**
+     * Returns the Pattern Multi-Tool panel bounds so JEI/HEI keeps its sidebar clear
+     * when the player has a PMT available.
+     */
+    public List<Rectangle> getJEIExclusionArea() {
+        PMTManager pmtManager = container.getPMTManager();
+        if (pmtManager == null || !pmtManager.hasPMT()) return Collections.emptyList();
+
+        return Collections.singletonList(new Rectangle(
+                guiLeft + PMT_OFFSET_X,
+                guiTop + PMT_OFFSET_Y,
+                PMTRenderer.PMT_WIDTH,
+                PMTRenderer.PMT_HEIGHT));
     }
 
     // ==================== CLICK OUTSIDE HANDLING ====================

@@ -1,0 +1,39 @@
+{
+    "parent": "appliedenergistics2:item/part/part",
+    "textures": {
+        "front": "ae2powertools:blocks/monitor_front",
+        "center": "ae2powertools:blocks/display_color_center",
+        "corner": "ae2powertools:blocks/display_color_corner",
+        "side": "ae2powertools:parts/part_side",
+        "back": "ae2powertools:parts/part_back",
+        "particle": "ae2powertools:parts/part_side"
+    },
+    "elements": [
+        {
+            "from": [0, 0, 7],
+            "to": [16, 16, 9],
+            "faces": {
+                "up":    { "uv": [0, 0, 16, 2],  "texture": "#side" },
+                "down":  { "uv": [0, 14, 16, 16], "texture": "#side" },
+                "east":  { "uv": [14, 0, 16, 16], "texture": "#side" },
+                "west":  { "uv": [0, 0, 2, 16],   "texture": "#side" },
+                "north": { "texture": "#front" },
+                "south": { "texture": "#back" }
+            }
+        },
+        {
+            "from": [0, 0, 7],
+            "to": [16, 16, 8],
+            "faces": {
+                "north": { "texture": "#center", "tintindex": 1 }
+            }
+        },
+        {
+            "from": [0, 0, 7],
+            "to": [16, 16, 8],
+            "faces": {
+                "north": { "texture": "#corner", "tintindex": 0 }
+            }
+        }
+    ]
+}

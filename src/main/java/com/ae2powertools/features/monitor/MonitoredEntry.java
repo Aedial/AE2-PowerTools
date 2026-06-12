@@ -1,0 +1,267 @@
+package com.ae2powertools.features.monitor;
+
+import javax.annotation.Nullable;
+
+import io.netty.buffer.ByteBuf;
+
+import net.minecraft.nbt.NBTTagCompound;
+
+import com.ae2powertools.features.monitor.dependent.ComparisonMode;
+
+
+/**
+ * A single monitoring entry: a resource to watch, a comparison operator, and one or two thresholds.
+ * Each entry independently evaluates to a boolean (quantity COMP threshold),
+ * then AND/OR across all entries determines the overall condition.
+ *
+ * Disabled entries are still polled (so the GUI can show their current quantity),
+ * but they do NOT contribute to the AND/OR evaluation.
+ *
+ * Also stores the last looked-up quantity (transient, not persisted) for display purposes.
+ */
+public class MonitoredEntry {
+
+    /**
+     * The resource being monitored. May be null for empty cells: the user can still configure
+     * a comparator and threshold on a resource-less slot, and only set the resource later via
+     * the content selector. Slots with a null resource are NOT counted in the AND/OR evaluation
+     * (see {@code MonitorLogic#evaluateCondition}), but the rest of their state
+     * persists across mutations.
+     */
+    @Nullable
+    private final MonitoredResource resource;
+    private ComparisonMode comparison;
+    /** Upper / increasing threshold. Also the single threshold used when hysteresis is disabled. */
+    private long threshold;
+    /** Lower / decreasing threshold. Ignored unless hysteresis mode is enabled on the host. */
+    private long lowerThreshold;
+
+    /** Whether this entry counts toward the overall AND/OR condition. */
+    private boolean enabled;
+
+    /** Last looked-up quantity from the network. Transient, not persisted. */
+    private transient long lastQuantity;
+
+    /**
+     * Last evaluation result, used both for GUI feedback and to preserve the latched hysteresis
+     * state across chunk unloads / world reloads.
+     */
+    private transient boolean lastConditionMet;
+
+    public MonitoredEntry(MonitoredResource resource, ComparisonMode comparison, long threshold) {
+        this(resource, comparison, threshold, threshold, true);
+    }
+
+    public MonitoredEntry(@Nullable MonitoredResource resource, ComparisonMode comparison, long threshold, boolean enabled) {
+        this(resource, comparison, threshold, threshold, enabled);
+    }
+
+    public MonitoredEntry(@Nullable MonitoredResource resource, ComparisonMode comparison, long threshold, long lowerThreshold, boolean enabled) {
+        this.resource = resource;
+        this.comparison = comparison;
+        this.enabled = enabled;
+
+        setThreshold(threshold);
+        setLowerThreshold(lowerThreshold);
+    }
+
+    /**
+     * Creates an empty placeholder entry: no resource yet, default comparator (>=), threshold 0,
+     * enabled. Empty entries are still rendered with their comparator and threshold so the user
+     * can pre-configure a slot before selecting a resource for it.
+     */
+    public static MonitoredEntry empty() {
+        return new MonitoredEntry(null, ComparisonMode.GREATER_EQUAL, 0, 0, true);
+    }
+
+    /**
+     * Creates an entry with default comparison (>=) and threshold (0).
+     * Used when the user picks a resource from the selector before configuring thresholds.
+     */
+    public static MonitoredEntry withDefaults(MonitoredResource resource) {
+        return new MonitoredEntry(resource, ComparisonMode.GREATER_EQUAL, 0, 0, true);
+    }
+
+    // --- Evaluation ---
+
+    /**
+     * Evaluates whether this entry's condition is met, given the current network quantity.
+     * Always stores the quantity and the evaluation result, regardless of enabled state,
+     * so the GUI can show live feedback for every entry.
+     */
+    public boolean evaluate(long networkQuantity) {
+        return evaluate(networkQuantity, false);
+    }
+
+    /**
+     * Evaluates the entry against either the single threshold or the active hysteresis bound.
+     * Hysteresis uses the previous condition state as the latch: entries that are currently off
+     * test against the boundary that turns them on, while entries that are currently on test
+     * against the boundary that turns them off.
+     */
+    public boolean evaluate(long networkQuantity, boolean hysteresisEnabled) {
+        this.lastQuantity = networkQuantity;
+
+        long activeThreshold = getActiveThreshold(hysteresisEnabled);
+        this.lastConditionMet = comparison.test(networkQuantity, activeThreshold);
+
+        return this.lastConditionMet;
+    }
+
+    // --- Accessors ---
+
+    /**
+     * Returns the underlying resource, or null for an empty/placeholder entry.
+     */
+    @Nullable
+    public MonitoredResource getResource() {
+        return resource;
+    }
+
+    /** Convenience: true when this entry has a resource assigned. */
+    public boolean hasResource() {
+        return resource != null;
+    }
+
+    public ComparisonMode getComparison() {
+        return comparison;
+    }
+
+    public void setComparison(ComparisonMode comparison) {
+        this.comparison = comparison;
+    }
+
+    public long getThreshold() {
+        return threshold;
+    }
+
+    public void setThreshold(long threshold) {
+        // Negative thresholds clamp to 0 since AE2 quantities can't go negative.
+        this.threshold = Math.max(0, threshold);
+        if (lowerThreshold > this.threshold) lowerThreshold = this.threshold;
+    }
+
+    public long getLowerThreshold() {
+        return lowerThreshold;
+    }
+
+    public void setLowerThreshold(long lowerThreshold) {
+        this.lowerThreshold = Math.max(0, Math.min(lowerThreshold, threshold));
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public long getLastQuantity() {
+        return lastQuantity;
+    }
+
+    /**
+     * Sets the last-looked-up quantity. Used on the client side when receiving sync
+     * packets from the server, so the GUI can render fresh feedback.
+     */
+    public void setLastQuantity(long lastQuantity) {
+        this.lastQuantity = lastQuantity;
+    }
+
+    public boolean isLastConditionMet() {
+        return lastConditionMet;
+    }
+
+    public void setLastConditionMet(boolean lastConditionMet) {
+        this.lastConditionMet = lastConditionMet;
+    }
+
+    public long getActiveThreshold(boolean hysteresisEnabled) {
+        if (!hysteresisEnabled) return threshold;
+
+        switch (comparison) {
+            case GREATER:
+            case GREATER_EQUAL:
+                return lastConditionMet ? lowerThreshold : threshold;
+
+            case LESS:
+            case LESS_EQUAL:
+                return lastConditionMet ? threshold : lowerThreshold;
+
+            default:
+                return threshold;
+        }
+    }
+
+    public boolean usesUpperThreshold(boolean hysteresisEnabled) {
+        if (!hysteresisEnabled) return true;
+
+        return getActiveThreshold(true) == threshold;
+    }
+
+    // --- NBT serialization ---
+
+    private static final String NBT_RESOURCE = "Resource";
+    private static final String NBT_COMPARISON = "Comparison";
+    private static final String NBT_THRESHOLD = "Threshold";
+    private static final String NBT_LOWER_THRESHOLD = "LowerThreshold";
+    private static final String NBT_ENABLED = "Enabled";
+    private static final String NBT_LAST_CONDITION_MET = "LastConditionMet";
+
+    public NBTTagCompound writeToNBT() {
+        NBTTagCompound tag = new NBTTagCompound();
+        // Empty entries omit the resource subtag entirely; readers detect this and reconstruct
+        // a placeholder via {@link #empty()}-style parameters.
+        if (resource != null) tag.setTag(NBT_RESOURCE, resource.writeToNBT());
+        tag.setInteger(NBT_COMPARISON, comparison.getId());
+        tag.setLong(NBT_THRESHOLD, threshold);
+        tag.setLong(NBT_LOWER_THRESHOLD, lowerThreshold);
+        tag.setBoolean(NBT_ENABLED, enabled);
+        tag.setBoolean(NBT_LAST_CONDITION_MET, lastConditionMet);
+
+        return tag;
+    }
+
+    @Nullable
+    public static MonitoredEntry readFromNBT(NBTTagCompound tag) {
+        // A missing resource tag means this is a placeholder entry: still has comparator/threshold/enabled.
+        MonitoredResource resource = null;
+        if (tag.hasKey(NBT_RESOURCE)) {
+            resource = MonitoredResource.readFromNBT(tag.getCompoundTag(NBT_RESOURCE));
+        }
+
+        ComparisonMode comparison = ComparisonMode.fromId(tag.getInteger(NBT_COMPARISON));
+        long threshold = tag.getLong(NBT_THRESHOLD);
+        long lowerThreshold = tag.hasKey(NBT_LOWER_THRESHOLD)
+            ? tag.getLong(NBT_LOWER_THRESHOLD)
+            : threshold;
+        boolean enabled = tag.getBoolean(NBT_ENABLED);
+
+        MonitoredEntry entry = new MonitoredEntry(resource, comparison, threshold, lowerThreshold, enabled);
+        if (tag.hasKey(NBT_LAST_CONDITION_MET)) entry.setLastConditionMet(tag.getBoolean(NBT_LAST_CONDITION_MET));
+
+        return entry;
+    }
+
+    // --- ByteBuf serialization (for network packets) ---
+
+    public void writeToBuf(ByteBuf buf) {
+        buf.writeBoolean(resource != null);
+        if (resource != null) resource.writeToBuf(buf);
+        buf.writeInt(comparison.getId());
+        buf.writeLong(threshold);
+        buf.writeLong(lowerThreshold);
+        buf.writeBoolean(enabled);
+    }
+
+    public static MonitoredEntry readFromBuf(ByteBuf buf) {
+        MonitoredResource resource = buf.readBoolean() ? MonitoredResource.readFromBuf(buf) : null;
+        ComparisonMode comparison = ComparisonMode.fromId(buf.readInt());
+        long threshold = buf.readLong();
+        long lowerThreshold = buf.readLong();
+        boolean enabled = buf.readBoolean();
+
+        return new MonitoredEntry(resource, comparison, threshold, lowerThreshold, enabled);
+    }
+}

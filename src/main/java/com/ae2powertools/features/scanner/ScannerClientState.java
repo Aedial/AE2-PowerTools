@@ -1,13 +1,17 @@
 package com.ae2powertools.features.scanner;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
@@ -34,7 +38,8 @@ public class ScannerClientState {
         LOOPS,
         UNLOADED_CHUNKS,
         CHOKEPOINTS,
-        MISSING_CHANNELS
+        MISSING_CHANNELS,
+        FATAL_ERRORS
     }
 
     /**
@@ -75,6 +80,11 @@ public class ScannerClientState {
         private final Set<Integer> selectedChokeIndices = new HashSet<>();
         private List<ChokeLocationClient> sortedChokeLocations = null;
 
+        // Fatal network errors synced from server
+        private final List<FatalNetworkError> fatalErrors = new ArrayList<>();
+        private final Set<Integer> selectedFatalIndices = new HashSet<>();
+        private List<FatalNetworkError> sortedFatalErrors = null;
+
         public void clearData() {
             loopLocations.clear();
             selectedLoopIndices.clear();
@@ -88,6 +98,9 @@ public class ScannerClientState {
             chokeLocations.clear();
             selectedChokeIndices.clear();
             sortedChokeLocations = null;
+            fatalErrors.clear();
+            selectedFatalIndices.clear();
+            sortedFatalErrors = null;
             isScanComplete = false;
             currentTab = Tab.LOOPS;
         }
@@ -97,6 +110,7 @@ public class ScannerClientState {
             sortedChunkLocations = null;
             sortedMissingDevices = null;
             sortedChokeLocations = null;
+            sortedFatalErrors = null;
         }
     }
 
@@ -203,9 +217,7 @@ public class ScannerClientState {
          * Get display name from ItemStack, falling back to description.
          */
         public String getDisplayName() {
-            if (!itemStack.isEmpty()) {
-                return itemStack.getDisplayName();
-            }
+            if (!itemStack.isEmpty()) return itemStack.getDisplayName();
 
             return description;
         }
@@ -280,6 +292,256 @@ public class ScannerClientState {
             this.connectedPos = connectedPos;
             this.connectedDescription = connectedDescription;
         }
+    }
+
+    /**
+     * Shared per-tab access to state collections, selections, and sorted caches.
+     */
+    private static class TabData<T> {
+        private final Tab tab;
+        private final Function<DeviceScanState, List<T>> entriesAccessor;
+        private final Function<DeviceScanState, Set<Integer>> selectedIndicesAccessor;
+        private final Function<DeviceScanState, List<T>> sortedEntriesAccessor;
+        private final BiConsumer<DeviceScanState, List<T>> sortedEntriesMutator;
+
+        private TabData(Tab tab, Function<DeviceScanState, List<T>> entriesAccessor,
+                Function<DeviceScanState, Set<Integer>> selectedIndicesAccessor,
+                Function<DeviceScanState, List<T>> sortedEntriesAccessor,
+                BiConsumer<DeviceScanState, List<T>> sortedEntriesMutator) {
+            this.tab = tab;
+            this.entriesAccessor = entriesAccessor;
+            this.selectedIndicesAccessor = selectedIndicesAccessor;
+            this.sortedEntriesAccessor = sortedEntriesAccessor;
+            this.sortedEntriesMutator = sortedEntriesMutator;
+        }
+
+        private Tab getTab() {
+            return tab;
+        }
+
+        private List<T> getEntries(DeviceScanState state) {
+            return entriesAccessor.apply(state);
+        }
+
+        private Set<Integer> getSelectedIndices(DeviceScanState state) {
+            return selectedIndicesAccessor.apply(state);
+        }
+
+        private List<T> getSortedEntries(DeviceScanState state) {
+            return sortedEntriesAccessor.apply(state);
+        }
+
+        private void setSortedEntries(DeviceScanState state, List<T> sortedEntries) {
+            sortedEntriesMutator.accept(state, sortedEntries);
+        }
+    }
+
+    private static class PlayerSortContext {
+        private final int playerDimension;
+        private final BlockPos playerPos;
+        private final SortMode sortMode;
+
+        private PlayerSortContext(int playerDimension, BlockPos playerPos, SortMode sortMode) {
+            this.playerDimension = playerDimension;
+            this.playerPos = playerPos;
+            this.sortMode = sortMode;
+        }
+    }
+
+    private static final TabData<LoopLocationClient> LOOP_TAB_DATA = new TabData<LoopLocationClient>(
+            Tab.LOOPS,
+            state -> state.loopLocations,
+            state -> state.selectedLoopIndices,
+            state -> state.sortedLoopLocations,
+            (state, sortedEntries) -> state.sortedLoopLocations = sortedEntries);
+
+    private static final TabData<ChunkLocationClient> CHUNK_TAB_DATA = new TabData<ChunkLocationClient>(
+            Tab.UNLOADED_CHUNKS,
+            state -> state.chunkLocations,
+            state -> state.selectedChunkIndices,
+            state -> state.sortedChunkLocations,
+            (state, sortedEntries) -> state.sortedChunkLocations = sortedEntries);
+
+    private static final TabData<MissingDeviceClient> MISSING_TAB_DATA = new TabData<MissingDeviceClient>(
+            Tab.MISSING_CHANNELS,
+            state -> state.missingDevices,
+            state -> state.selectedMissingIndices,
+            state -> state.sortedMissingDevices,
+            (state, sortedEntries) -> state.sortedMissingDevices = sortedEntries);
+
+    private static final TabData<ChokeLocationClient> CHOKE_TAB_DATA = new TabData<ChokeLocationClient>(
+            Tab.CHOKEPOINTS,
+            state -> state.chokeLocations,
+            state -> state.selectedChokeIndices,
+            state -> state.sortedChokeLocations,
+            (state, sortedEntries) -> state.sortedChokeLocations = sortedEntries);
+
+    private static final TabData<FatalNetworkError> FATAL_TAB_DATA = new TabData<FatalNetworkError>(
+            Tab.FATAL_ERRORS,
+            state -> state.fatalErrors,
+            state -> state.selectedFatalIndices,
+            state -> state.sortedFatalErrors,
+            (state, sortedEntries) -> state.sortedFatalErrors = sortedEntries);
+
+    private static TabData<?> getTabData(Tab tab) {
+        switch (tab) {
+            case LOOPS:
+                return LOOP_TAB_DATA;
+            case UNLOADED_CHUNKS:
+                return CHUNK_TAB_DATA;
+            case CHOKEPOINTS:
+                return CHOKE_TAB_DATA;
+            case MISSING_CHANNELS:
+                return MISSING_TAB_DATA;
+            case FATAL_ERRORS:
+            default:
+                return FATAL_TAB_DATA;
+        }
+    }
+
+    private static TabData<?> getCurrentTabData() {
+        return getTabData(getCurrentTab());
+    }
+
+    private static <T> void replaceEntries(long deviceId, List<T> entries, TabData<T> tabData) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        List<T> stateEntries = tabData.getEntries(state);
+
+        stateEntries.clear();
+        stateEntries.addAll(entries);
+        tabData.setSortedEntries(state, null);
+    }
+
+    private static <T> List<T> getEntries(TabData<T> tabData) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
+        return tabData.getEntries(state);
+    }
+
+    private static int getEntryCount(TabData<?> tabData) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return 0;
+
+        return tabData.getEntries(state).size();
+    }
+
+    private static void toggleSelectedIndex(Set<Integer> selectedIndices, int index) {
+        if (selectedIndices.contains(index)) {
+            selectedIndices.remove(index);
+            return;
+        }
+
+        selectedIndices.add(index);
+    }
+
+    private static void selectOnlyIndex(Set<Integer> selectedIndices, int index) {
+        selectedIndices.clear();
+        selectedIndices.add(index);
+    }
+
+    private static void selectAllIndices(List<?> entries, Set<Integer> selectedIndices) {
+        selectedIndices.clear();
+        for (int i = 0; i < entries.size(); i++) selectedIndices.add(i);
+    }
+
+    private static void toggleTabSelection(TabData<?> tabData, int index) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        toggleSelectedIndex(tabData.getSelectedIndices(state), index);
+    }
+
+    private static void selectOnlyTabEntry(TabData<?> tabData, int index) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        selectOnlyIndex(tabData.getSelectedIndices(state), index);
+    }
+
+    private static void selectAllTabEntries(TabData<?> tabData) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        selectAllIndices(tabData.getEntries(state), tabData.getSelectedIndices(state));
+    }
+
+    private static void clearTabSelection(TabData<?> tabData) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return;
+
+        tabData.getSelectedIndices(state).clear();
+    }
+
+    private static boolean isTabEntrySelected(TabData<?> tabData, int index) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return false;
+
+        return tabData.getSelectedIndices(state).contains(index);
+    }
+
+    private static Set<Integer> getTabSelectedIndices(TabData<?> tabData) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new HashSet<>();
+
+        return tabData.getSelectedIndices(state);
+    }
+
+    private static <T> List<T> getSelectedEntries(TabData<T> tabData) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
+        List<T> entries = tabData.getEntries(state);
+        List<T> result = new ArrayList<>();
+        for (int index : tabData.getSelectedIndices(state)) {
+            if (index >= 0 && index < entries.size()) result.add(entries.get(index));
+        }
+
+        return result;
+    }
+
+    private static int compareDimensionPriority(int aDimension, int bDimension, int playerDimension) {
+        boolean aCurrentDimension = aDimension == playerDimension;
+        boolean bCurrentDimension = bDimension == playerDimension;
+        if (aCurrentDimension != bCurrentDimension) return aCurrentDimension ? -1 : 1;
+
+        return Integer.compare(aDimension, bDimension);
+    }
+
+    private static String stripFormatting(String text) {
+        if (text == null) return "";
+
+        String strippedText = TextFormatting.getTextWithoutFormattingCodes(text);
+        if (strippedText != null) return strippedText;
+
+        return text;
+    }
+
+    private static int compareDisplayText(String left, String right) {
+        return stripFormatting(left).compareToIgnoreCase(stripFormatting(right));
+    }
+
+    private static <T> List<T> getSortedEntries(TabData<T> tabData,
+            Function<PlayerSortContext, Comparator<T>> comparatorFactory) {
+        DeviceScanState state = getActiveState();
+        if (state == null) return new ArrayList<>();
+
+        List<T> sortedEntries = tabData.getSortedEntries(state);
+        if (sortedEntries != null) return sortedEntries;
+
+        sortedEntries = new ArrayList<>(tabData.getEntries(state));
+
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.player != null) {
+            PlayerSortContext sortContext = new PlayerSortContext(
+                    mc.player.dimension,
+                    mc.player.getPosition(),
+                    getSortMode(tabData.getTab()));
+            sortedEntries.sort(comparatorFactory.apply(sortContext));
+        }
+
+        tabData.setSortedEntries(state, sortedEntries);
+        return sortedEntries;
     }
 
     // ========== Sort Mode Management ==========
@@ -426,439 +688,259 @@ public class ScannerClientState {
     // ========== Loop Location Management ==========
 
     public static void setLoopLocations(long deviceId, List<LoopLocationClient> locations) {
-        DeviceScanState state = getOrCreateState(deviceId);
-        state.loopLocations.clear();
-        state.loopLocations.addAll(locations);
-        state.sortedLoopLocations = null;
+        replaceEntries(deviceId, locations, LOOP_TAB_DATA);
     }
 
     public static List<LoopLocationClient> getLoopLocations() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.loopLocations : new ArrayList<>();
+        return getEntries(LOOP_TAB_DATA);
     }
 
     public static int getLoopCount() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.loopLocations.size() : 0;
+        return getEntryCount(LOOP_TAB_DATA);
     }
 
     // ========== Chunk Location Management ==========
 
     public static void setChunkLocations(long deviceId, List<ChunkLocationClient> locations) {
-        DeviceScanState state = getOrCreateState(deviceId);
-        state.chunkLocations.clear();
-        state.chunkLocations.addAll(locations);
-        state.sortedChunkLocations = null;
+        replaceEntries(deviceId, locations, CHUNK_TAB_DATA);
     }
 
     public static List<ChunkLocationClient> getChunkLocations() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.chunkLocations : new ArrayList<>();
+        return getEntries(CHUNK_TAB_DATA);
     }
 
     public static int getChunkCount() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.chunkLocations.size() : 0;
+        return getEntryCount(CHUNK_TAB_DATA);
     }
 
     // ========== Missing Device Management ==========
 
     public static void setMissingDevices(long deviceId, List<MissingDeviceClient> devices) {
-        DeviceScanState state = getOrCreateState(deviceId);
-        state.missingDevices.clear();
-        state.missingDevices.addAll(devices);
-        state.sortedMissingDevices = null;
+        replaceEntries(deviceId, devices, MISSING_TAB_DATA);
     }
 
     public static List<MissingDeviceClient> getMissingDevices() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.missingDevices : new ArrayList<>();
+        return getEntries(MISSING_TAB_DATA);
     }
 
     public static int getMissingCount() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.missingDevices.size() : 0;
+        return getEntryCount(MISSING_TAB_DATA);
     }
 
     // ========== Chokepoint Location Management ==========
 
     public static void setChokeLocations(long deviceId, List<ChokeLocationClient> locations) {
-        DeviceScanState state = getOrCreateState(deviceId);
-        state.chokeLocations.clear();
-        state.chokeLocations.addAll(locations);
-        state.sortedChokeLocations = null;
+        replaceEntries(deviceId, locations, CHOKE_TAB_DATA);
     }
 
     public static List<ChokeLocationClient> getChokeLocations() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.chokeLocations : new ArrayList<>();
+        return getEntries(CHOKE_TAB_DATA);
     }
 
     public static int getChokeCount() {
-        DeviceScanState state = getActiveState();
+        return getEntryCount(CHOKE_TAB_DATA);
+    }
 
-        return state != null ? state.chokeLocations.size() : 0;
+    // ========== Fatal Error Management ==========
+
+    public static void setFatalErrors(long deviceId, List<FatalNetworkError> errors) {
+        replaceEntries(deviceId, errors, FATAL_TAB_DATA);
+    }
+
+    public static List<FatalNetworkError> getFatalErrors() {
+        return getEntries(FATAL_TAB_DATA);
+    }
+
+    public static int getFatalCount() {
+        return getEntryCount(FATAL_TAB_DATA);
     }
 
     // ========== Loop Selection Management ==========
 
     public static void toggleLoopSelection(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        if (state.selectedLoopIndices.contains(index)) {
-            state.selectedLoopIndices.remove(index);
-        } else {
-            state.selectedLoopIndices.add(index);
-        }
+        toggleTabSelection(LOOP_TAB_DATA, index);
     }
 
     public static void selectOnlyLoop(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedLoopIndices.clear();
-        state.selectedLoopIndices.add(index);
+        selectOnlyTabEntry(LOOP_TAB_DATA, index);
     }
 
     public static void selectAllLoops() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedLoopIndices.clear();
-        for (int i = 0; i < state.loopLocations.size(); i++) state.selectedLoopIndices.add(i);
+        selectAllTabEntries(LOOP_TAB_DATA);
     }
 
     public static void deselectAllLoops() {
-        DeviceScanState state = getActiveState();
-        if (state != null) state.selectedLoopIndices.clear();
+        clearTabSelection(LOOP_TAB_DATA);
     }
 
     public static boolean isLoopSelected(int index) {
-        DeviceScanState state = getActiveState();
-
-        return state != null && state.selectedLoopIndices.contains(index);
+        return isTabEntrySelected(LOOP_TAB_DATA, index);
     }
 
     public static Set<Integer> getSelectedLoopIndices() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.selectedLoopIndices : new HashSet<>();
+        return getTabSelectedIndices(LOOP_TAB_DATA);
     }
 
     public static List<LoopLocationClient> getSelectedLoops() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
-
-        List<LoopLocationClient> result = new ArrayList<>();
-        for (int index : state.selectedLoopIndices) {
-            if (index >= 0 && index < state.loopLocations.size()) {
-                result.add(state.loopLocations.get(index));
-            }
-        }
-
-        return result;
+        return getSelectedEntries(LOOP_TAB_DATA);
     }
 
     // ========== Chunk Selection Management ==========
 
     public static void toggleChunkSelection(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        if (state.selectedChunkIndices.contains(index)) {
-            state.selectedChunkIndices.remove(index);
-        } else {
-            state.selectedChunkIndices.add(index);
-        }
+        toggleTabSelection(CHUNK_TAB_DATA, index);
     }
 
     public static void selectOnlyChunk(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedChunkIndices.clear();
-        state.selectedChunkIndices.add(index);
+        selectOnlyTabEntry(CHUNK_TAB_DATA, index);
     }
 
     public static void selectAllChunks() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedChunkIndices.clear();
-        for (int i = 0; i < state.chunkLocations.size(); i++) state.selectedChunkIndices.add(i);
+        selectAllTabEntries(CHUNK_TAB_DATA);
     }
 
     public static void deselectAllChunks() {
-        DeviceScanState state = getActiveState();
-        if (state != null) state.selectedChunkIndices.clear();
+        clearTabSelection(CHUNK_TAB_DATA);
     }
 
     public static boolean isChunkSelected(int index) {
-        DeviceScanState state = getActiveState();
-
-        return state != null && state.selectedChunkIndices.contains(index);
+        return isTabEntrySelected(CHUNK_TAB_DATA, index);
     }
 
     public static Set<Integer> getSelectedChunkIndices() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.selectedChunkIndices : new HashSet<>();
+        return getTabSelectedIndices(CHUNK_TAB_DATA);
     }
 
     public static List<ChunkLocationClient> getSelectedChunks() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
-
-        List<ChunkLocationClient> result = new ArrayList<>();
-        for (int index : state.selectedChunkIndices) {
-            if (index >= 0 && index < state.chunkLocations.size()) {
-                result.add(state.chunkLocations.get(index));
-            }
-        }
-
-        return result;
+        return getSelectedEntries(CHUNK_TAB_DATA);
     }
 
     // ========== Missing Device Selection Management ==========
 
     public static void toggleMissingSelection(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        if (state.selectedMissingIndices.contains(index)) {
-            state.selectedMissingIndices.remove(index);
-        } else {
-            state.selectedMissingIndices.add(index);
-        }
+        toggleTabSelection(MISSING_TAB_DATA, index);
     }
 
     public static void selectOnlyMissing(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedMissingIndices.clear();
-        state.selectedMissingIndices.add(index);
+        selectOnlyTabEntry(MISSING_TAB_DATA, index);
     }
 
     public static void selectAllMissing() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedMissingIndices.clear();
-        for (int i = 0; i < state.missingDevices.size(); i++) state.selectedMissingIndices.add(i);
+        selectAllTabEntries(MISSING_TAB_DATA);
     }
 
     public static void deselectAllMissing() {
-        DeviceScanState state = getActiveState();
-        if (state != null) state.selectedMissingIndices.clear();
+        clearTabSelection(MISSING_TAB_DATA);
     }
 
     public static boolean isMissingSelected(int index) {
-        DeviceScanState state = getActiveState();
-
-        return state != null && state.selectedMissingIndices.contains(index);
+        return isTabEntrySelected(MISSING_TAB_DATA, index);
     }
 
     public static Set<Integer> getSelectedMissingIndices() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.selectedMissingIndices : new HashSet<>();
+        return getTabSelectedIndices(MISSING_TAB_DATA);
     }
 
     public static List<MissingDeviceClient> getSelectedMissing() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
-
-        List<MissingDeviceClient> result = new ArrayList<>();
-        for (int index : state.selectedMissingIndices) {
-            if (index >= 0 && index < state.missingDevices.size()) {
-                result.add(state.missingDevices.get(index));
-            }
-        }
-
-        return result;
+        return getSelectedEntries(MISSING_TAB_DATA);
     }
 
     // ========== Chokepoint Selection Management ==========
 
     public static void toggleChokeSelection(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        if (state.selectedChokeIndices.contains(index)) {
-            state.selectedChokeIndices.remove(index);
-        } else {
-            state.selectedChokeIndices.add(index);
-        }
+        toggleTabSelection(CHOKE_TAB_DATA, index);
     }
 
     public static void selectOnlyChoke(int index) {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedChokeIndices.clear();
-        state.selectedChokeIndices.add(index);
+        selectOnlyTabEntry(CHOKE_TAB_DATA, index);
     }
 
     public static void selectAllChokes() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return;
-
-        state.selectedChokeIndices.clear();
-        for (int i = 0; i < state.chokeLocations.size(); i++) state.selectedChokeIndices.add(i);
+        selectAllTabEntries(CHOKE_TAB_DATA);
     }
 
     public static void deselectAllChokes() {
-        DeviceScanState state = getActiveState();
-        if (state != null) state.selectedChokeIndices.clear();
+        clearTabSelection(CHOKE_TAB_DATA);
     }
 
     public static boolean isChokeSelected(int index) {
-        DeviceScanState state = getActiveState();
-
-        return state != null && state.selectedChokeIndices.contains(index);
+        return isTabEntrySelected(CHOKE_TAB_DATA, index);
     }
 
     public static Set<Integer> getSelectedChokeIndices() {
-        DeviceScanState state = getActiveState();
-
-        return state != null ? state.selectedChokeIndices : new HashSet<>();
+        return getTabSelectedIndices(CHOKE_TAB_DATA);
     }
 
     public static List<ChokeLocationClient> getSelectedChokes() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
+        return getSelectedEntries(CHOKE_TAB_DATA);
+    }
 
-        List<ChokeLocationClient> result = new ArrayList<>();
-        for (int index : state.selectedChokeIndices) {
-            if (index >= 0 && index < state.chokeLocations.size()) {
-                result.add(state.chokeLocations.get(index));
-            }
-        }
+    // ========== Fatal Error Selection Management ==========
 
-        return result;
+    public static void toggleFatalSelection(int index) {
+        toggleTabSelection(FATAL_TAB_DATA, index);
+    }
+
+    public static void selectOnlyFatal(int index) {
+        selectOnlyTabEntry(FATAL_TAB_DATA, index);
+    }
+
+    public static void selectAllFatal() {
+        selectAllTabEntries(FATAL_TAB_DATA);
+    }
+
+    public static void deselectAllFatal() {
+        clearTabSelection(FATAL_TAB_DATA);
+    }
+
+    public static boolean isFatalSelected(int index) {
+        return isTabEntrySelected(FATAL_TAB_DATA, index);
+    }
+
+    public static Set<Integer> getSelectedFatalIndices() {
+        return getTabSelectedIndices(FATAL_TAB_DATA);
+    }
+
+    public static List<FatalNetworkError> getSelectedFatalErrors() {
+        return getSelectedEntries(FATAL_TAB_DATA);
+    }
+
+    public static String getFatalErrorDisplayText(FatalNetworkError error) {
+        return I18n.format(error.getCategory().getEntryKey(), error.getDescription());
     }
 
     // ========== Generic Selection for Current Tab ==========
 
     public static void selectAll() {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            selectAllLoops();
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            selectAllChunks();
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            selectAllMissing();
-        } else {
-            selectAllChokes();
-        }
+        selectAllTabEntries(getCurrentTabData());
     }
 
     public static void deselectAll() {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            deselectAllLoops();
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            deselectAllChunks();
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            deselectAllMissing();
-        } else {
-            deselectAllChokes();
-        }
+        clearTabSelection(getCurrentTabData());
     }
 
     public static void toggleSelection(int index) {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            toggleLoopSelection(index);
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            toggleChunkSelection(index);
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            toggleMissingSelection(index);
-        } else {
-            toggleChokeSelection(index);
-        }
+        toggleTabSelection(getCurrentTabData(), index);
     }
 
     public static void selectOnly(int index) {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            selectOnlyLoop(index);
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            selectOnlyChunk(index);
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            selectOnlyMissing(index);
-        } else {
-            selectOnlyChoke(index);
-        }
+        selectOnlyTabEntry(getCurrentTabData(), index);
     }
 
     public static boolean isSelected(int index) {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            return isLoopSelected(index);
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            return isChunkSelected(index);
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            return isMissingSelected(index);
-        } else {
-            return isChokeSelected(index);
-        }
+        return isTabEntrySelected(getCurrentTabData(), index);
     }
 
     public static Set<Integer> getSelectedIndices() {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            return getSelectedLoopIndices();
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            return getSelectedChunkIndices();
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            return getSelectedMissingIndices();
-        } else {
-            return getSelectedChokeIndices();
-        }
+        return getTabSelectedIndices(getCurrentTabData());
     }
 
     public static int getCurrentTabItemCount() {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            return getLoopCount();
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            return getChunkCount();
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            return getMissingCount();
-        } else {
-            return getChokeCount();
-        }
+        return getEntryCount(getCurrentTabData());
     }
 
     public static int getCurrentTabSelectedCount() {
-        Tab currentTab = getCurrentTab();
-
-        if (currentTab == Tab.LOOPS) {
-            return getSelectedLoopIndices().size();
-        } else if (currentTab == Tab.UNLOADED_CHUNKS) {
-            return getSelectedChunkIndices().size();
-        } else if (currentTab == Tab.MISSING_CHANNELS) {
-            return getSelectedMissingIndices().size();
-        } else {
-            return getSelectedChokeIndices().size();
-        }
+        return getTabSelectedIndices(getCurrentTabData()).size();
     }
 
     // ========== Sorted/Grouped Access ==========
@@ -867,121 +949,71 @@ public class ScannerClientState {
      * Get loop locations sorted by dimension (current first), then by sort mode.
      */
     public static List<LoopLocationClient> getSortedLoopLocations() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
+        return getSortedEntries(LOOP_TAB_DATA, sortContext -> (a, b) -> {
+            int dimensionCompare = compareDimensionPriority(
+                    a.dimension,
+                    b.dimension,
+                    sortContext.playerDimension);
+            if (dimensionCompare != 0) return dimensionCompare;
 
-        if (state.sortedLoopLocations == null) {
-            state.sortedLoopLocations = new ArrayList<>(state.loopLocations);
-
-            Minecraft mc = Minecraft.getMinecraft();
-            if (mc.player != null) {
-                int playerDim = mc.player.dimension;
-                BlockPos playerPos = mc.player.getPosition();
-                SortMode sortMode = getSortMode(Tab.LOOPS);
-
-                state.sortedLoopLocations.sort((a, b) -> {
-                    boolean aCurrentDim = a.dimension == playerDim;
-                    boolean bCurrentDim = b.dimension == playerDim;
-                    if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
-                    if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
-
-                    if (sortMode == SortMode.NAME) {
-                        // Strip color codes (§x) so they don't affect alphabetical ordering
-                        int nameCompare = TextFormatting.getTextWithoutFormattingCodes(a.description)
-                                .compareToIgnoreCase(TextFormatting.getTextWithoutFormattingCodes(b.description));
-                        if (nameCompare != 0) return nameCompare;
-                    }
-
-                    return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
-                });
+            if (sortContext.sortMode == SortMode.NAME) {
+                int nameCompare = compareDisplayText(a.description, b.description);
+                if (nameCompare != 0) return nameCompare;
             }
-        }
 
-        return state.sortedLoopLocations;
+            return Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+        });
     }
 
     /**
      * Get chunk locations sorted by dimension (current first), then by sort mode.
      */
     public static List<ChunkLocationClient> getSortedChunkLocations() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
+        return getSortedEntries(CHUNK_TAB_DATA, sortContext -> (a, b) -> {
+            int dimensionCompare = compareDimensionPriority(
+                    a.dimension,
+                    b.dimension,
+                    sortContext.playerDimension);
+            if (dimensionCompare != 0) return dimensionCompare;
 
-        if (state.sortedChunkLocations == null) {
-            state.sortedChunkLocations = new ArrayList<>(state.chunkLocations);
+            if (sortContext.sortMode == SortMode.NAME) {
+                int chunkXCompare = Integer.compare(a.chunkX, b.chunkX);
+                if (chunkXCompare != 0) return chunkXCompare;
 
-            Minecraft mc = Minecraft.getMinecraft();
-            if (mc.player != null) {
-                int playerDim = mc.player.dimension;
-                BlockPos playerPos = mc.player.getPosition();
-                SortMode sortMode = getSortMode(Tab.UNLOADED_CHUNKS);
-
-                state.sortedChunkLocations.sort((a, b) -> {
-                    boolean aCurrentDim = a.dimension == playerDim;
-                    boolean bCurrentDim = b.dimension == playerDim;
-                    if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
-                    if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
-
-                    if (sortMode == SortMode.NAME) {
-                        // Chunks have no name; sort by coordinates instead
-                        int cmpX = Integer.compare(a.chunkX, b.chunkX);
-                        if (cmpX != 0) return cmpX;
-
-                        int cmpZ = Integer.compare(a.chunkZ, b.chunkZ);
-                        if (cmpZ != 0) return cmpZ;
-                    }
-
-                    return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
-                });
+                int chunkZCompare = Integer.compare(a.chunkZ, b.chunkZ);
+                if (chunkZCompare != 0) return chunkZCompare;
             }
-        }
 
-        return state.sortedChunkLocations;
+            return Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+        });
     }
 
     /**
      * Get missing device locations sorted by dimension (current first), then by sort mode.
      */
     public static List<MissingDeviceClient> getSortedMissingDevices() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
+        return getSortedEntries(MISSING_TAB_DATA, sortContext -> (a, b) -> {
+            int dimensionCompare = compareDimensionPriority(
+                    a.dimension,
+                    b.dimension,
+                    sortContext.playerDimension);
+            if (dimensionCompare != 0) return dimensionCompare;
 
-        if (state.sortedMissingDevices == null) {
-            state.sortedMissingDevices = new ArrayList<>(state.missingDevices);
+            String aName = stripFormatting(a.getDisplayName());
+            String bName = stripFormatting(b.getDisplayName());
 
-            Minecraft mc = Minecraft.getMinecraft();
-            if (mc.player != null) {
-                int playerDim = mc.player.dimension;
-                BlockPos playerPos = mc.player.getPosition();
-                SortMode sortMode = getSortMode(Tab.MISSING_CHANNELS);
+            if (sortContext.sortMode == SortMode.NAME) {
+                int nameCompare = aName.compareToIgnoreCase(bName);
+                if (nameCompare != 0) return nameCompare;
 
-                state.sortedMissingDevices.sort((a, b) -> {
-                    boolean aCurrentDim = a.dimension == playerDim;
-                    boolean bCurrentDim = b.dimension == playerDim;
-                    if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
-                    if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
-
-                    // Strip color codes (§x) so they don't affect alphabetical ordering
-                    String aName = TextFormatting.getTextWithoutFormattingCodes(a.getDisplayName());
-                    String bName = TextFormatting.getTextWithoutFormattingCodes(b.getDisplayName());
-
-                    if (sortMode == SortMode.NAME) {
-                        int nameCompare = aName.compareToIgnoreCase(bName);
-                        if (nameCompare != 0) return nameCompare;
-
-                        return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
-                    }
-
-                    // Distance first, then name as tiebreaker
-                    int distCompare = Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
-                    if (distCompare != 0) return distCompare;
-
-                    return aName.compareToIgnoreCase(bName);
-                });
+                return Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
             }
-        }
 
-        return state.sortedMissingDevices;
+            int distanceCompare = Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+            if (distanceCompare != 0) return distanceCompare;
+
+            return aName.compareToIgnoreCase(bName);
+        });
     }
 
     /**
@@ -989,42 +1021,54 @@ public class ScannerClientState {
      * with sort mode controlling secondary ordering (name vs distance).
      */
     public static List<ChokeLocationClient> getSortedChokeLocations() {
-        DeviceScanState state = getActiveState();
-        if (state == null) return new ArrayList<>();
+        return getSortedEntries(CHOKE_TAB_DATA, sortContext -> (a, b) -> {
+            int dimensionCompare = compareDimensionPriority(
+                    a.dimension,
+                    b.dimension,
+                    sortContext.playerDimension);
+            if (dimensionCompare != 0) return dimensionCompare;
 
-        if (state.sortedChokeLocations == null) {
-            state.sortedChokeLocations = new ArrayList<>(state.chokeLocations);
+            int excessCompare = Integer.compare(b.getExcessChannels(), a.getExcessChannels());
+            if (excessCompare != 0) return excessCompare;
 
-            Minecraft mc = Minecraft.getMinecraft();
-            if (mc.player != null) {
-                int playerDim = mc.player.dimension;
-                BlockPos playerPos = mc.player.getPosition();
-                SortMode sortMode = getSortMode(Tab.CHOKEPOINTS);
-
-                state.sortedChokeLocations.sort((a, b) -> {
-                    boolean aCurrentDim = a.dimension == playerDim;
-                    boolean bCurrentDim = b.dimension == playerDim;
-                    if (aCurrentDim != bCurrentDim) return aCurrentDim ? -1 : 1;
-                    if (a.dimension != b.dimension) return Integer.compare(a.dimension, b.dimension);
-
-                    // Severity is always the primary sort factor (most severe first)
-                    int excessCompare = Integer.compare(b.getExcessChannels(), a.getExcessChannels());
-                    if (excessCompare != 0) return excessCompare;
-
-                    // Sort mode controls secondary ordering within same severity
-                    if (sortMode == SortMode.NAME) {
-                        // Strip color codes (§x) so they don't affect alphabetical ordering
-                        int nameCompare = TextFormatting.getTextWithoutFormattingCodes(a.description)
-                                .compareToIgnoreCase(TextFormatting.getTextWithoutFormattingCodes(b.description));
-                        if (nameCompare != 0) return nameCompare;
-                    }
-
-                    return Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos));
-                });
+            if (sortContext.sortMode == SortMode.NAME) {
+                int nameCompare = compareDisplayText(a.description, b.description);
+                if (nameCompare != 0) return nameCompare;
             }
-        }
 
-        return state.sortedChokeLocations;
+            return Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+        });
+    }
+
+    /**
+     * Get fatal errors sorted by category first, then by dimension and current sort mode.
+     */
+    public static List<FatalNetworkError> getSortedFatalErrors() {
+        return getSortedEntries(FATAL_TAB_DATA, sortContext -> (a, b) -> {
+            int categoryCompare = Integer.compare(a.getCategory().ordinal(), b.getCategory().ordinal());
+            if (categoryCompare != 0) return categoryCompare;
+
+            int dimensionCompare = compareDimensionPriority(
+                    a.getDimension(),
+                    b.getDimension(),
+                    sortContext.playerDimension);
+            if (dimensionCompare != 0) return dimensionCompare;
+
+            String aName = stripFormatting(getFatalErrorDisplayText(a));
+            String bName = stripFormatting(getFatalErrorDisplayText(b));
+
+            if (sortContext.sortMode == SortMode.NAME) {
+                int nameCompare = aName.compareToIgnoreCase(bName);
+                if (nameCompare != 0) return nameCompare;
+
+                return Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+            }
+
+            int distanceCompare = Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+            if (distanceCompare != 0) return distanceCompare;
+
+            return aName.compareToIgnoreCase(bName);
+        });
     }
 
     /**

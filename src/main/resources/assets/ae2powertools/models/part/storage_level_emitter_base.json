@@ -1,0 +1,21 @@
+{
+    "textures": {
+        "emitter": "ae2powertools:parts/level_emitter_off",
+        "sides": "appliedenergistics2:parts/monitor_sides",
+        "particle": "ae2powertools:parts/level_emitter_off"
+    },
+    "elements": [
+        {
+            "__comment": "Mirrored to AE2 convention: z=0 is the outer face (NORTH).",
+            "from": [7, 7, 0],
+            "to": [9, 9, 5],
+            "faces": {
+                "up":    { "texture": "#sides" },
+                "down":  { "texture": "#sides" },
+                "east":  { "texture": "#sides" },
+                "west":  { "texture": "#sides" },
+                "north": { "texture": "#emitter" }
+            }
+        }
+    ]
+}

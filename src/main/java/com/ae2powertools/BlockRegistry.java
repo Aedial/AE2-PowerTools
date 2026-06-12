@@ -18,6 +18,12 @@ import com.ae2powertools.features.crafter.BlockAutoCrafter;
 import com.ae2powertools.features.crafter.TileAutoCrafter;
 import com.ae2powertools.features.maintainer.BlockBetterLevelMaintainer;
 import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
+import com.ae2powertools.features.monitor.display.BlockStorageDisplay;
+import com.ae2powertools.features.monitor.display.ItemBlockStorageDisplay;
+import com.ae2powertools.features.monitor.display.TileStorageDisplay;
+import com.ae2powertools.features.monitor.emitter.BlockStorageLevelEmitter;
+import com.ae2powertools.features.monitor.emitter.ItemBlockStorageLevelEmitter;
+import com.ae2powertools.features.monitor.emitter.TileStorageLevelEmitter;
 
 
 /**
@@ -28,23 +34,33 @@ public class BlockRegistry {
 
     public static BlockBetterLevelMaintainer BETTER_LEVEL_MAINTAINER;
     public static BlockAutoCrafter AUTO_CRAFTER;
+    public static BlockStorageLevelEmitter STORAGE_LEVEL_EMITTER;
+    public static BlockStorageDisplay STORAGE_DISPLAY;
 
     public static void init() {
         BETTER_LEVEL_MAINTAINER = new BlockBetterLevelMaintainer();
         AUTO_CRAFTER = new BlockAutoCrafter();
+        STORAGE_LEVEL_EMITTER = new BlockStorageLevelEmitter();
+        STORAGE_DISPLAY = new BlockStorageDisplay();
 
         // Register tile entities
         GameRegistry.registerTileEntity(TileBetterLevelMaintainer.class,
                 new ResourceLocation(Tags.MODID, "better_level_maintainer"));
         GameRegistry.registerTileEntity(TileAutoCrafter.class,
                 new ResourceLocation(Tags.MODID, "auto_crafter"));
+        GameRegistry.registerTileEntity(TileStorageLevelEmitter.class,
+                new ResourceLocation(Tags.MODID, "storage_level_emitter"));
+        GameRegistry.registerTileEntity(TileStorageDisplay.class,
+                new ResourceLocation(Tags.MODID, "storage_display"));
     }
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
         event.getRegistry().registerAll(
                 BETTER_LEVEL_MAINTAINER,
-                AUTO_CRAFTER
+                AUTO_CRAFTER,
+                STORAGE_LEVEL_EMITTER,
+                STORAGE_DISPLAY
         );
     }
 
@@ -52,7 +68,9 @@ public class BlockRegistry {
     public static void registerItemBlocks(RegistryEvent.Register<Item> event) {
         event.getRegistry().registerAll(
                 createItemBlock(BETTER_LEVEL_MAINTAINER),
-                createItemBlock(AUTO_CRAFTER)
+                createItemBlock(AUTO_CRAFTER),
+                createCustomItemBlock(new ItemBlockStorageLevelEmitter(STORAGE_LEVEL_EMITTER)),
+                createCustomItemBlock(new ItemBlockStorageDisplay(STORAGE_DISPLAY))
         );
     }
 
@@ -61,11 +79,23 @@ public class BlockRegistry {
     public static void registerModels(ModelRegistryEvent event) {
         registerBlockModel(BETTER_LEVEL_MAINTAINER);
         registerBlockModel(AUTO_CRAFTER);
+        registerBlockModel(STORAGE_LEVEL_EMITTER);
+        registerBlockModel(STORAGE_DISPLAY);
     }
 
     private static ItemBlock createItemBlock(Block block) {
         ItemBlock itemBlock = new ItemBlock(block);
         itemBlock.setRegistryName(block.getRegistryName());
+
+        return itemBlock;
+    }
+
+    /**
+     * Sets the registry name on a custom ItemBlock (e.g. ItemBlockStorageLevelEmitter)
+     * that already extends ItemBlock but doesn't call setRegistryName in its constructor.
+     */
+    private static ItemBlock createCustomItemBlock(ItemBlock itemBlock) {
+        itemBlock.setRegistryName(itemBlock.getBlock().getRegistryName());
 
         return itemBlock;
     }

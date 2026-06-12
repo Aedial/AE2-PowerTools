@@ -1,0 +1,106 @@
+package com.ae2powertools.util;
+
+import java.lang.reflect.Field;
+import java.util.PriorityQueue;
+
+import appeng.api.networking.IGridHost;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.ITickManager;
+import appeng.me.cache.TickManagerCache;
+import appeng.me.cache.helpers.TickTracker;
+
+import com.ae2powertools.AE2PowerTools;
+
+
+/**
+ * Workaround for an AE2 bug in {@link TickManagerCache}.
+ * <p>
+ * {@link TickManagerCache#removeNode} removes a node's {@link TickTracker} from
+ * the {@code awake}/{@code sleeping}/{@code alertable} HashMaps, but does NOT
+ * remove it from the {@code upcomingTicks} PriorityQueue. When {@code addNode}
+ * is called immediately after (to re-register with new tick bounds), a new
+ * TickTracker is created and added to the queue alongside the stale one.
+ * <p>
+ * The staleness guard in {@code onUpdateTick} checks
+ * {@code awake.containsKey(tt.getNode())}, which passes for the stale tracker
+ * because the NEW tracker is registered under the same node key. As a result,
+ * the stale tracker keeps firing and is re-added to the queue every cycle.
+ * Each {@code removeNode/addNode} cycle accumulates another phantom tracker,
+ * causing the node to be ticked N times per cycle after N rate changes.
+ * The issue resolves on world reload since the tick manager's state is rebuilt.
+ * <p>
+ * This helper uses reflection to access the {@code upcomingTicks} PriorityQueue
+ * and purge any stale TickTracker entries for a given node before re-registering.
+ */
+public final class TickManagerHelper {
+
+    // Cached reflection field for TickManagerCache.upcomingTicks
+    private static Field upcomingTicksField;
+    private static boolean reflectionFailed = false;
+
+    private TickManagerHelper() {}
+
+    /**
+     * Safely re-register a tickable node with the tick manager.
+     * Cleans up stale TickTracker entries from AE2's internal PriorityQueue
+     * before calling removeNode/addNode, preventing phantom tick accumulation.
+     * <p>
+     * Callers should ensure the node is valid (proxy.isReady()) before calling.
+     * If the node is null or has no grid, returns false without error.
+     *
+     * @param node     the grid node to re-register
+     * @param tickable the tickable machine (must also implement IGridHost at runtime)
+     * @return true if re-registration succeeded, false if skipped or failed
+     */
+    public static boolean reRegisterTickable(IGridNode node, IGridTickable tickable) {
+        if (node == null) return false;
+
+        if (!(tickable instanceof IGridHost)) {
+            AE2PowerTools.LOGGER.warn("Tickable is not an IGridHost: {}", tickable);
+            return false;
+        }
+
+        IGridHost gridHost = (IGridHost) tickable;
+
+        // Purge stale entries from the PriorityQueue before AE2's removeNode leaves them behind
+        ITickManager tickManager = node.getGrid().getCache(ITickManager.class);
+
+        purgeStaleTrackers(tickManager, node);
+
+        tickManager.removeNode(node, gridHost);
+        tickManager.addNode(node, gridHost);
+
+        return true;
+    }
+
+    /**
+     * Remove all TickTracker entries for the given node from the tick manager's
+     * internal PriorityQueue. This prevents stale trackers from accumulating
+     * when a node is removed and re-added.
+     */
+    @SuppressWarnings("unchecked")
+    private static void purgeStaleTrackers(ITickManager tickManager, IGridNode node) {
+        if (reflectionFailed) return;
+        if (!(tickManager instanceof TickManagerCache)) return;
+
+        try {
+            if (upcomingTicksField == null) {
+                upcomingTicksField = TickManagerCache.class.getDeclaredField("upcomingTicks");
+                upcomingTicksField.setAccessible(true);
+            }
+
+            PriorityQueue<TickTracker> upcomingTicks =
+                (PriorityQueue<TickTracker>) upcomingTicksField.get(tickManager);
+
+            upcomingTicks.removeIf(tracker -> tracker.getNode() == node);
+        } catch (NoSuchFieldException | IllegalAccessException | ClassCastException e) {
+            // If reflection fails (e.g. AE2 internals changed), log a warning once
+            // and fall back to the buggy removeNode/addNode behavior. The issue will
+            // self-resolve on world reload, so this is an acceptable degradation.
+            reflectionFailed = true;
+            AE2PowerTools.LOGGER.warn("Failed to purge stale TickTrackers from AE2's tick manager. "
+                + "Polling rate changes may cause erratic ticking until world reload.", e);
+        }
+    }
+}

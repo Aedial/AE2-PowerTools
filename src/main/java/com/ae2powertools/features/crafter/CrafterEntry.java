@@ -121,7 +121,7 @@ public class CrafterEntry {
     private long metricsTotalMaxPossible;
 
     // ==================== CLIENT-SIDE SYNCED DATA ====================
-    // These fields are synced from server via writeToStream/readFromStream
+    // These fields are synced from server via detectAndSendChanges + listener,
     // and used for client-side GUI display when recipeInfo is not available.
 
     /**
