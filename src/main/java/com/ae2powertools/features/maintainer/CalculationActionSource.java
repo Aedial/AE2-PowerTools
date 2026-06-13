@@ -23,8 +23,9 @@ import appeng.api.networking.security.IActionSource;
  *   branch without altering AE2's calculation result.
  *
  * What this source does:
- *   - {@code player()} returns a Forge fake player so AE2 takes the "player" branch in
- *     {@code handlePausing()} and never sleeps/pauses the calculation thread.
+ *   - {@code player()} returns a Forge fake player only while AE2 evaluates
+ *     {@code handlePausing()}, so the buggy AE2 pause/resume branch is skipped without making
+ *     the whole calculation look like an intentional player craft to other integrations.
  *   - {@code machine()} still returns the real tile so any pattern provider that introspects
  *     the source via {@code machine()} sees the maintainer.
  *
@@ -41,6 +42,9 @@ import appeng.api.networking.security.IActionSource;
  */
 public class CalculationActionSource implements IActionSource {
 
+    private static final String CRAFTING_JOB_CLASS_NAME = "appeng.crafting.CraftingJob";
+    private static final String HANDLE_PAUSING_METHOD_NAME = "handlePausing";
+
     private final IActionHost machine;
     private final WorldServer world;
 
@@ -51,12 +55,25 @@ public class CalculationActionSource implements IActionSource {
 
     @Override
     public Optional<EntityPlayer> player() {
+        if (!isAe2HandlePausingCheck()) return Optional.empty();
+
         // FakePlayerFactory.getMinecraft returns a stable, reusable fake player tied to the
         // world. We intentionally accept the cost of producing one each call, the factory
         // caches internally and beginCraftingJob is not on a hot path.
         EntityPlayer fake = FakePlayerFactory.getMinecraft(world);
 
         return Optional.ofNullable(fake);
+    }
+
+    private boolean isAe2HandlePausingCheck() {
+        for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
+            if (CRAFTING_JOB_CLASS_NAME.equals(element.getClassName())
+                    && HANDLE_PAUSING_METHOD_NAME.equals(element.getMethodName())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     @Override

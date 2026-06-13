@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.2-beta] - 2026-06-15
+### Fixed
+- Fix Better Level Maintainer being mistaken for a RandomComplement missing-craft request when `enableMissCraft` is enabled, which could force impossible crafts instead of reporting the failure normally.
+
+### Added
+- Add textures for the Storage Level Emitter and Storage Display.
+
+
 ## [1.6.1-alpha2] - 2026-06-02
 ### Added
 - Improve the Network Health Scanner's unloaded chunk detection so it can detect adjacent chunks that are not chunkloaded, nor loaded by any player. Unloaded Quantum Network Bridges are still not detected, as the grid has no way to know about their existence until they are loaded.
