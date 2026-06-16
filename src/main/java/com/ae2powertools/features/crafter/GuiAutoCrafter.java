@@ -41,8 +41,8 @@ import com.ae2powertools.util.FormatUtil;
  * GUI for the AE2 AutoCrafter.
  * Recipe view (per-entry) with Overview modal overlay.
  * 
- * Modal system: Overview is drawn on top of the recipe view when overviewMode=true.
- * Upgrade slots and Batch/Speed buttons remain accessible in both modes.
+ * Modal system: Overview replaces the covered recipe/inventory area when
+ * overviewMode=true while keeping the PMT panel visible to the left.
  * 
  * When NAE2 is installed and the player has a Pattern Multi-Tool, displays the PMT
  * panel to the left of the main GUI for convenient pattern storage access.
@@ -362,6 +362,10 @@ public class GuiAutoCrafter extends GuiContainer {
         // Draw upgrade slot icons (for empty slots)
         drawUpgradeSlotIcons();
 
+        // Short circuit to skip drawing recipe/inventory if overview is open.
+        // This avoids content underneath leaking GL state to the overview (eating item renders, etc).
+        if (overviewMode) return;
+
         // Draw pattern slot icon (for empty slot)
         drawPatternSlotIcon();
 
@@ -434,20 +438,23 @@ public class GuiAutoCrafter extends GuiContainer {
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
+        PMTManager pmtManager = container.getPMTManager();
+        if (overviewMode) {
+            PMTRenderer.drawSlotOverlays(this, pmtManager);
+            return;
+        }
+
         // Draw title (shifted right to make room for overview/back button on the left)
         String title = I18n.format("gui.ae2powertools.crafter.title");
         fontRenderer.drawString(title, OVERVIEW_BTN_X + PAGE_BTN_SIZE + 4, 7, 0x404040);
 
-        // Draw page indicator in recipe mode (not in overview)
-        if (!overviewMode) {
-            String pageText = I18n.format("gui.ae2powertools.crafter.page", getCurrentPage() + 1, TileAutoCrafter.ENTRY_COUNT);
-            int pageWidth = fontRenderer.getStringWidth(pageText);
-            int centerX = (PAGE_LEFT_X + 12 + PAGE_RIGHT_X) / 2 - pageWidth / 2;
-            fontRenderer.drawString(pageText, centerX, PAGE_LEFT_Y + 2, 0x404040);
-        }
+        // Draw page indicator in recipe mode
+        String pageText = I18n.format("gui.ae2powertools.crafter.page", getCurrentPage() + 1, TileAutoCrafter.ENTRY_COUNT);
+        int pageWidth = fontRenderer.getStringWidth(pageText);
+        int centerX = (PAGE_LEFT_X + 12 + PAGE_RIGHT_X) / 2 - pageWidth / 2;
+        fontRenderer.drawString(pageText, centerX, PAGE_LEFT_Y + 2, 0x404040);
 
         // Draw PMT slot count overlays (AE2 handles item rendering via getStack()/getDisplayStack())
-        PMTManager pmtManager = container.getPMTManager();
         PMTRenderer.drawSlotOverlays(this, pmtManager);
     }
 
@@ -462,6 +469,9 @@ public class GuiAutoCrafter extends GuiContainer {
      */
     @Override
     public void drawSlot(Slot slotIn) {
+        // Refuse to render inventory slots when overview modal is open
+        if (overviewMode && isUnderOverview(slotIn.xPos, slotIn.yPos, 16, 16)) return;
+
         if (!(slotIn instanceof PMTSlot)) {
             super.drawSlot(slotIn);
             return;
@@ -1250,6 +1260,23 @@ public class GuiAutoCrafter extends GuiContainer {
     }
 
     // ==================== HELPERS ====================
+
+    /**
+     * Returns whether a GUI-relative rectangle is covered by the overview modal.
+     * Covered elements are skipped instead of fighting the modal's item rendering.
+     */
+    private boolean isUnderOverview(int x, int y, int width, int height) {
+        return x < OVERVIEW_MODAL_WIDTH && x + width > 0
+                && y < OVERVIEW_MODAL_HEIGHT && y + height > 0;
+    }
+
+    @Override
+    protected boolean isPointInRegion(int rectX, int rectY, int rectWidth, int rectHeight, int pointX, int pointY) {
+        // Refuse all inventory slots interactions when overview modal is open, to prevent rendering
+        if (overviewMode && isUnderOverview(rectX, rectY, rectWidth, rectHeight)) return false;
+
+        return super.isPointInRegion(rectX, rectY, rectWidth, rectHeight, pointX, pointY);
+    }
 
     private void drawItemStack(ItemStack stack, int x, int y) {
         GlStateManager.pushMatrix();
