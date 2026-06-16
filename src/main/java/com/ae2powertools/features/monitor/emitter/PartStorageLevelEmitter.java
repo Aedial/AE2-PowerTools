@@ -51,8 +51,6 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
 
     private final LevelEmitterLogic emitterLogic;
 
-    private boolean prevEmitting;
-
     public PartStorageLevelEmitter(ItemStack is) {
         super(is);
         this.emitterLogic = new LevelEmitterLogic(monitorLogic);
@@ -151,11 +149,8 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
 
     @Override
     public boolean readFromStream(ByteBuf data) throws IOException {
-        super.readFromStream(data);
-        boolean newState = data.readBoolean();
-        boolean changed = newState != prevEmitting;
-        prevEmitting = newState;
-        return changed;
+        boolean changed = super.readFromStream(data);
+        return emitterLogic.readFromStream(data) || changed;
     }
 
     private void notifyOutputChanged() {

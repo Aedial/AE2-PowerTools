@@ -94,6 +94,8 @@ public class GuiStorageMonitor extends GuiContainer {
         Tags.MODID, "textures/guis/emitter_gui.png");
     private static final ResourceLocation COMPARISON_ARROWS = new ResourceLocation(
         Tags.MODID, "textures/guis/comparison_arrows.png");
+    private static final ResourceLocation HYSTERESIS_ICON = new ResourceLocation(
+        Tags.MODID, "textures/guis/hysteresis_icon.png");
     /** Reuse the maintainer's selector background so the modal layout matches the Maintainer GUI. */
     private static final ResourceLocation SELECTOR_BACKGROUND = new ResourceLocation(
         Tags.MODID, "textures/guis/recipe_selector.png");
@@ -410,11 +412,11 @@ public class GuiStorageMonitor extends GuiContainer {
             matchBtnHovered
         );
 
-        // TODO: replace with the actual hysteresis state icon once we have one
-        drawLabeledSideButton(
+        drawTexturedSideButtonWithOffset(
             hysteresisBtnX, hysteresisBtnY,
-            "H",
-            container.isSyncHysteresisEnabled() ? 0xFF88FF88 : 0xFFA0A0A0,
+            HYSTERESIS_ICON,
+            container.isSyncHysteresisEnabled() ? 0 : 1, hysteresisBtnHovered ? 1 : 0,
+            2, 2,
             hysteresisBtnHovered
         );
 
@@ -436,14 +438,15 @@ public class GuiStorageMonitor extends GuiContainer {
         }
     }
 
-    private void drawTexturedSideButton(int x, int y, int textureWidth, int textureHeight,
-            ResourceLocation texture, boolean hovered) {
+    private void drawTexturedSideButtonWithOffset(int x, int y, ResourceLocation texture,
+            int offsetX, int offsetY, int statesX, int statesY, boolean hovered) {
         mc.getTextureManager().bindTexture(AE2_STATES);
         drawTexturedModalRect(x, y, 15 * 16, 15 * 16, SIDE_BTN_SIZE, SIDE_BTN_SIZE);
 
         mc.getTextureManager().bindTexture(texture);
-        drawScaledCustomSizeModalRect(x, y, 0, 0, SIDE_BTN_SIZE, SIDE_BTN_SIZE,
-                                      textureWidth, textureHeight, textureWidth, textureHeight);
+        drawScaledCustomSizeModalRect(x, y, SIDE_BTN_SIZE * offsetX, SIDE_BTN_SIZE * offsetY,
+                                            SIDE_BTN_SIZE, SIDE_BTN_SIZE, SIDE_BTN_SIZE, SIDE_BTN_SIZE,
+                                            SIDE_BTN_SIZE * statesX, SIDE_BTN_SIZE * statesY);
 
         if (hovered) {
             drawRect(x + 1, y + 1, x + SIDE_BTN_SIZE - 1, y + SIDE_BTN_SIZE - 1, 0x40FFFFFF);

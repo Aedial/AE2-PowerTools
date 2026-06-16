@@ -1,5 +1,9 @@
 package com.ae2powertools.features.monitor.emitter;
 
+import java.io.IOException;
+
+import io.netty.buffer.ByteBuf;
+
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 
@@ -69,6 +73,10 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
         notifyOutputChanged(true);
     }
 
+    public boolean isOn() {
+        return emitterLogic.isEmitting();
+    }
+
     // --- IMonitorLogicHost ---
 
     @Override
@@ -96,6 +104,18 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
         return tag;
     }
 
+    @Override
+    protected void writeToStream(ByteBuf data) throws IOException {
+        super.writeToStream(data);
+        emitterLogic.writeToStream(data);
+    }
+
+    @Override
+    protected boolean readFromStream(ByteBuf data) throws IOException {
+        boolean changed = super.readFromStream(data);
+        return emitterLogic.readFromStream(data) || changed;
+    }
+
     private void notifyOutputChanged() {
         notifyOutputChanged(emitterLogic.emitsStrongSignal());
     }
@@ -103,6 +123,9 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     private void notifyOutputChanged(boolean includeStrongPropagation) {
         if (world == null) return;
 
+        markForUpdate();  // re-render block for redstone state visuals
+
+        // Propagate redstone updates to neighbors so they can react to the new signal strength
         Platform.notifyBlocksOfNeighbors(world, pos);
 
         if (!includeStrongPropagation) return;

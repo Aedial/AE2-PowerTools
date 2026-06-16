@@ -164,4 +164,5 @@ Resulting jar will be under `build/libs/`.
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Textures
-**SangreBK** : Priority Tuner, Network Health Scanner
+Priority Tuner, Network Health Scanner: SangreBK
+Storage Level Emitter block, Storage Display block: @NerdySpider

@@ -1,5 +1,7 @@
 package com.ae2powertools.features.monitor.dependent;
 
+import io.netty.buffer.ByteBuf;
+
 import net.minecraft.nbt.NBTTagCompound;
 
 import com.ae2powertools.features.monitor.emitter.EmitterRedstoneStrength;
@@ -74,5 +76,17 @@ public class LevelEmitterLogic {
         redstoneSignalStrength = tag.hasKey(NBT_REDSTONE_SIGNAL_STRENGTH)
             ? EmitterRedstoneStrength.fromId(tag.getInteger(NBT_REDSTONE_SIGNAL_STRENGTH))
             : EmitterRedstoneStrength.WEAK;
+    }
+
+    public void writeToStream(ByteBuf data) {
+        data.writeBoolean(emitting);
+    }
+
+    public boolean readFromStream(ByteBuf data) {
+        boolean newEmitting = data.readBoolean();
+        if (emitting == newEmitting) return false;
+
+        emitting = newEmitting;
+        return true;
     }
 }

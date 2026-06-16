@@ -1,0 +1,6 @@
+{
+    "parent": "block/cube_all",
+    "textures": {
+        "all": "ae2powertools:blocks/storage_level_emitter_on"
+    }
+}

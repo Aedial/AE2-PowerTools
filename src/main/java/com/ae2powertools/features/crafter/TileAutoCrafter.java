@@ -1482,9 +1482,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // markForUpdate is required here because tier affects the block model (not just GUI),
         // which must be re-rendered for non-GUI viewers via the block update packet.
         int newTier = getUpgradeTier();
-        if (oldTier != newTier) {
-            markForUpdate();
-        }
+        if (oldTier != newTier) markForUpdate();
 
         markDirty();
     }
