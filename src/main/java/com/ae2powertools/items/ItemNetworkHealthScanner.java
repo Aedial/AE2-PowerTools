@@ -53,6 +53,7 @@ public class ItemNetworkHealthScanner extends Item {
 
     private static final String NBT_DEVICE_ID = "DeviceId";
     private static final String NBT_OVERLAY_ENABLED = "OverlayEnabled";
+    private static final String NBT_SUBNET_SCAN = "SubnetScan";
 
     // Cache device ID by NBT compound identity to avoid repeated lookups
     private static final Map<NBTTagCompound, Long> deviceIdCache = new IdentityHashMap<>();
@@ -154,6 +155,74 @@ public class ItemNetworkHealthScanner extends Item {
     }
 
     /**
+     * Check if subnet scanning is enabled for this scanner.
+     * Defaults to false if not set.
+     */
+    public static boolean isSubnetScanEnabled(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+
+        NBTTagCompound nbt = stack.getTagCompound();
+
+        return nbt != null && nbt.getBoolean(NBT_SUBNET_SCAN);
+    }
+
+    public static void setSubnetScanEnabled(ItemStack stack, boolean enabled) {
+        if (stack.isEmpty()) return;
+
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt == null) {
+            nbt = new NBTTagCompound();
+            stack.setTagCompound(nbt);
+        }
+
+        nbt.setBoolean(NBT_SUBNET_SCAN, enabled);
+    }
+
+    public static boolean toggleSubnetScan(ItemStack stack) {
+        boolean newState = !isSubnetScanEnabled(stack);
+        setSubnetScanEnabled(stack, newState);
+
+        return newState;
+    }
+
+    /**
+     * Get the persisted subnet scan state for a scanner device in the player's inventory.
+     * Falls back to the supplied value when the matching scanner item cannot be located.
+     */
+    public static boolean getSubnetScanEnabled(EntityPlayer player, long deviceId, boolean fallbackValue) {
+        ItemStack scannerStack = findScannerByDeviceId(player, deviceId);
+        if (scannerStack.isEmpty()) return fallbackValue;
+
+        return isSubnetScanEnabled(scannerStack);
+    }
+
+    private static ItemStack findScannerByDeviceId(EntityPlayer player, long deviceId) {
+        if (deviceId == 0L) return ItemStack.EMPTY;
+
+        ItemStack mainHand = player.getHeldItem(EnumHand.MAIN_HAND);
+        if (isMatchingScanner(mainHand, deviceId)) return mainHand;
+
+        ItemStack offHand = player.getHeldItem(EnumHand.OFF_HAND);
+        if (isMatchingScanner(offHand, deviceId)) return offHand;
+
+        for (ItemStack stack : player.inventory.mainInventory) {
+            if (isMatchingScanner(stack, deviceId)) return stack;
+        }
+
+        for (ItemStack stack : player.inventory.offHandInventory) {
+            if (isMatchingScanner(stack, deviceId)) return stack;
+        }
+
+        return ItemStack.EMPTY;
+    }
+
+    private static boolean isMatchingScanner(ItemStack stack, long deviceId) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof ItemNetworkHealthScanner)) return false;
+
+        return getDeviceId(stack) == deviceId;
+    }
+
+    /**
      * Check if a stack has a device ID assigned.
      */
     public static boolean hasDeviceId(ItemStack stack) {
@@ -188,7 +257,8 @@ public class ItemNetworkHealthScanner extends Item {
         }
 
         // Start network scan with device ID
-        ScanSessionManager.startSession(player, grid, deviceId);
+        boolean includeSubnets = isSubnetScanEnabled(stack);
+        ScanSessionManager.startSession(player, grid, deviceId, includeSubnets);
         player.sendMessage(new TextComponentTranslation("item.ae2powertools.network_health_scanner.started"));
 
         // Send initial sync packet
@@ -214,7 +284,7 @@ public class ItemNetworkHealthScanner extends Item {
             } else {
                 // Regular right-click in air: open GUI
                 if (ScannerClientState.hasSession(deviceId)) {
-                    openGui(deviceId);
+                    openGui(deviceId, isSubnetScanEnabled(stack));
                 } else {
                     player.sendMessage(new TextComponentTranslation("item.ae2powertools.network_health_scanner.no_session"));
                 }
@@ -228,8 +298,9 @@ public class ItemNetworkHealthScanner extends Item {
     }
 
     @SideOnly(Side.CLIENT)
-    private void openGui(long deviceId) {
+    private void openGui(long deviceId, boolean subnetScanEnabled) {
         ScannerClientState.setActiveDeviceId(deviceId);
+        ScannerClientState.initSubnetState(deviceId, subnetScanEnabled);
         Minecraft.getMinecraft().displayGuiScreen(new GuiNetworkHealthScanner());
     }
 
@@ -289,10 +360,15 @@ public class ItemNetworkHealthScanner extends Item {
      */
     public static void syncToClient(EntityPlayerMP player, long deviceId) {
         ScanSessionManager.ScanSession session = ScanSessionManager.getSession(player, deviceId);
+        boolean subnetScanEnabled = session != null && session.getScanner().isSubnetScanEnabled();
+
+        // The current scan keeps its original subnet scope until the next rescan, but the GUI
+        // should still reflect the persisted toggle stored on the scanner item immediately.
+        subnetScanEnabled = getSubnetScanEnabled(player, deviceId, subnetScanEnabled);
 
         PacketScannerSync packet = session == null ?
-            PacketScannerSync.noSession(deviceId) :
-            new PacketScannerSync(session, deviceId);
+            PacketScannerSync.noSession(deviceId, subnetScanEnabled) :
+            new PacketScannerSync(session, deviceId, subnetScanEnabled);
         PowerToolsNetwork.INSTANCE.sendTo(packet, player);
     }
 

@@ -190,14 +190,14 @@ public class ScanSessionManager {
     /**
      * Start a new scan session for a player with a specific device.
      */
-    public static void startSession(EntityPlayer player, IGrid grid, long deviceId) {
+    public static void startSession(EntityPlayer player, IGrid grid, long deviceId, boolean includeSubnets) {
         UUID playerId = player.getUniqueID();
         SessionKey key = new SessionKey(playerId, deviceId);
 
         // Cancel any existing session for this device
         sessions.remove(key);
 
-        NetworkScanner scanner = new NetworkScanner(grid, player.world);
+        NetworkScanner scanner = new NetworkScanner(grid, player.world, includeSubnets);
         ScanSession session = new ScanSession(
             scanner,
             player.getPosition(),

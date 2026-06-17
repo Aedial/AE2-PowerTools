@@ -33,6 +33,7 @@ public class PowerToolsNetwork {
         // Scanner packets
         INSTANCE.registerMessage(PacketScannerSync.Handler.class, PacketScannerSync.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketScannerCancel.Handler.class, PacketScannerCancel.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketScannerToggleSubnet.Handler.class, PacketScannerToggleSubnet.class, packetId++, Side.SERVER);
 
         // Locator packets
         INSTANCE.registerMessage(PacketLocatorSync.Handler.class, PacketLocatorSync.class, packetId++, Side.CLIENT);

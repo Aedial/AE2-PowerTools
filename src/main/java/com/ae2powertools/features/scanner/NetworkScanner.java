@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -51,6 +52,7 @@ import appeng.me.cluster.IAEMultiBlock;
 import appeng.tile.networking.TileController;
 
 import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.util.SubnetGridHelper;
 
 
 /**
@@ -75,6 +77,7 @@ public class NetworkScanner {
 
     private final IGrid grid;
     private final World world;
+    private final boolean includeSubnets;
 
     // Cache of forced chunks per dimension (lazy-loaded)
     private final Map<Integer, ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket>> forcedChunksCache = new HashMap<>();
@@ -93,6 +96,16 @@ public class NetworkScanner {
     // Channel scanner (runs after main scan completes)
     private ChannelScanner channelScanner = null;
     private boolean channelScanStarted = false;
+
+    // Additional per-grid scans when subnet scanning is enabled.
+    private final ArrayDeque<IGrid> pendingSubnetGrids = new ArrayDeque<>();
+    private final Set<IssueLocation> subnetDetectedLoops = new HashSet<>();
+    private final Set<ChunkLocation> subnetUnloadedChunks = new HashSet<>();
+    private final Set<ChannelChokepoint> subnetChokepoints = new HashSet<>();
+    private final Set<MissingChannelDevice> subnetMissingDevices = new HashSet<>();
+    private final Set<FatalNetworkError> subnetFatalErrors = new HashSet<>();
+    private NetworkScanner activeSubnetScanner = null;
+    private int completedSubnetNodeCount = 0;
 
     // Status. Stored as ITextComponent (typically TextComponentTranslation) so the message
     // can be serialized as JSON and re-translated client-side in the player's locale.
@@ -139,8 +152,17 @@ public class NetworkScanner {
     }
 
     public NetworkScanner(IGrid grid, World world) {
+        this(grid, world, false);
+    }
+
+    public NetworkScanner(IGrid grid, World world, boolean includeSubnets) {
         this.grid = grid;
         this.world = world;
+        this.includeSubnets = includeSubnets;
+
+        if (includeSubnets) {
+            pendingSubnetGrids.addAll(SubnetGridHelper.collectConnectedGrids(grid));
+        }
 
         initialize();
     }
@@ -201,6 +223,8 @@ public class NetworkScanner {
     public boolean processBatch() {
         if (isComplete) return true;
 
+        if (activeSubnetScanner != null) return processSubnetScan();
+
         // Phase 1: Main network scan (loops and chunks)
         if (!openList.isEmpty()) return processMainScan();
 
@@ -240,7 +264,7 @@ public class NetworkScanner {
             }
 
             // No controller or channel scan already done
-            return finishScan();
+            return advanceAfterCurrentGridScan();
         }
 
         statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning",
@@ -253,14 +277,58 @@ public class NetworkScanner {
      * Process channel scan phase.
      */
     private boolean processChannelScan() {
-        if (channelScanner == null) return finishScan();
+        if (channelScanner == null) return advanceAfterCurrentGridScan();
 
         boolean channelDone = channelScanner.processBatch();
-        if (channelDone) return finishScan();
+        if (channelDone) return advanceAfterCurrentGridScan();
 
         statusMessage = channelScanner.getStatusMessage();
 
         return false;
+    }
+
+    private boolean advanceAfterCurrentGridScan() {
+        if (startNextSubnetScan()) return false;
+
+        return finishScan();
+    }
+
+    private boolean startNextSubnetScan() {
+        if (!includeSubnets || activeSubnetScanner != null || pendingSubnetGrids.isEmpty()) return false;
+
+        IGrid subnetGrid = pendingSubnetGrids.removeFirst();
+        World subnetWorld = SubnetGridHelper.resolveWorld(subnetGrid, world);
+        activeSubnetScanner = new NetworkScanner(subnetGrid, subnetWorld, false);
+        statusMessage = activeSubnetScanner.getStatusMessage();
+
+        return true;
+    }
+
+    private boolean processSubnetScan() {
+        if (activeSubnetScanner == null) return finishScan();
+
+        boolean subnetDone = activeSubnetScanner.processBatch();
+        if (!subnetDone) {
+            statusMessage = activeSubnetScanner.getStatusMessage();
+
+            return false;
+        }
+
+        mergeSubnetResults(activeSubnetScanner);
+        completedSubnetNodeCount += activeSubnetScanner.getNodesProcessed();
+        activeSubnetScanner = null;
+
+        if (startNextSubnetScan()) return false;
+
+        return finishScan();
+    }
+
+    private void mergeSubnetResults(NetworkScanner subnetScanner) {
+        subnetDetectedLoops.addAll(subnetScanner.getDetectedLoops());
+        subnetUnloadedChunks.addAll(subnetScanner.getUnloadedChunks());
+        subnetChokepoints.addAll(subnetScanner.getChokepoints());
+        subnetMissingDevices.addAll(subnetScanner.getMissingDevices());
+        subnetFatalErrors.addAll(subnetScanner.getFatalErrors());
     }
 
     /**
@@ -269,16 +337,17 @@ public class NetworkScanner {
     private boolean finishScan() {
         isComplete = true;
 
-        int chokeCount = channelScanner != null ? channelScanner.getChokepoints().size() : 0;
-        int missingCount = channelScanner != null ? channelScanner.getMissingDevices().size() : 0;
-        int fatalCount = channelScanner != null ? channelScanner.getFatalErrors().size() : 0;
+        int totalNodes = getNodesProcessed();
+        int chokeCount = getChokepoints().size();
+        int missingCount = getMissingDevices().size();
+        int fatalCount = getFatalErrors().size();
 
         // Loops are not counted, because they are not necessarily "issues".
         // Just a catch to be aware of.
-        if (unloadedChunks.isEmpty() && chokeCount == 0 && missingCount == 0 && fatalCount == 0) {
-            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_issues", nodesProcessed);
+        if (getUnloadedChunks().isEmpty() && chokeCount == 0 && missingCount == 0 && fatalCount == 0) {
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_issues", totalNodes);
         } else {
-            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.found_issues", nodesProcessed);
+            statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.found_issues", totalNodes);
         }
 
         return true;
@@ -745,36 +814,64 @@ public class NetworkScanner {
     }
 
     public Set<IssueLocation> getDetectedLoops() {
-        return detectedLoops;
+        if (!includeSubnets && activeSubnetScanner == null && subnetDetectedLoops.isEmpty()) return detectedLoops;
+
+        Set<IssueLocation> combined = new HashSet<>(detectedLoops);
+        combined.addAll(subnetDetectedLoops);
+        if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getDetectedLoops());
+
+        return combined;
     }
 
     public Set<ChunkLocation> getUnloadedChunks() {
-        return unloadedChunks;
+        if (!includeSubnets && activeSubnetScanner == null && subnetUnloadedChunks.isEmpty()) return unloadedChunks;
+
+        Set<ChunkLocation> combined = new HashSet<>(unloadedChunks);
+        combined.addAll(subnetUnloadedChunks);
+        if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getUnloadedChunks());
+
+        return combined;
     }
 
     public Set<ChannelChokepoint> getChokepoints() {
-        if (channelScanner != null) return channelScanner.getChokepoints();
+        Set<ChannelChokepoint> combined = new HashSet<>(subnetChokepoints);
 
-        return new HashSet<>();
+        if (channelScanner != null) combined.addAll(channelScanner.getChokepoints());
+        if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getChokepoints());
+
+        return combined;
     }
 
     public Set<MissingChannelDevice> getMissingDevices() {
-        if (channelScanner != null) return channelScanner.getMissingDevices();
+        Set<MissingChannelDevice> combined = new HashSet<>(subnetMissingDevices);
 
-        return new HashSet<>();
+        if (channelScanner != null) combined.addAll(channelScanner.getMissingDevices());
+        if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getMissingDevices());
+
+        return combined;
     }
 
     public Set<FatalNetworkError> getFatalErrors() {
-        if (channelScanner != null) return channelScanner.getFatalErrors();
+        Set<FatalNetworkError> combined = new HashSet<>(subnetFatalErrors);
 
-        return new HashSet<>();
+        if (channelScanner != null) combined.addAll(channelScanner.getFatalErrors());
+        if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getFatalErrors());
+
+        return combined;
     }
 
     public int getNodesProcessed() {
-        return nodesProcessed;
+        int totalNodes = nodesProcessed + completedSubnetNodeCount;
+        if (activeSubnetScanner != null) totalNodes += activeSubnetScanner.getNodesProcessed();
+
+        return totalNodes;
     }
 
     public boolean hasController() {
         return hasController;
+    }
+
+    public boolean isSubnetScanEnabled() {
+        return includeSubnets;
     }
 }

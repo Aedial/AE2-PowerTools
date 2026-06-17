@@ -87,6 +87,11 @@ gui.ae2powertools.scanner.fatal.same_network_interface_link.entry=%1$s -> same-n
 gui.ae2powertools.scanner.sort_distance=Distance
 gui.ae2powertools.scanner.sort_name=Name
 gui.ae2powertools.scanner.sort_tooltip=Sort by: %s
+gui.ae2powertools.scanner.subnet.title=Subnet Scanning
+gui.ae2powertools.scanner.subnet.enabled=Enabled (includes subnets)
+gui.ae2powertools.scanner.subnet.disabled=Disabled (scanned network only)
+gui.ae2powertools.scanner.subnet.click_toggle=Click to toggle
+gui.ae2powertools.scanner.subnet.hint=Rescan network to apply
 
 # Scanner Status Messages
 ae2powertools.scanner.session_started=Network scan started...
@@ -393,6 +398,8 @@ tile.ae2powertools.storage_display.tooltip=Displays the quantity of a monitored 
 # Items
 item.ae2powertools.storage_level_emitter_part.name=ME Storage Level Emitter
 item.ae2powertools.storage_display_part.name=ME Storage Display
+item.ae2powertools.storage_display_part_smaller.name=ME Storage Display (Smaller)
+item.ae2powertools.storage_display_part_smallerer.name=ME Storage Display (Smallerer)
 
 # Config
 ae2powertools.config.client.monitor=Monitor

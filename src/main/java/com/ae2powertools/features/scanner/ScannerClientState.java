@@ -58,6 +58,7 @@ public class ScannerClientState {
     public static class DeviceScanState {
         private ITextComponent statusMessage = new TextComponentString("");
         private boolean isScanComplete = false;
+        private boolean subnetScanEnabled = false;
         private Tab currentTab = Tab.LOOPS;
 
         // Loop locations synced from server
@@ -676,6 +677,22 @@ public class ScannerClientState {
     public static void setScanComplete(long deviceId, boolean complete) {
         DeviceScanState state = getOrCreateState(deviceId);
         state.isScanComplete = complete;
+    }
+
+    public static boolean isSubnetScanEnabled() {
+        DeviceScanState state = getActiveState();
+
+        return state != null && state.subnetScanEnabled;
+    }
+
+    public static void setSubnetScanEnabled(long deviceId, boolean enabled) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.subnetScanEnabled = enabled;
+    }
+
+    public static void initSubnetState(long deviceId, boolean subnetScanEnabled) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.subnetScanEnabled = subnetScanEnabled;
     }
 
     // ========== Data Management ==========

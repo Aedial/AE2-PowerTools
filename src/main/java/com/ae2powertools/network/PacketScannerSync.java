@@ -41,6 +41,7 @@ public class PacketScannerSync implements IMessage {
     private long deviceId;
     private boolean hasSession;
     private boolean isComplete;
+    private boolean subnetScanEnabled;
     // Serialized JSON of the status message component.
     // It will be deserialized and translated on the client.
     private String statusMessage;
@@ -200,7 +201,7 @@ public class PacketScannerSync implements IMessage {
         this.fatalErrors = new ArrayList<>();
     }
 
-    public PacketScannerSync(ScanSessionManager.ScanSession session, long deviceId) {
+    public PacketScannerSync(ScanSessionManager.ScanSession session, long deviceId, boolean subnetScanEnabled) {
         this.deviceId = deviceId;
         this.hasSession = true;
         this.loopLocations = new ArrayList<>();
@@ -212,6 +213,7 @@ public class PacketScannerSync implements IMessage {
         if (session != null) {
             NetworkScanner scanner = session.getScanner();
             this.isComplete = scanner.isComplete();
+            this.subnetScanEnabled = subnetScanEnabled;
             this.statusMessage = ITextComponent.Serializer.componentToJson(scanner.getStatusMessage());
 
             // Add loop locations
@@ -282,6 +284,7 @@ public class PacketScannerSync implements IMessage {
             }
         } else {
             this.isComplete = true;
+            this.subnetScanEnabled = false;
             this.statusMessage = "";
         }
     }
@@ -289,11 +292,12 @@ public class PacketScannerSync implements IMessage {
     /**
      * Create a packet indicating no session.
      */
-    public static PacketScannerSync noSession(long deviceId) {
+    public static PacketScannerSync noSession(long deviceId, boolean subnetScanEnabled) {
         PacketScannerSync packet = new PacketScannerSync();
         packet.deviceId = deviceId;
         packet.hasSession = false;
         packet.isComplete = true;
+        packet.subnetScanEnabled = subnetScanEnabled;
         packet.statusMessage = "";
 
         return packet;
@@ -304,6 +308,7 @@ public class PacketScannerSync implements IMessage {
         deviceId = buf.readLong();
         hasSession = buf.readBoolean();
         isComplete = buf.readBoolean();
+        subnetScanEnabled = buf.readBoolean();
         statusMessage = ByteBufUtils.readUTF8String(buf);
 
         // Read loop locations
@@ -396,6 +401,7 @@ public class PacketScannerSync implements IMessage {
         buf.writeLong(deviceId);
         buf.writeBoolean(hasSession);
         buf.writeBoolean(isComplete);
+        buf.writeBoolean(subnetScanEnabled);
         ByteBufUtils.writeUTF8String(buf, statusMessage != null ? statusMessage : "");
 
         // Write loop locations
@@ -487,6 +493,7 @@ public class PacketScannerSync implements IMessage {
 
                 ScannerClientState.setActiveSession(deviceId, message.hasSession);
                 ScannerClientState.setScanComplete(deviceId, message.isComplete);
+                ScannerClientState.setSubnetScanEnabled(deviceId, message.subnetScanEnabled);
                 ITextComponent statusComponent = ScannerTextHelper.deserializeComponent(message.statusMessage);
                 ScannerClientState.setStatusMessage(deviceId, statusComponent);
 

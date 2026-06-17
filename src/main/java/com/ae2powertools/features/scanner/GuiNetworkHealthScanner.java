@@ -29,6 +29,7 @@ import com.ae2powertools.features.scanner.ScannerClientState.MissingDeviceClient
 import com.ae2powertools.features.scanner.ScannerClientState.SortMode;
 import com.ae2powertools.features.scanner.ScannerClientState.Tab;
 import com.ae2powertools.network.PacketScannerCancel;
+import com.ae2powertools.network.PacketScannerToggleSubnet;
 import com.ae2powertools.network.PowerToolsNetwork;
 
 
@@ -76,6 +77,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private static final int ICON_COORDS_V = 6 * 16;
     private static final int ICON_NAME_U = 0;           // "Name" icon at column 0, row 4
     private static final int ICON_NAME_V = 4 * 16;
+    private static final int ICON_SUBNET_U = 5 * 16;    // Wireless icon for subnet toggle
+    private static final int ICON_SUBNET_V = 0;
 
     // Dynamic dimensions
     private int guiWidth;
@@ -106,6 +109,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
     // Sort button (custom-drawn icon button, right side of GUI)
     private boolean sortButtonHovered = false;
+
+    // Subnet toggle button (right side, below sort)
+    private boolean subnetButtonHovered = false;
 
     /**
      * Represents a row in the display list.
@@ -631,6 +637,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         // Draw sort button on the right side (mirrors left tabs)
         drawSortButton(mouseX, mouseY);
+        drawSubnetButton(mouseX, mouseY);
 
         // Draw footer bar
         drawRect(guiLeft + TAB_SIZE, guiTop + guiHeight - footerHeight, guiLeft + guiWidth, guiTop + guiHeight, COLOR_HEADER_BG);
@@ -690,6 +697,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         // Draw tooltips last (on top of everything)
         drawTabTooltips(mouseX, mouseY);
         drawSortButtonTooltip(mouseX, mouseY);
+        drawSubnetButtonTooltip(mouseX, mouseY);
         drawRowTooltips(mouseX, mouseY);
     }
 
@@ -958,6 +966,50 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         drawHoveringText(tooltipLines, mouseX, mouseY);
     }
 
+    private void drawSubnetButton(int mouseX, int mouseY) {
+        int btnX = guiLeft + guiWidth;
+        int btnY = guiTop + HEADER_HEIGHT + TAB_SIZE + 2;
+
+        subnetButtonHovered = mouseX >= btnX && mouseX < btnX + TAB_SIZE &&
+                              mouseY >= btnY && mouseY < btnY + TAB_SIZE;
+
+        int bgColor = subnetButtonHovered ? COLOR_TAB_HOVER : COLOR_TAB_BG;
+        drawRect(btnX, btnY, btnX + TAB_SIZE, btnY + TAB_SIZE, bgColor);
+        drawRect(btnX, btnY, btnX + 2, btnY + TAB_SIZE, COLOR_CATEGORY_TEXT);
+
+        // Red does not look good with Wireless icon, so just treat no color as off and green as on
+        // Lighten the icon background anyway to make it more visible (icon is fairly dark)
+        int stateColor = ScannerClientState.isSubnetScanEnabled() ? 0xA000FF00 : 0xA0FFFFFF;
+        drawRect(btnX + 2, btnY + 1, btnX + TAB_SIZE - 1, btnY + TAB_SIZE - 1, stateColor);
+
+        int iconX = btnX + (TAB_SIZE - SORT_BUTTON_SIZE) / 2 + 1;
+        int iconY = btnY + (TAB_SIZE - SORT_BUTTON_SIZE) / 2;
+        drawTexturedModalRect(iconX, iconY, ICON_SUBNET_U, ICON_SUBNET_V, SORT_BUTTON_SIZE, SORT_BUTTON_SIZE);
+
+        if (subnetButtonHovered) {
+            drawRect(btnX + 2, btnY + 1, btnX + TAB_SIZE - 1, btnY + TAB_SIZE - 1, 0x40FFFFFF);
+        }
+    }
+
+    private void drawSubnetButtonTooltip(int mouseX, int mouseY) {
+        if (!subnetButtonHovered) return;
+
+        boolean enabled = ScannerClientState.isSubnetScanEnabled();
+        List<String> tooltip = new ArrayList<>();
+        tooltip.add(I18n.format("gui.ae2powertools.scanner.subnet.title"));
+        if (enabled) {
+            tooltip.add("§a" + I18n.format("gui.ae2powertools.scanner.subnet.enabled") + "§r");
+        } else {
+            tooltip.add("§c" + I18n.format("gui.ae2powertools.scanner.subnet.disabled") + "§r");
+        }
+
+        tooltip.add("");
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.scanner.subnet.click_toggle") + "§r");
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.scanner.subnet.hint") + "§r");
+
+        drawHoveringText(tooltip, mouseX, mouseY);
+    }
+
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
@@ -969,6 +1021,12 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             ScannerClientState.toggleCurrentSortMode();
             rebuildDisplayRows();
             recalculateLayout();
+
+            return;
+        }
+
+        if (subnetButtonHovered) {
+            PowerToolsNetwork.INSTANCE.sendToServer(new PacketScannerToggleSubnet());
 
             return;
         }
