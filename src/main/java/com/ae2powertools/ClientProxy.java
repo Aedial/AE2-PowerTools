@@ -4,12 +4,15 @@ package com.ae2powertools;
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.Item;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import com.ae2powertools.client.BlockHighlightRenderer;
 import com.ae2powertools.client.DisplayBlockColor;
+import com.ae2powertools.features.monitor.display.DisplayRenderHelper;
 import com.ae2powertools.features.monitor.display.TESRStorageDisplay;
 import com.ae2powertools.features.monitor.display.TileStorageDisplay;
 import com.ae2powertools.features.locator.LocatorRenderer;
@@ -24,6 +27,8 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
+
+        MinecraftForge.EVENT_BUS.register(this);
     }
 
     @Override
@@ -47,5 +52,10 @@ public class ClientProxy extends CommonProxy {
             displayColor,
             Item.getItemFromBlock(BlockRegistry.STORAGE_DISPLAY),
             ItemRegistry.STORAGE_DISPLAY_PART);
+    }
+
+    @SubscribeEvent
+    public void onTextureStitch(TextureStitchEvent.Pre event) {
+        DisplayRenderHelper.registerSprites(event.getMap());
     }
 }

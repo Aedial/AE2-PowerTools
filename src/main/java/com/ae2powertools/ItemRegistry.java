@@ -17,6 +17,8 @@ import com.ae2powertools.items.ItemNetworkHealthScanner;
 import com.ae2powertools.items.ItemPriorityTuner;
 import com.ae2powertools.features.monitor.emitter.ItemPartStorageLevelEmitter;
 import com.ae2powertools.features.monitor.display.ItemPartStorageDisplay;
+import com.ae2powertools.features.monitor.display.ItemPartStorageDisplaySmaller;
+import com.ae2powertools.features.monitor.display.ItemPartStorageDisplaySmallerer;
 
 
 /**
@@ -32,6 +34,8 @@ public class ItemRegistry {
     public static ItemCrafterSpeedUpgrade CRAFTER_SPEED_UPGRADE;
     public static ItemPartStorageLevelEmitter STORAGE_LEVEL_EMITTER_PART;
     public static ItemPartStorageDisplay STORAGE_DISPLAY_PART;
+    public static ItemPartStorageDisplaySmaller STORAGE_DISPLAY_SMALLER_PART;
+    public static ItemPartStorageDisplaySmallerer STORAGE_DISPLAY_SMALLLER_PART;
 
     public static void init() {
         NETWORK_HEALTH_SCANNER = new ItemNetworkHealthScanner();
@@ -41,6 +45,8 @@ public class ItemRegistry {
         CRAFTER_SPEED_UPGRADE = new ItemCrafterSpeedUpgrade();
         STORAGE_LEVEL_EMITTER_PART = new ItemPartStorageLevelEmitter();
         STORAGE_DISPLAY_PART = new ItemPartStorageDisplay();
+        STORAGE_DISPLAY_SMALLER_PART = new ItemPartStorageDisplaySmaller();
+        STORAGE_DISPLAY_SMALLLER_PART = new ItemPartStorageDisplaySmallerer();
     }
 
     @SubscribeEvent
@@ -52,7 +58,9 @@ public class ItemRegistry {
             CARDS_DISTRIBUTOR,
             CRAFTER_SPEED_UPGRADE,
             STORAGE_LEVEL_EMITTER_PART,
-            STORAGE_DISPLAY_PART
+            STORAGE_DISPLAY_PART,
+            STORAGE_DISPLAY_SMALLER_PART,
+            STORAGE_DISPLAY_SMALLLER_PART
         );
     }
 
@@ -65,6 +73,8 @@ public class ItemRegistry {
         registerItemModel(CARDS_DISTRIBUTOR);
         registerItemModel(STORAGE_LEVEL_EMITTER_PART);
         registerItemModel(STORAGE_DISPLAY_PART);
+        registerItemModel(STORAGE_DISPLAY_SMALLER_PART);
+        registerItemModel(STORAGE_DISPLAY_SMALLLER_PART);
         registerSpeedUpgradeModels();
     }
 

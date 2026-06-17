@@ -19,11 +19,11 @@ import com.ae2powertools.Tags;
  * Cable part variant of the ME Storage Display.
  * Renders content icon + quantity + corner color on its face.
  */
-public class PartStorageDisplay extends PartStorageDisplayBase {
+public class PartStorageDisplaySmaller extends PartStorageDisplayBase {
 
     // Part model resources
     private static final ResourceLocation MODEL_BASE =
-        new ResourceLocation(Tags.MODID, "part/storage_display_base");
+        new ResourceLocation(Tags.MODID, "part/storage_display_base_smaller");
 
     public static final PartModel MODEL = new PartModel(MODEL_BASE);
 
@@ -32,8 +32,8 @@ public class PartStorageDisplay extends PartStorageDisplayBase {
         return ImmutableList.of(MODEL);
     }
 
-    public PartStorageDisplay(ItemStack is) {
-        super(is, 0);
+    public PartStorageDisplaySmaller(ItemStack is) {
+        super(is, 1);
     }
 
     @Override
@@ -43,6 +43,6 @@ public class PartStorageDisplay extends PartStorageDisplayBase {
 
     @Override
     public void getBoxes(IPartCollisionHelper bch) {
-        bch.addBox(0, 0, 14, 16, 16, 16);
+        bch.addBox(1, 1, 14, 15, 15, 16);
     }
 }

@@ -10,6 +10,8 @@ import appeng.api.parts.IPartModels;
 
 import com.ae2powertools.features.monitor.emitter.PartStorageLevelEmitter;
 import com.ae2powertools.features.monitor.display.PartStorageDisplay;
+import com.ae2powertools.features.monitor.display.PartStorageDisplaySmaller;
+import com.ae2powertools.features.monitor.display.PartStorageDisplaySmallerer;
 
 
 /**
@@ -33,5 +35,15 @@ public class PartModelRegistry {
             .flatMap(m -> m.getModels().stream())
             .collect(Collectors.toList());
         partModels.registerModels(displayModels);
+
+        Collection<ResourceLocation> smallerDisplayModels = PartStorageDisplaySmaller.getModels().stream()
+            .flatMap(m -> m.getModels().stream())
+            .collect(Collectors.toList());
+        partModels.registerModels(smallerDisplayModels);
+
+        Collection<ResourceLocation> smallererDisplayModels = PartStorageDisplaySmallerer.getModels().stream()
+            .flatMap(m -> m.getModels().stream())
+            .collect(Collectors.toList());
+        partModels.registerModels(smallererDisplayModels);
     }
 }

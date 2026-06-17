@@ -1,5 +1,8 @@
 package com.ae2powertools.features.monitor.display;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.lwjgl.opengl.GL11;
 
 import net.minecraft.client.Minecraft;
@@ -17,6 +20,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Loader;
@@ -69,8 +73,16 @@ public final class DisplayRenderHelper {
      * model's corner element, so the part's dynamic-rendered corners are pixel-for-pixel
      * identical to the block's baked corners.
      */
-    private static final String CENTER_SPRITE_NAME = "ae2powertools:blocks/display_color_center";
-    private static final String CORNER_SPRITE_NAME = "ae2powertools:blocks/display_color_corner";
+    private static final List<String> CENTER_SPRITE_NAMES = Arrays.asList(
+        "ae2powertools:blocks/display_color_center",
+        "ae2powertools:blocks/display_color_center_smaller",
+        "ae2powertools:blocks/display_color_center_smallerer"
+    );
+    private static final List<String> CORNER_SPRITE_NAMES = Arrays.asList(
+        "ae2powertools:blocks/display_color_corner",
+        "ae2powertools:blocks/display_color_corner_smaller",
+        "ae2powertools:blocks/display_color_corner_smallerer"
+    );
 
     /**
      * Returns true if the player's eye is on the front side of a face anchored at
@@ -93,8 +105,10 @@ public final class DisplayRenderHelper {
         return dot > -1.0e-4;
     }
 
-    public static void drawScreenCenter(int packedLight, EnumFacing facing) {
-        drawFaceOverlay(CENTER_SPRITE_NAME, DisplayBlockColor.getCenterTint(), packedLight, facing, 0.00001F);
+    public static void drawScreenCenter(int packedLight, EnumFacing facing, int modelIndex) {
+        if (modelIndex < 0 || modelIndex >= CENTER_SPRITE_NAMES.size()) modelIndex = 0;
+
+        drawFaceOverlay(CENTER_SPRITE_NAMES.get(modelIndex), DisplayBlockColor.getCenterTint(), packedLight, facing, 0.00001F);
     }
 
     /**
@@ -109,9 +123,26 @@ public final class DisplayRenderHelper {
      *
      * @param argb packed 0xAARRGGBB color from {@link DisplayLogic#getCornerColor()}
      * @param packedLight host block light from {@code World#getCombinedLight}
+     * @param modelIndex index of the model variant to use
      */
-    public static void drawCornerIndicators(int argb, int packedLight, EnumFacing facing) {
-        drawFaceOverlay(CORNER_SPRITE_NAME, argb, packedLight, facing, 0.00002F);
+    public static void drawCornerIndicators(int argb, int packedLight, EnumFacing facing, int modelIndex) {
+        if (modelIndex < 0 || modelIndex >= CORNER_SPRITE_NAMES.size()) modelIndex = 0;
+
+        drawFaceOverlay(CORNER_SPRITE_NAMES.get(modelIndex), argb, packedLight, facing, 0.00002F);
+    }
+
+    /**
+     * Register the sprites used by the dynamic TESR rendering, for all model variants.
+     */
+    public static void registerSprites(TextureMap textureMap) {
+        registerSprites(textureMap, CENTER_SPRITE_NAMES);
+        registerSprites(textureMap, CORNER_SPRITE_NAMES);
+    }
+
+    private static void registerSprites(TextureMap textureMap, List<String> spriteNames) {
+        for (String spriteName : spriteNames) {
+            textureMap.registerSprite(new ResourceLocation(spriteName));
+        }
     }
 
     private static void drawFaceOverlay(String spriteName, int argb, int packedLight, EnumFacing facing, float z) {

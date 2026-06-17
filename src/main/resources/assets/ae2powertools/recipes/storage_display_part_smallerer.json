@@ -2,20 +2,20 @@
     "conditions": [
         {
             "type": "minecraft:item_exists",
-            "item": "ae2powertools:storage_display"
+            "item": "ae2powertools:storage_display_part_smaller"
         },
         {
             "type": "minecraft:item_exists",
-            "item": "ae2powertools:storage_display_part"
+            "item": "ae2powertools:storage_display_part_smallerer"
         }
     ],
     "result": {
-        "item": "ae2powertools:storage_display_part"
+        "item": "ae2powertools:storage_display_part_smallerer"
     },
     "type": "forge:ore_shapeless",
     "ingredients": [
         {
-            "item": "ae2powertools:storage_display"
+            "item": "ae2powertools:storage_display_part_smaller"
         }
     ]
 }

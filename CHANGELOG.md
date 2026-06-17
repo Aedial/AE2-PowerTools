@@ -8,7 +8,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.6.2] - 2026-06-17
+## [1.6.2] - 2026-06-18
 ### Fixed
 - Fix Better Level Maintainer being mistaken for a RandomComplement missing-craft request when `enableMissCraft` is enabled, which could force impossible crafts instead of reporting the failure normally.
 - Fix Pattern/Inventory item rendering eating on the AutoCrafter overview's item renders when the overview is open, by short-circuiting the recipe/inventory rendering when it is open.
@@ -18,6 +18,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add textures for the Storage Level Emitter and Storage Display.
 - Add subnet support to the Network Health Scanner.
 - Add Subnet Proxy support for anything with subnet support (NACL, NHS).
+- Add smaller and smallerer part variants for the Storage Display.
 
 
 ## [1.6.1-alpha2] - 2026-06-02
