@@ -12,6 +12,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Fixed
 - Fix Better Level Maintainer being mistaken for a RandomComplement missing-craft request when `enableMissCraft` is enabled, which could force impossible crafts instead of reporting the failure normally.
 - Fix Pattern/Inventory item rendering eating on the AutoCrafter overview's item renders when the overview is open, by short-circuiting the recipe/inventory rendering when it is open.
+- Fix Storage Monitor rendering leaking (just like the Maintainer's) when the selector is open.
 
 ### Added
 - Add textures for the Storage Level Emitter and Storage Display.

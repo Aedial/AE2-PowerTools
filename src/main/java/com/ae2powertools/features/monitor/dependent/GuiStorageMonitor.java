@@ -618,8 +618,16 @@ public class GuiStorageMonitor extends GuiContainer {
             // Background tint covers the INNER 50x22 area only, leaving the +1 right/bottom border untinted.
             drawEntryBackground(x, y, entry);
 
+            // Skip content when selector open. See Maintainer GUI for rationale (GL leaks).
+            // We still draw the icon background, as it isn't fully covered by the selector modal.
+            if (selectorOpen) {
+                int color = (entry != null && entry.hasResource()) ? 0x20000000 : 0x40000000;
+                drawRect(x, y, x + ICON_SIZE, y + ICON_SIZE, color);
+                continue;
+            }
+
             // Hover highlight per zone. Only suppressed when the modal selector is open.
-            if (!selectorOpen) drawZoneHover(x, y, mouseX, mouseY, entry);
+            drawZoneHover(x, y, mouseX, mouseY, entry);
 
             // Foreground content: icon + (comparison + numbers if filled).
             drawEntryContent(x, y, entry);
