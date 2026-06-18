@@ -87,6 +87,11 @@ gui.ae2powertools.scanner.fatal.same_network_interface_link.entry=%1$s -> 同网
 gui.ae2powertools.scanner.sort_distance=距离
 gui.ae2powertools.scanner.sort_name=名称
 gui.ae2powertools.scanner.sort_tooltip=排序方式：%s
+gui.ae2powertools.scanner.subnet.title=子网络扫描
+gui.ae2powertools.scanner.subnet.enabled=已启用（包括子网络）
+gui.ae2powertools.scanner.subnet.disabled=已禁用（仅已扫描网络）
+gui.ae2powertools.scanner.subnet.click_toggle=点击切换
+gui.ae2powertools.scanner.subnet.hint=重新扫描网络以应用设置
 
 # Scanner Status Messages
 ae2powertools.scanner.session_started=开始网络扫描……
@@ -393,6 +398,8 @@ tile.ae2powertools.storage_display.tooltip=显示网络中监控物品的数量�
 # Items
 item.ae2powertools.storage_level_emitter_part.name=ME存储发信器
 item.ae2powertools.storage_display_part.name=ME存储显示器
+item.ae2powertools.storage_display_part_smaller.name=ME存储显示器（小型）
+item.ae2powertools.storage_display_part_smallerer.name=ME存储显示器（超小型）
 
 # Config
 ae2powertools.config.client.monitor=存储监控
