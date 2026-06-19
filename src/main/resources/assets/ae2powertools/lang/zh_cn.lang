@@ -244,6 +244,25 @@ item.ae2powertools.cards_distributor.all_full=网络中的所有装配室都已�
 item.ae2powertools.cards_distributor.pulled_from_ae2=从AE2网络存储中取出了%d张卡片。
 
 # =====================================================
+# Remote Storage Monitor
+# =====================================================
+
+# Items
+item.ae2powertools.remote_storage_monitor.name=远程存储监控器
+item.ae2powertools.remote_storage_monitor.tip1=右击打开远程监控器
+item.ae2powertools.remote_storage_monitor.tip2=手持或装备时，以叠加层形式显示数量变化
+
+# GUI
+gui.ae2powertools.remote_monitor.title=远程存储监控器
+gui.ae2powertools.remote_monitor.empty_slot=空槽位
+gui.ae2powertools.remote_monitor.slot_left_click=左键点击选择内容
+gui.ae2powertools.remote_monitor.slot_right_click=右键点击清除
+gui.ae2powertools.remote_monitor.polling_rate.title=轮询率
+gui.ae2powertools.remote_monitor.polling_rate.tooltip=与%s前状态进行对比
+gui.ae2powertools.remote_monitor.polling_rate.description=设置用于衡量数量变化的时间跨度
+gui.ae2powertools.remote_monitor.selector.title=选择内容
+
+# =====================================================
 # AE2 AutoCrafter
 # =====================================================
 
