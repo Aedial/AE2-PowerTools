@@ -44,12 +44,16 @@ public class LocatorRenderer {
     // Locator color (green/teal)
     private static final int LOCATOR_COLOR = 0x44AAFF;
 
+    private static int lastOverlayHeight = 0;
+
     /**
      * Render the HUD overlay showing selected locations (top-left corner).
      */
     @SubscribeEvent
     public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
+
+        lastOverlayHeight = 0;
 
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.player == null || mc.world == null) return;
@@ -117,6 +121,12 @@ public class LocatorRenderer {
             mc.fontRenderer.drawStringWithShadow(lines.get(i), textX + 8, textY, 0xFFFFFF);
             textY += lineHeight + LINE_SPACING;
         }
+
+        lastOverlayHeight = boxH + 2 + PADDING_EXTERNAL;
+    }
+
+    public static int getOverlayHeight() {
+        return lastOverlayHeight;
     }
 
     /**

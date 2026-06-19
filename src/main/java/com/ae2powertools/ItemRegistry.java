@@ -15,6 +15,7 @@ import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
 import com.ae2powertools.items.ItemNetworkComponentLocator;
 import com.ae2powertools.items.ItemNetworkHealthScanner;
 import com.ae2powertools.items.ItemPriorityTuner;
+import com.ae2powertools.items.ItemRemoteStorageMonitor;
 import com.ae2powertools.features.monitor.emitter.ItemPartStorageLevelEmitter;
 import com.ae2powertools.features.monitor.display.ItemPartStorageDisplay;
 import com.ae2powertools.features.monitor.display.ItemPartStorageDisplaySmaller;
@@ -31,6 +32,7 @@ public class ItemRegistry {
     public static ItemNetworkComponentLocator NETWORK_COMPONENT_LOCATOR;
     public static ItemPriorityTuner PRIORITY_TUNER;
     public static ItemCardsDistributor CARDS_DISTRIBUTOR;
+    public static ItemRemoteStorageMonitor REMOTE_STORAGE_MONITOR;
     public static ItemCrafterSpeedUpgrade CRAFTER_SPEED_UPGRADE;
     public static ItemPartStorageLevelEmitter STORAGE_LEVEL_EMITTER_PART;
     public static ItemPartStorageDisplay STORAGE_DISPLAY_PART;
@@ -42,6 +44,7 @@ public class ItemRegistry {
         NETWORK_COMPONENT_LOCATOR = new ItemNetworkComponentLocator();
         PRIORITY_TUNER = new ItemPriorityTuner();
         CARDS_DISTRIBUTOR = new ItemCardsDistributor();
+        REMOTE_STORAGE_MONITOR = new ItemRemoteStorageMonitor();
         CRAFTER_SPEED_UPGRADE = new ItemCrafterSpeedUpgrade();
         STORAGE_LEVEL_EMITTER_PART = new ItemPartStorageLevelEmitter();
         STORAGE_DISPLAY_PART = new ItemPartStorageDisplay();
@@ -56,6 +59,7 @@ public class ItemRegistry {
             NETWORK_COMPONENT_LOCATOR,
             PRIORITY_TUNER,
             CARDS_DISTRIBUTOR,
+            REMOTE_STORAGE_MONITOR,
             CRAFTER_SPEED_UPGRADE,
             STORAGE_LEVEL_EMITTER_PART,
             STORAGE_DISPLAY_PART,
@@ -71,6 +75,7 @@ public class ItemRegistry {
         registerItemModel(NETWORK_COMPONENT_LOCATOR);
         registerItemModel(PRIORITY_TUNER);
         registerItemModel(CARDS_DISTRIBUTOR);
+        registerItemModel(REMOTE_STORAGE_MONITOR);
         registerItemModel(STORAGE_LEVEL_EMITTER_PART);
         registerItemModel(STORAGE_DISPLAY_PART);
         registerItemModel(STORAGE_DISPLAY_SMALLER_PART);

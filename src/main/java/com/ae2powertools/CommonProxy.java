@@ -4,6 +4,8 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
+import appeng.api.AEApi;
+
 import com.ae2powertools.features.tuner.PriorityTunerEventHandler;
 
 
@@ -17,6 +19,6 @@ public class CommonProxy {
     }
 
     public void init(FMLInitializationEvent event) {
-        // Server-side initialization
+        AEApi.instance().registries().wireless().registerWirelessHandler(ItemRegistry.REMOTE_STORAGE_MONITOR);
     }
 }

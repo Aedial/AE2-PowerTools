@@ -16,6 +16,7 @@ import com.ae2powertools.features.monitor.display.DisplayRenderHelper;
 import com.ae2powertools.features.monitor.display.TESRStorageDisplay;
 import com.ae2powertools.features.monitor.display.TileStorageDisplay;
 import com.ae2powertools.features.locator.LocatorRenderer;
+import com.ae2powertools.features.remotemonitor.RemoteMonitorOverlay;
 import com.ae2powertools.features.scanner.ScannerRenderer;
 
 
@@ -38,6 +39,7 @@ public class ClientProxy extends CommonProxy {
         // Register client-side event handlers
         MinecraftForge.EVENT_BUS.register(new ScannerRenderer());
         MinecraftForge.EVENT_BUS.register(new LocatorRenderer());
+        MinecraftForge.EVENT_BUS.register(new RemoteMonitorOverlay());
         MinecraftForge.EVENT_BUS.register(new BlockHighlightRenderer());
 
         // Register TESRs for dynamic content rendering (item icon + quantity text)

@@ -46,7 +46,7 @@ public final class JeiTooltipBridge {
      * Returns the tooltip lines for the given resource, ready to feed to
      * {@code GuiUtils.drawHoveringText}.
      * <p>
-     * Items are NOT handled here -- callers should detect items first and use vanilla's
+     * Items are NOT handled here, callers should detect items first and use vanilla's
      * {@code GuiScreen.renderToolTip(ItemStack, ...)} instead, which preserves rarity
      * coloring and advanced flag behavior.
      */

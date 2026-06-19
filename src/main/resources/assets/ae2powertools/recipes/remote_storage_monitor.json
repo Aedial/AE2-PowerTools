@@ -1,0 +1,62 @@
+{
+    "conditions": [
+        {
+            "type": "forge:and",
+            "values": [
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:remote_storage_monitor"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "ae2powertools:storage_display_part"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.wireless"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.logic_processor"
+                },
+                {
+                    "type": "appliedenergistics2:material_exists",
+                    "material": "material.calculation_processor"
+                },
+                {
+                    "type": "minecraft:item_exists",
+                    "item": "appliedenergistics2:smooth_sky_stone_block"
+                }
+            ]
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:remote_storage_monitor"
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "sws",
+        "lml",
+        "scs"
+    ],
+    "key": {
+        "s": {
+            "item": "appliedenergistics2:smooth_sky_stone_block"
+        },
+        "w": {
+            "type": "appliedenergistics2:part",
+            "part": "material.wireless"
+        },
+        "l": {
+            "type": "appliedenergistics2:part",
+            "part": "material.logic_processor"
+        },
+        "c": {
+            "type": "appliedenergistics2:part",
+            "part": "material.calculation_processor"
+        },
+        "m": {
+            "item": "ae2powertools:storage_display_part"
+        }
+    }
+}
