@@ -6,7 +6,11 @@ import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
 
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
@@ -52,12 +56,22 @@ public class MonitoredResource {
 
     // --- Factory methods ---
 
+    public static MonitoredResource ofItem(IAEItemStack stack, boolean saveDisplayName) {
+        String displayName = saveDisplayName ? stack.getDefinition().getDisplayName() : null;
+        return new MonitoredResource(ResourceType.ITEM, stack.copy(), displayName);
+    }
+
     public static MonitoredResource ofItem(IAEItemStack stack) {
-        return new MonitoredResource(ResourceType.ITEM, stack.copy(), stack.getDefinition().getDisplayName());
+        return ofItem(stack, true);
+    }
+
+    public static MonitoredResource ofFluid(IAEFluidStack stack, boolean saveDisplayName) {
+        String displayName = saveDisplayName ? stack.getFluidStack().getLocalizedName() : null;
+        return new MonitoredResource(ResourceType.FLUID, stack.copy(), displayName);
     }
 
     public static MonitoredResource ofFluid(IAEFluidStack stack) {
-        return new MonitoredResource(ResourceType.FLUID, stack.copy(), stack.getFluidStack().getLocalizedName());
+        return ofFluid(stack, true);
     }
 
     /**
@@ -104,16 +118,24 @@ public class MonitoredResource {
     private static final String NBT_TYPE = "Type";
     private static final String NBT_STACK = "Stack";
     private static final String NBT_NAME = "Name";
+    private static final String NBT_ITEM_ID = "id";
+    private static final String NBT_VANILLA_COUNT = "Count";
+    private static final String NBT_DAMAGE = "Damage";
+    private static final String NBT_ITEM_TAG = "tag";
+    private static final String NBT_FLUID_NAME = "FluidName";
+    private static final String NBT_FLUID_TAG = "Tag";
+    private static final String NBT_GAS_NAME = "gasName";
+    private static final String NBT_ASPECT = "Aspect";
+    private static final int IDENTITY_STACK_SIZE = 1;
 
     public NBTTagCompound writeToNBT() {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setInteger(NBT_TYPE, type.getId());
-        tag.setString(NBT_NAME, displayName);
+        if (displayName != null && !displayName.isEmpty()) tag.setString(NBT_NAME, displayName);
 
         if (stack != null) {
-            NBTTagCompound stackTag = new NBTTagCompound();
-            stack.writeToNBT(stackTag);
-            tag.setTag(NBT_STACK, stackTag);
+            NBTTagCompound stackTag = serializeStack(this.type, this.stack);
+            if (!stackTag.isEmpty()) tag.setTag(NBT_STACK, stackTag);
         }
 
         return tag;
@@ -122,7 +144,7 @@ public class MonitoredResource {
     @Nullable
     public static MonitoredResource readFromNBT(NBTTagCompound tag) {
         ResourceType type = ResourceType.fromId(tag.getInteger(NBT_TYPE));
-        String name = tag.getString(NBT_NAME);
+        String name = tag.hasKey(NBT_NAME) ? tag.getString(NBT_NAME) : null;
         NBTTagCompound stackTag = tag.hasKey(NBT_STACK) ? tag.getCompoundTag(NBT_STACK) : null;
 
         IAEStack<?> stack = deserializeStack(type, stackTag);
@@ -134,16 +156,16 @@ public class MonitoredResource {
 
     public void writeToBuf(ByteBuf buf) {
         buf.writeInt(type.getId());
-        ByteBufUtils.writeUTF8String(buf, displayName);
+        ByteBufUtils.writeUTF8String(buf, displayName != null ? displayName : "");
 
-        NBTTagCompound stackTag = new NBTTagCompound();
-        if (stack != null) stack.writeToNBT(stackTag);
+        NBTTagCompound stackTag = serializeStack(this.type, this.stack);
         ByteBufUtils.writeTag(buf, stackTag);
     }
 
     public static MonitoredResource readFromBuf(ByteBuf buf) {
         ResourceType type = ResourceType.fromId(buf.readInt());
         String name = ByteBufUtils.readUTF8String(buf);
+        if (name.isEmpty()) name = null;
         NBTTagCompound stackTag = ByteBufUtils.readTag(buf);
 
         IAEStack<?> stack = deserializeStack(type, stackTag);
@@ -153,18 +175,42 @@ public class MonitoredResource {
 
     // --- Internal helpers ---
 
+    private static NBTTagCompound serializeStack(ResourceType type, @Nullable IAEStack<?> stack) {
+        NBTTagCompound stackTag = new NBTTagCompound();
+        if (stack == null) return stackTag;
+
+        switch (type) {
+            case ITEM:
+                if (stack instanceof IAEItemStack) serializeItemStack((IAEItemStack) stack, stackTag);
+                return stackTag;
+
+            case FLUID:
+                if (stack instanceof IAEFluidStack) serializeFluidStack((IAEFluidStack) stack, stackTag);
+                return stackTag;
+
+            case GAS:
+                if (Loader.isModLoaded("mekeng")) serializeGasStack(stack, stackTag);
+                return stackTag;
+
+            case ESSENTIA:
+                if (Loader.isModLoaded("thaumicenergistics")) serializeEssentiaStack(stack, stackTag);
+                return stackTag;
+
+            default:
+                return stackTag;
+        }
+    }
+
     @Nullable
     private static IAEStack<?> deserializeStack(ResourceType type, @Nullable NBTTagCompound stackTag) {
         if (stackTag == null || stackTag.isEmpty()) return null;
 
         switch (type) {
             case ITEM:
-                return AEItemStack.fromNBT(stackTag);
+                return deserializeItemStack(stackTag);
 
             case FLUID:
-                IStorageChannel<IAEFluidStack> fluidChannel =
-                    AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-                return fluidChannel.createFromNBT(stackTag);
+                return deserializeFluidStack(stackTag);
 
             case GAS:
                 if (!Loader.isModLoaded("mekeng")) return null;
@@ -179,6 +225,74 @@ public class MonitoredResource {
         }
     }
 
+    private static void serializeItemStack(IAEItemStack stack, NBTTagCompound stackTag) {
+        ItemStack itemStack = stack.getDefinition();
+        if (itemStack.isEmpty() || itemStack.getItem().getRegistryName() == null) return;
+
+        stackTag.setString(NBT_ITEM_ID, itemStack.getItem().getRegistryName().toString());
+        stackTag.setShort(NBT_DAMAGE, (short) itemStack.getItemDamage());
+
+        if (itemStack.hasTagCompound()) stackTag.setTag(NBT_ITEM_TAG, itemStack.getTagCompound().copy());
+    }
+
+    private static void serializeFluidStack(IAEFluidStack stack, NBTTagCompound stackTag) {
+        FluidStack fluidStack = stack.getFluidStack();
+        if (fluidStack == null || fluidStack.getFluid() == null) return;
+
+        stackTag.setString(NBT_FLUID_NAME, fluidStack.getFluid().getName());
+        if (fluidStack.tag != null) stackTag.setTag(NBT_FLUID_TAG, fluidStack.tag.copy());
+    }
+
+    @Nullable
+    private static IAEItemStack deserializeItemStack(NBTTagCompound stackTag) {
+        if (!stackTag.hasKey(NBT_ITEM_ID)) return null;
+
+        NBTTagCompound itemTag = new NBTTagCompound();
+        itemTag.setString(NBT_ITEM_ID, stackTag.getString(NBT_ITEM_ID));
+        itemTag.setByte(NBT_VANILLA_COUNT, (byte) IDENTITY_STACK_SIZE);
+
+        if (stackTag.hasKey(NBT_DAMAGE)) itemTag.setShort(NBT_DAMAGE, stackTag.getShort(NBT_DAMAGE));
+        if (stackTag.hasKey(NBT_ITEM_TAG)) itemTag.setTag(NBT_ITEM_TAG, stackTag.getCompoundTag(NBT_ITEM_TAG).copy());
+
+        return AEItemStack.fromItemStack(new ItemStack(itemTag));
+    }
+
+    @Nullable
+    private static IAEStack<?> deserializeFluidStack(NBTTagCompound stackTag) {
+        if (!stackTag.hasKey(NBT_FLUID_NAME)) return null;
+
+        Fluid fluid = FluidRegistry.getFluid(stackTag.getString(NBT_FLUID_NAME));
+        if (fluid == null) return null;
+
+        FluidStack fluidStack = new FluidStack(fluid, IDENTITY_STACK_SIZE);
+        if (stackTag.hasKey(NBT_FLUID_TAG)) fluidStack.tag = stackTag.getCompoundTag(NBT_FLUID_TAG).copy();
+
+        IStorageChannel<IAEFluidStack> fluidChannel =
+            AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+        return fluidChannel.createStack(fluidStack);
+    }
+
+    @Optional.Method(modid = "mekeng")
+    private static void serializeGasStack(IAEStack<?> stack, NBTTagCompound stackTag) {
+        if (!(stack instanceof com.mekeng.github.common.me.data.IAEGasStack)) return;
+
+        mekanism.api.gas.GasStack gasStack = ((com.mekeng.github.common.me.data.IAEGasStack) stack).getGasStack();
+        if (gasStack == null || gasStack.getGas() == null) return;
+
+        stackTag.setString(NBT_GAS_NAME, gasStack.getGas().getName());
+    }
+
+    @Optional.Method(modid = "thaumicenergistics")
+    private static void serializeEssentiaStack(IAEStack<?> stack, NBTTagCompound stackTag) {
+        if (!(stack instanceof thaumicenergistics.api.storage.IAEEssentiaStack)) return;
+
+        thaumicenergistics.api.EssentiaStack essentiaStack =
+            ((thaumicenergistics.api.storage.IAEEssentiaStack) stack).getStack();
+        if (essentiaStack == null || essentiaStack.getAspect() == null) return;
+
+        stackTag.setString(NBT_ASPECT, essentiaStack.getAspect().getTag());
+    }
+
     /**
      * Deserialize a gas stack via @Optional.Method.
      * Only called when mekeng is confirmed loaded.
@@ -186,9 +300,13 @@ public class MonitoredResource {
     @Nullable
     @Optional.Method(modid = "mekeng")
     private static IAEStack<?> deserializeGasStack(NBTTagCompound stackTag) {
-        return AEApi.instance().storage()
-            .getStorageChannel(com.mekeng.github.common.me.storage.IGasStorageChannel.class)
-            .createFromNBT(stackTag);
+        if (!stackTag.hasKey(NBT_GAS_NAME)) return null;
+
+        mekanism.api.gas.Gas gas = mekanism.api.gas.GasRegistry.getGas(stackTag.getString(NBT_GAS_NAME));
+        if (gas == null) return null;
+
+        return com.mekeng.github.common.me.data.impl.AEGasStack.of(
+            new mekanism.api.gas.GasStack(gas, IDENTITY_STACK_SIZE));
     }
 
     /**
@@ -198,9 +316,13 @@ public class MonitoredResource {
     @Nullable
     @Optional.Method(modid = "thaumicenergistics")
     private static IAEStack<?> deserializeEssentiaStack(NBTTagCompound stackTag) {
-        return AEApi.instance().storage()
-            .getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class)
-            .createFromNBT(stackTag);
+        if (!stackTag.hasKey(NBT_ASPECT)) return null;
+
+        thaumcraft.api.aspects.Aspect aspect = thaumcraft.api.aspects.Aspect.getAspect(stackTag.getString(NBT_ASPECT));
+        if (aspect == null) return null;
+
+        return thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(
+            new thaumicenergistics.api.EssentiaStack(aspect, IDENTITY_STACK_SIZE));
     }
 
     @Override
@@ -223,10 +345,8 @@ public class MonitoredResource {
         // Use display name as fallback when stack is null
         if (stack == null) return 31 * type.hashCode() + displayName.hashCode();
 
-        // Use a hash based on type + stack identity (not quantity)
-        NBTTagCompound tag = new NBTTagCompound();
-        stack.writeToNBT(tag);
-        tag.removeTag("Cnt"); // Remove count to make it quantity-independent
+        // Use the same identity-only serialization as persistence and packets.
+        NBTTagCompound tag = serializeStack(this.type, this.stack);
 
         return 31 * type.hashCode() + tag.hashCode();
     }

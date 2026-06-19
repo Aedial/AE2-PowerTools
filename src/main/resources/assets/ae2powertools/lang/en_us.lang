@@ -244,6 +244,25 @@ item.ae2powertools.cards_distributor.all_full=All assemblers on the network are 
 item.ae2powertools.cards_distributor.pulled_from_ae2=Pulled %d cards from AE2 network storage.
 
 # =====================================================
+# Remote Storage Monitor
+# =====================================================
+
+# Items
+item.ae2powertools.remote_storage_monitor.name=Remote Storage Monitor
+item.ae2powertools.remote_storage_monitor.tip1=Right-click to open the remote monitor
+item.ae2powertools.remote_storage_monitor.tip2=Hold or wear it to display quantity changes as an overlay
+
+# GUI
+gui.ae2powertools.remote_monitor.title=Remote Storage Monitor
+gui.ae2powertools.remote_monitor.empty_slot=Empty slot
+gui.ae2powertools.remote_monitor.slot_left_click=Left-click to select content
+gui.ae2powertools.remote_monitor.slot_right_click=Right-click to clear
+gui.ae2powertools.remote_monitor.polling_rate.title=Polling Rate
+gui.ae2powertools.remote_monitor.polling_rate.tooltip=Compare against the last %s
+gui.ae2powertools.remote_monitor.polling_rate.description=Set the time span used to measure quantity changes
+gui.ae2powertools.remote_monitor.selector.title=Select Content
+
+# =====================================================
 # AE2 AutoCrafter
 # =====================================================
 

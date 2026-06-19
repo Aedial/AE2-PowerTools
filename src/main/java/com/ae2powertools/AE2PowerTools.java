@@ -11,6 +11,7 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
 import com.ae2powertools.features.GuiHandler;
+import com.ae2powertools.features.remotemonitor.RemoteMonitorTickHandler;
 import com.ae2powertools.features.scanner.ScannerTickHandler;
 import com.ae2powertools.network.PowerToolsNetwork;
 
@@ -50,6 +51,7 @@ public class AE2PowerTools {
     public void init(FMLInitializationEvent event) {
         // Register server tick handler for scanner processing
         MinecraftForge.EVENT_BUS.register(new ScannerTickHandler());
+        MinecraftForge.EVENT_BUS.register(new RemoteMonitorTickHandler());
 
         // Register GUI handler for Better Level Maintainer
         NetworkRegistry.INSTANCE.registerGuiHandler(instance, new GuiHandler());
