@@ -34,7 +34,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
     private final EntityPlayer viewer;
 
     @GuiSync(0)
-    public int refreshRate;
+    public long refreshRate;
 
     @GuiSync(1)
     public int matchMode;
@@ -201,7 +201,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
 
     // --- Client-side getters ---
 
-    public int getSyncRefreshRate() {
+    public long getSyncRefreshRate() {
         return refreshRate;
     }
 

@@ -149,16 +149,16 @@ public class GuiCrafterSpeed extends AEBaseGui {
     /**
      * Formats ticks into a human-readable time string.
      */
-    public static String formatTicks(int ticks) {
+    public static String formatTicks(long ticks) {
         if (ticks <= 0) return "0";
 
-        int days = ticks / TICKS_PER_DAY;
+        long days = ticks / TICKS_PER_DAY;
         ticks %= TICKS_PER_DAY;
-        int hours = ticks / TICKS_PER_HOUR;
+        long hours = ticks / TICKS_PER_HOUR;
         ticks %= TICKS_PER_HOUR;
-        int minutes = ticks / TICKS_PER_MINUTE;
+        long minutes = ticks / TICKS_PER_MINUTE;
         ticks %= TICKS_PER_MINUTE;
-        int seconds = ticks / TICKS_PER_SECOND;
+        long seconds = ticks / TICKS_PER_SECOND;
 
         StringBuilder sb = new StringBuilder();
         if (days > 0) sb.append(days).append("d ");

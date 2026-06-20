@@ -821,11 +821,11 @@ public class GuiAutoCrafter extends GuiContainer {
         if (output == null) return;
 
         // Calculate throughput using @GuiSync values from container
-        int speedTicks = container.syncSpeedTicks;
-        int batchSize = container.syncBatchSize;
+        long speedTicks = container.syncSpeedTicks;
+        long batchSize = container.syncBatchSize;
         long outputCount = output.getStackSize();
 
-        long itemsPerCraft = (long) container.syncEffectiveBatchSize * outputCount;
+        long itemsPerCraft = container.syncEffectiveBatchSize * outputCount;
         String itemsPerCraftStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(itemsPerCraft);
         String timePerOperation = FormatUtil.formatTimeTicks(speedTicks * batchSize);
         String throughput = I18n.format("gui.ae2powertools.crafter.crafts_per_operation",
