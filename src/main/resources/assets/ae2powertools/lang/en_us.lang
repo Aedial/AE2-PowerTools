@@ -133,6 +133,7 @@ ae2powertools.scanner.complete.summary.line5=- Found %d fatal error(s)
 tile.ae2powertools.better_level_maintainer.name=Better Level Maintainer
 tile.ae2powertools.better_level_maintainer.tooltip=Automates crafting of specified items to maintain a target quantity in the network.
 tile.ae2powertools.better_level_maintainer.warning=Warning: This block can cause significant server lag if put on a large network/used with complex recipes. Use it on a small sub-network, with simple recipes.
+tile.ae2powertools.better_level_maintainer.memory_card.tooltip=Maintainer Targets
 
 # Config
 ae2powertools.config.client.maintainer=Maintainer
@@ -410,15 +411,24 @@ ae2powertools.config.client.locator.useTallView.tooltip=Use tall view (more rows
 # Blocks
 tile.ae2powertools.storage_level_emitter.name=ME Storage Level Emitter
 tile.ae2powertools.storage_level_emitter.tooltip=Emits a redstone signal based on monitored resource quantity.
+tile.ae2powertools.storage_level_emitter.memory_card.tooltip=Storage Monitor Filters
+
+tile.ae2powertools.level_monitor_alarm.name=Level Monitor Alarm
+tile.ae2powertools.level_monitor_alarm.tooltip=Warns registered players when any configured alarm entry trips.
+tile.ae2powertools.level_monitor_alarm.tooltip2=Accepts filters from any Better Level Maintainer, AE2 AutoCrafter, Storage Level Emitter, or Storage Display through the memory card.
+tile.ae2powertools.level_monitor_alarm.memory_card.tooltip=Alarm Filters
 
 tile.ae2powertools.storage_display.name=ME Storage Display
 tile.ae2powertools.storage_display.tooltip=Displays the quantity of a monitored resource on the network.
+tile.ae2powertools.storage_display.memory_card.tooltip=Storage Monitor Filters
 
 # Items
 item.ae2powertools.storage_level_emitter_part.name=ME Storage Level Emitter
 item.ae2powertools.storage_display_part.name=ME Storage Display
 item.ae2powertools.storage_display_part_smaller.name=ME Storage Display (Smaller)
 item.ae2powertools.storage_display_part_smallerer.name=ME Storage Display (Smallerer)
+item.ae2powertools.level_monitor_alarm_locator.name=Level Monitor Alarm Locator
+item.ae2powertools.level_monitor_alarm_locator.tip1=Hold in either hand to render arrows to active alarm positions.
 
 # Config
 ae2powertools.config.client.monitor=Monitor
@@ -432,6 +442,7 @@ ae2powertools.config.client.monitor.displayColorBelow.tooltip=Corner indicator c
 
 # GUI
 gui.ae2powertools.storage_emitter.title=ME Storage Level Emitter
+gui.ae2powertools.level_monitor_alarm.title=Level Monitor Alarm
 gui.ae2powertools.storage_display.title=ME Storage Display
 gui.ae2powertools.storage_emitter.match_mode=Match: %s
 gui.ae2powertools.storage_emitter.refresh_rate=Refresh: %s
@@ -462,3 +473,9 @@ gui.ae2powertools.storage_emitter.decreasing_label=Decreasing:
 gui.ae2powertools.storage_emitter.controls.title=Controls
 gui.ae2powertools.storage_emitter.controls.scroll=Shift + scroll: Double/halve target
 gui.ae2powertools.storage_emitter.controls.toggle=Right-click: Toggle enabled
+gui.ae2powertools.level_monitor_alarm.registration.registered=Receiving warnings from this alarm
+gui.ae2powertools.level_monitor_alarm.registration.unregistered=Not receiving warnings from this alarm
+gui.ae2powertools.level_monitor_alarm.registration.click_register=Click to register for warnings
+gui.ae2powertools.level_monitor_alarm.registration.click_unregister=Click to stop receiving warnings
+gui.ae2powertools.level_monitor_alarm.overlay.single=Alarm at %s
+gui.ae2powertools.level_monitor_alarm.overlay.multiple=Alarms at %s

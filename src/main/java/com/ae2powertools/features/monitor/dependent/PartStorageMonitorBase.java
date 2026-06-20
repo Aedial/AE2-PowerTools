@@ -70,7 +70,16 @@ public abstract class PartStorageMonitorBase extends AEBasePart
     public float getCableConnectionLength(AECableType cable) { return 16; }
 
     @Override
+    public boolean useStandardMemoryCard() {
+        return false;
+    }
+
+    @Override
     public boolean onPartActivate(EntityPlayer player, EnumHand hand, Vec3d pos) {
+        if (MonitorMemoryCardHelper.handleMemoryCard(player.world, player, player.getHeldItem(hand), this)) {
+            return true;
+        }
+
         if (!player.world.isRemote) {
             BlockPos hostPos = getHost().getTile().getPos();
             // Open the part GUI via an encoded ID so GuiHandler can resolve THIS part
@@ -81,6 +90,11 @@ public abstract class PartStorageMonitorBase extends AEBasePart
         }
 
         return true;
+    }
+
+    @Override
+    public boolean onPartShiftActivate(EntityPlayer player, EnumHand hand, Vec3d pos) {
+        return MonitorMemoryCardHelper.handleMemoryCard(player.world, player, player.getHeldItem(hand), this);
     }
 
     @Override

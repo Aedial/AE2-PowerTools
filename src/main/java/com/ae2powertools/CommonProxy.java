@@ -6,6 +6,7 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
 import appeng.api.AEApi;
 
+import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmEventHandler;
 import com.ae2powertools.features.tuner.PriorityTunerEventHandler;
 
 
@@ -16,6 +17,7 @@ public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(new PriorityTunerEventHandler());
+        MinecraftForge.EVENT_BUS.register(new LevelMonitorAlarmEventHandler());
     }
 
     public void init(FMLInitializationEvent event) {

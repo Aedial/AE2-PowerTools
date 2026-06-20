@@ -9,10 +9,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [1.6.3] - 2026-06-30
+### Fixed
+- Fix large GUI-synced numeric values being truncated above 32k in the AutoCrafter and Storage Monitor screens by syncing susceptible counters as long instead of int.
+
 ### Added
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 - Add Remote Storage Monitor, a bauble/held item that shows the quantity variation of configured content in the network as an overlay on the screen, over a set period of time.
 - Add Storage Level Alarm, a block that tracks the quantity of a configured content in the network and send a continuous warning to any player that registered to it when any content goes below the configured threshold.
+- Add Memory Card support for all member of the Storage Monitor family (Emitter, Display, Alarm), allowing to import settings from each others, or AE2 AutoCrafter/Better Level Maintainer patterns for the same content.
 
 
 ## [1.6.2] - 2026-06-18

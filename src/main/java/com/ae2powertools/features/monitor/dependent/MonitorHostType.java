@@ -10,6 +10,9 @@ public enum MonitorHostType {
     /** ME Storage Level Emitter: emits redstone based on threshold. */
     EMITTER("storage_emitter"),
 
+    /** Level Monitor Alarm: warns subscribed players when any configured entry trips. */
+    ALARM("level_monitor_alarm"),
+
     /** ME Storage Display: shows resource icon + quantity, with corner colour driven by threshold. */
     DISPLAY("storage_display");
 
@@ -21,5 +24,9 @@ public enum MonitorHostType {
 
     public String getTitleLangKey() {
         return "gui.ae2powertools." + titleLangKey + ".title";
+    }
+
+    public String getMemoryCardName() {
+        return "tile.ae2powertools." + titleLangKey;
     }
 }

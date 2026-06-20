@@ -4,6 +4,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -65,6 +66,73 @@ public interface IStorageMonitorHost {
     // --- Host type ---
 
     MonitorHostType getHostType();
+
+    /**
+     * Shared memory-card name used by both block and part variants of the same monitor host.
+     */
+    default String getMemoryCardName() {
+        return getHostType().getMemoryCardName();
+    }
+
+    /**
+     * Memory-card tooltip key shown by AE2's memory card item.
+     */
+    default String getMemoryCardTooltipKey() {
+        return getMemoryCardName() + ".memory_card.tooltip";
+    }
+
+    /**
+     * Whether this host exposes the shared AND/OR toggle in the monitor GUI.
+     */
+    default boolean supportsMatchMode() {
+        return true;
+    }
+
+    /**
+     * Whether this host exposes the shared hysteresis toggle and split-threshold UI.
+     */
+    default boolean supportsHysteresis() {
+        return true;
+    }
+
+    /**
+     * Whether this host allows cycling the per-entry comparison operator.
+     */
+    default boolean supportsEntryComparison() {
+        return true;
+    }
+
+    /**
+     * Whether this host supports per-player registration through the monitor GUI.
+     */
+    default boolean supportsPlayerRegistration() {
+        return false;
+    }
+
+    /**
+     * Whether the given player is currently subscribed to receive this host's state.
+     */
+    default boolean isPlayerRegistered(@Nullable EntityPlayer player) {
+        return false;
+    }
+
+    /**
+     * Toggles registration for the given player.
+     *
+     * @return true when the player ended up subscribing, false when they ended up unsubscribing
+     *         or were ineligible for registration in the first place.
+     */
+    default boolean togglePlayerRegistration(@Nullable EntityPlayer player) {
+        return false;
+    }
+
+    /**
+     * Whether the container should drive refreshes while its GUI is open.
+     * Used by hosts that intentionally sleep when nobody is subscribed to them.
+     */
+    default boolean shouldRefreshWhileGuiOpen() {
+        return false;
+    }
 
     /**
      * Returns an ItemStack representing this host for sub-GUI back-button icons.
