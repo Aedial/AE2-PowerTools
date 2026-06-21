@@ -2,6 +2,8 @@ package com.ae2powertools.features.monitor.dependent;
 
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -17,6 +19,8 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+
+import appeng.api.implementations.items.IMemoryCard;
 
 import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.Tags;
@@ -47,6 +51,15 @@ public abstract class BlockStorageMonitorBase extends Block {
     protected abstract String getTooltipKey();
 
     /**
+     * Returns additional tooltip keys to display after the first one, or null/empty if no additional lines.
+     * The base implementation returns null, which is treated as no additional lines.
+     */
+    @Nullable
+    protected List<String> getAdditionalTooltipKeys() {
+        return null;
+    }
+
+    /**
      * Returns the expected tile entity class for this block.
      * Used by {@link #onBlockActivated} to validate the tile before opening the GUI.
      */
@@ -57,6 +70,13 @@ public abstract class BlockStorageMonitorBase extends Block {
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
         tooltip.add(TextFormatting.AQUA + I18n.format(getTooltipKey()));
+
+        List<String> additionalKeys = getAdditionalTooltipKeys();
+        if (additionalKeys != null) {
+            for (String key : additionalKeys) {
+                tooltip.add(TextFormatting.AQUA + I18n.format(key));
+            }
+        }
     }
 
     @Override
@@ -68,6 +88,18 @@ public abstract class BlockStorageMonitorBase extends Block {
     public boolean onBlockActivated(World world, BlockPos pos, IBlockState state,
                                      EntityPlayer player, EnumHand hand,
                                      EnumFacing facing, float hitX, float hitY, float hitZ) {
+        ItemStack heldItem = player.getHeldItem(hand);
+        if (!heldItem.isEmpty() && heldItem.getItem() instanceof IMemoryCard) {
+            if (world.isRemote) return true;
+
+            TileEntity te = world.getTileEntity(pos);
+            if (getTileClass().isInstance(te) && te instanceof IStorageMonitorHost) {
+                return MonitorMemoryCardHelper.handleMemoryCard(world, player, heldItem, (IStorageMonitorHost) te);
+            }
+
+            return false;
+        }
+
         if (world.isRemote) return true;
 
         TileEntity te = world.getTileEntity(pos);

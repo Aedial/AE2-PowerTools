@@ -1,0 +1,28 @@
+{
+    "conditions": [
+        {
+            "type": "minecraft:item_exists",
+            "item": "ae2powertools:storage_level_alarm"
+        },
+        {
+            "type": "minecraft:item_exists",
+            "item": "appliedenergistics2:smooth_sky_stone_block"
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:storage_level_alarm_locator"
+    },
+    "type": "forge:ore_shapeless",
+    "ingredients": [
+        {
+            "item": "ae2powertools:storage_level_emitter",
+            "__FIXME": "Need to add a non-consume clause for this item"
+        },
+        {
+            "item": "minecraft:compass"
+        },
+        {
+            "item": "appliedenergistics2:smooth_sky_stone_block"
+        }
+    ]
+}

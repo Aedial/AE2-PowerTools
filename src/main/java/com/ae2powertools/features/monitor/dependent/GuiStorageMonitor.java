@@ -43,6 +43,7 @@ import com.ae2powertools.network.PacketSelectMonitorContent;
 import com.ae2powertools.network.PacketSetEmitterRedstoneStrength;
 import com.ae2powertools.network.PacketSetHysteresisMode;
 import com.ae2powertools.network.PacketSetMatchMode;
+import com.ae2powertools.network.PacketToggleAlarmRegistration;
 import com.ae2powertools.network.PacketUpdateMonitorEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.PollingRateUtils;
@@ -144,7 +145,6 @@ public class GuiStorageMonitor extends GuiContainer {
     private static final int SIDE_BTN_X_OFFSET = -SIDE_BTN_SIZE - 2;
     private static final int SIDE_BTN_SPACING = 4;
     private static final int MATCH_MODE_BTN_Y = 4;
-    private static final int REDSTONE_SIGNAL_BTN_Y = MATCH_MODE_BTN_Y + SIDE_BTN_SIZE + 4;
 
     // --- Wrench tab button (polling rate sub-GUI launcher) ---
     /**
@@ -211,6 +211,9 @@ public class GuiStorageMonitor extends GuiContainer {
     /** Wrench tab button (vanilla GuiButton via AE2's GuiTabButton). */
     private GuiTabButton pollingRateBtn;
 
+    /** Alarm-only registration toggle button shown next to the polling-rate tab. */
+    private GuiButton alarmRegistrationBtn;
+
     // --- Count field (threshold editor) ---
     private GuiTextField countField;
     /** Index of the entry currently being edited via the count field, or -1 when hidden. */
@@ -248,12 +251,16 @@ public class GuiStorageMonitor extends GuiContainer {
         matchBtnY = guiTop + MATCH_MODE_BTN_Y;
         hysteresisBtnX = matchBtnX;
 
-        int nextSideButtonY = guiTop + MATCH_MODE_BTN_Y + SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+        int nextSideButtonY = guiTop + MATCH_MODE_BTN_Y;
+
+        if (container.supportsMatchMode()) {
+            nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+        }
 
         if (container.supportsEmitterRedstoneStrength()) {
             redstoneSignalBtn = new GuiImgButton(
                 matchBtnX,
-                guiTop + REDSTONE_SIGNAL_BTN_Y,
+                nextSideButtonY,
                 Settings.REDSTONE_EMITTER,
                 RedstoneMode.LOW_SIGNAL);
             this.buttonList.add(redstoneSignalBtn);
@@ -273,6 +280,17 @@ public class GuiStorageMonitor extends GuiContainer {
             I18n.format("gui.ae2powertools.storage_emitter.polling_rate.title"),
             this.itemRender);
         this.buttonList.add(pollingRateBtn);
+
+        if (container.supportsPlayerRegistration()) {
+            alarmRegistrationBtn = new GuiButton(
+                201,
+                pollingRateBtn.x - 18,
+                guiTop + 3,
+                16,
+                16,
+                container.isSyncPlayerRegistered() ? "-" : "+");
+            this.buttonList.add(alarmRegistrationBtn);
+        }
 
         // Count field: hidden until the user clicks the right half of a cell.
         // Uses a black background drawn manually so the field clearly "pops" over the entries.
@@ -325,6 +343,11 @@ public class GuiStorageMonitor extends GuiContainer {
                 new PacketOpenStorageMonitorPollingRate(container.getHost()));
             return;
         }
+
+        if (button == alarmRegistrationBtn) {
+            PowerToolsNetwork.INSTANCE.sendToServer(
+                new PacketToggleAlarmRegistration(container.getHost()));
+        }
     }
 
     // ====================== DRAWING ======================
@@ -360,6 +383,7 @@ public class GuiStorageMonitor extends GuiContainer {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         syncEmitterRedstoneButton();
+        syncAlarmRegistrationButton();
         super.drawScreen(mouseX, mouseY, partialTicks);
 
         // Tooltips and modal go on top of everything (after slot rendering).
@@ -376,6 +400,10 @@ public class GuiStorageMonitor extends GuiContainer {
 
         if (isRedstoneSignalButtonHovered(mouseX, mouseY)) {
             drawRedstoneSignalTooltip(mouseX, mouseY);
+        }
+
+        if (isAlarmRegistrationButtonHovered(mouseX, mouseY)) {
+            drawAlarmRegistrationTooltip(mouseX, mouseY);
         }
 
         drawHoveredEntryTooltip(mouseX, mouseY);
@@ -395,9 +423,11 @@ public class GuiStorageMonitor extends GuiContainer {
     }
 
     private void drawSideButtons(int mouseX, int mouseY) {
-        matchBtnHovered = mouseX >= matchBtnX && mouseX < matchBtnX + SIDE_BTN_SIZE
+        matchBtnHovered = container.supportsMatchMode()
+            && mouseX >= matchBtnX && mouseX < matchBtnX + SIDE_BTN_SIZE
             && mouseY >= matchBtnY && mouseY < matchBtnY + SIDE_BTN_SIZE;
-        hysteresisBtnHovered = mouseX >= hysteresisBtnX && mouseX < hysteresisBtnX + SIDE_BTN_SIZE
+        hysteresisBtnHovered = container.getHost().supportsHysteresis()
+            && mouseX >= hysteresisBtnX && mouseX < hysteresisBtnX + SIDE_BTN_SIZE
             && mouseY >= hysteresisBtnY && mouseY < hysteresisBtnY + SIDE_BTN_SIZE;
 
         // Reset GL state so the button doesn't inherit lighting/depth from prior draws.
@@ -405,20 +435,24 @@ public class GuiStorageMonitor extends GuiContainer {
         GlStateManager.disableDepth();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        drawLabeledSideButton(
-            matchBtnX, matchBtnY,
-            container.getSyncMatchMode().getSymbol(),
-            0xFFFFFFFF,
-            matchBtnHovered
-        );
+        if (container.supportsMatchMode()) {
+            drawLabeledSideButton(
+                matchBtnX, matchBtnY,
+                container.getSyncMatchMode().getSymbol(),
+                0xFFFFFFFF,
+                matchBtnHovered
+            );
+        }
 
-        drawTexturedSideButtonWithOffset(
-            hysteresisBtnX, hysteresisBtnY,
-            HYSTERESIS_ICON,
-            container.isSyncHysteresisEnabled() ? 0 : 1, hysteresisBtnHovered ? 1 : 0,
-            2, 2,
-            hysteresisBtnHovered
-        );
+        if (container.getHost().supportsHysteresis()) {
+            drawTexturedSideButtonWithOffset(
+                hysteresisBtnX, hysteresisBtnY,
+                HYSTERESIS_ICON,
+                container.isSyncHysteresisEnabled() ? 0 : 1, hysteresisBtnHovered ? 1 : 0,
+                2, 2,
+                hysteresisBtnHovered
+            );
+        }
 
         GlStateManager.enableDepth();
     }
@@ -481,6 +515,16 @@ public class GuiStorageMonitor extends GuiContainer {
             "gui.ae2powertools.storage_emitter.redstone_signal",
             I18n.format(signalStrength.getLangKey())));
         tt.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.redstone_signal.click_toggle") + "§r");
+        GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
+    }
+
+    private void drawAlarmRegistrationTooltip(int mouseX, int mouseY) {
+        String prefix = "gui.ae2powertools.level_monitor_alarm.registration";
+        List<String> tt = new ArrayList<>();
+        tt.add(I18n.format(container.isSyncPlayerRegistered() ? prefix + ".registered" : prefix + ".unregistered"));
+        tt.add("§7" + I18n.format(container.isSyncPlayerRegistered()
+            ? prefix + ".click_unregister"
+            : prefix + ".click_register") + "§r");
         GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
     }
 
@@ -664,7 +708,13 @@ public class GuiStorageMonitor extends GuiContainer {
      * click would do (see {@link #handleEntryClick}).
      */
     private void drawZoneHover(int x, int y, int mouseX, int mouseY, MonitoredEntry entry) {
-        CellZone zone = pickZone(x, y, mouseX, mouseY, container.isSyncHysteresisEnabled());
+        CellZone zone = pickZone(
+            x,
+            y,
+            mouseX,
+            mouseY,
+            container.getHost().supportsEntryComparison(),
+            container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return;
 
         int hl = 0x40FFFFFF;
@@ -695,13 +745,15 @@ public class GuiStorageMonitor extends GuiContainer {
      * Returns the zone the given screen-space mouse coordinate is in for a cell at (x,y).
      * Comparator takes priority over left/right because it visually overlaps both halves.
      */
-    private static CellZone pickZone(int x, int y, int mouseX, int mouseY, boolean hysteresisEnabled) {
+    private static CellZone pickZone(int x, int y, int mouseX, int mouseY,
+            boolean comparisonEnabled, boolean hysteresisEnabled) {
         if (mouseX < x || mouseX >= x + INNER_W || mouseY < y || mouseY >= y + INNER_H) return CellZone.NONE;
 
         int localX = mouseX - x;
         int localY = mouseY - y;
 
-        if (localX >= CMP_X && localX < CMP_X + CMP_SIZE
+        if (comparisonEnabled
+                && localX >= CMP_X && localX < CMP_X + CMP_SIZE
                 && localY >= CMP_Y && localY < CMP_Y + CMP_SIZE) return CellZone.COMPARATOR;
 
         if (localX < LEFT_RIGHT_SPLIT) return CellZone.SELECTOR;
@@ -1100,7 +1152,6 @@ public class GuiStorageMonitor extends GuiContainer {
 
         // If the count field is visible and the click is OUTSIDE it, save+dismiss FIRST,
         // then continue with normal hit detection so the user can interact with what they clicked.
-        boolean dismissedField = false;
         if (countField != null && countField.getVisible()) {
             int fx = countField.x;
             int fy = countField.y;
@@ -1113,7 +1164,6 @@ public class GuiStorageMonitor extends GuiContainer {
             }
 
             hideCountField(true);
-            dismissedField = true;
         }
 
         // Side button: match-mode toggle (lives outside guiLeft).
@@ -1166,7 +1216,13 @@ public class GuiStorageMonitor extends GuiContainer {
         // Use the same zone picker as the hover highlight so click and visual feedback agree.
         // pickZone expects screen-space coords; we pass (0, 0) as the cell origin so localX/localY
         // are evaluated against the inner cell rect.
-        CellZone zone = pickZone(0, 0, localX, localY, container.isSyncHysteresisEnabled());
+        CellZone zone = pickZone(
+            0,
+            0,
+            localX,
+            localY,
+            container.getHost().supportsEntryComparison(),
+            container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return;
 
         switch (zone) {
@@ -1314,13 +1370,21 @@ public class GuiStorageMonitor extends GuiContainer {
         int localY = gy - row * CELL_H;
         if (localX >= INNER_W || localY >= INNER_H) return null;
 
-        CellZone zone = pickZone(0, 0, localX, localY, container.isSyncHysteresisEnabled());
+        CellZone zone = pickZone(
+            0,
+            0,
+            localX,
+            localY,
+            container.getHost().supportsEntryComparison(),
+            container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return null;
 
         return new GridHit(row * GRID_COLS + col, zone);
     }
 
     private void cycleMatchMode() {
+        if (!container.supportsMatchMode()) return;
+
         MatchMode next = container.getSyncMatchMode().next();
         PowerToolsNetwork.INSTANCE.sendToServer(
             new PacketSetMatchMode(container.getHost(), next));
@@ -1341,6 +1405,12 @@ public class GuiStorageMonitor extends GuiContainer {
             : RedstoneMode.LOW_SIGNAL);
     }
 
+    private void syncAlarmRegistrationButton() {
+        if (alarmRegistrationBtn == null) return;
+
+        alarmRegistrationBtn.displayString = container.isSyncPlayerRegistered() ? "-" : "+";
+    }
+
     private boolean isRedstoneSignalButtonHovered(int mouseX, int mouseY) {
         return redstoneSignalBtn != null
             && redstoneSignalBtn.visible
@@ -1348,6 +1418,15 @@ public class GuiStorageMonitor extends GuiContainer {
             && mouseX < redstoneSignalBtn.x + redstoneSignalBtn.width
             && mouseY >= redstoneSignalBtn.y
             && mouseY < redstoneSignalBtn.y + redstoneSignalBtn.height;
+    }
+
+    private boolean isAlarmRegistrationButtonHovered(int mouseX, int mouseY) {
+        return alarmRegistrationBtn != null
+            && alarmRegistrationBtn.visible
+            && mouseX >= alarmRegistrationBtn.x
+            && mouseX < alarmRegistrationBtn.x + alarmRegistrationBtn.width
+            && mouseY >= alarmRegistrationBtn.y
+            && mouseY < alarmRegistrationBtn.y + alarmRegistrationBtn.height;
     }
 
     private void cycleComparison(int idx) {
@@ -1490,7 +1569,9 @@ public class GuiStorageMonitor extends GuiContainer {
     public List<Rectangle> getJEIExclusionArea() {
         List<Rectangle> areas = new ArrayList<>();
         areas.add(new Rectangle(matchBtnX, matchBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
-        areas.add(new Rectangle(hysteresisBtnX, hysteresisBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
+        if (container.getHost().supportsHysteresis()) {
+            areas.add(new Rectangle(hysteresisBtnX, hysteresisBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
+        }
         if (redstoneSignalBtn != null) {
             areas.add(new Rectangle(redstoneSignalBtn.x, redstoneSignalBtn.y,
                                     redstoneSignalBtn.width, redstoneSignalBtn.height));

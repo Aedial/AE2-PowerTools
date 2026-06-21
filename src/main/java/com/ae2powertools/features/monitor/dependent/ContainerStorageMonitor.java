@@ -2,6 +2,7 @@ package com.ae2powertools.features.monitor.dependent;
 
 import java.util.List;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IContainerListener;
@@ -30,9 +31,10 @@ import com.ae2powertools.network.PowerToolsNetwork;
 public class ContainerStorageMonitor extends AEBaseContainer {
 
     private final IStorageMonitorHost host;
+    private final EntityPlayer viewer;
 
     @GuiSync(0)
-    public int refreshRate;
+    public long refreshRate;
 
     @GuiSync(1)
     public int matchMode;
@@ -48,6 +50,9 @@ public class ContainerStorageMonitor extends AEBaseContainer {
 
     @GuiSync(5)
     public int hysteresisEnabled;
+
+    @GuiSync(6)
+    public int playerRegistered;
 
     // --- Cached per-entry state for change detection (server-side only) ---
     /** Cached quantities for each entry, used to detect changes worth syncing to the client. */
@@ -65,6 +70,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
     public ContainerStorageMonitor(InventoryPlayer playerInv, IStorageMonitorHost host) {
         super(playerInv, host);
         this.host = host;
+        this.viewer = playerInv.player;
 
         if (Platform.isServer()) syncFromHost();
     }
@@ -74,6 +80,8 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         super.detectAndSendChanges();
 
         if (!Platform.isServer()) return;
+
+        if (host.shouldRefreshWhileGuiOpen()) host.getMonitorLogic().refresh();
 
         // Poll disabled entries, since they were ignored for AND/OR evaluation
         host.getMonitorLogic().pollDisabledEntriesForDisplay();
@@ -188,11 +196,12 @@ public class ContainerStorageMonitor extends AEBaseContainer {
             ? ((IEmitterRedstoneStrengthHost) host).getRedstoneSignalStrength().getId()
             : EmitterRedstoneStrength.WEAK.getId();
         this.hysteresisEnabled = host.isHysteresisEnabled() ? 1 : 0;
+        this.playerRegistered = supportsPlayerRegistration() && host.isPlayerRegistered(viewer) ? 1 : 0;
     }
 
     // --- Client-side getters ---
 
-    public int getSyncRefreshRate() {
+    public long getSyncRefreshRate() {
         return refreshRate;
     }
 
@@ -219,6 +228,10 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         return hysteresisEnabled != 0;
     }
 
+    public boolean isSyncPlayerRegistered() {
+        return playerRegistered != 0;
+    }
+
     public IStorageMonitorHost getHost() {
         return host;
     }
@@ -229,6 +242,14 @@ public class ContainerStorageMonitor extends AEBaseContainer {
 
     public boolean supportsEmitterRedstoneStrength() {
         return host.getHostType() == MonitorHostType.EMITTER && host instanceof IEmitterRedstoneStrengthHost;
+    }
+
+    public boolean supportsMatchMode() {
+        return host.supportsMatchMode();
+    }
+
+    public boolean supportsPlayerRegistration() {
+        return host.supportsPlayerRegistration();
     }
 }
 

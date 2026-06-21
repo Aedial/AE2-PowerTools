@@ -39,7 +39,7 @@ public class GuiCrafterBatch extends AEBaseGui {
      * Tracks when the server-synced value has been received.
      * Prevents overwriting user input while waiting for server round-trip.
      */
-    private int lastSyncedValue = -1;
+    private long lastSyncedValue = -1;
 
     public GuiCrafterBatch(ContainerCrafterBatch container) {
         super(container);
@@ -96,7 +96,7 @@ public class GuiCrafterBatch extends AEBaseGui {
         // 1. Initial state (lastSyncedValue == -1) - populate with server value
         // 2. Server value changed AND text field is not focused - external change
         // This prevents flickering during user input by not overwriting mid-edit
-        int serverValue = container.batchSize;
+        long serverValue = container.batchSize;
         if (lastSyncedValue == -1) {
             // Initial sync - populate the field
             this.sizeField.setText(String.valueOf(serverValue));

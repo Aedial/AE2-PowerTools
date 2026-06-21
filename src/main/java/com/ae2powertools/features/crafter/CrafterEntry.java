@@ -86,8 +86,8 @@ public class CrafterEntry {
      * Current batch size achieved vs. requested (for occupancy calculation).
      * actualBatchSize / requestedBatchSize = occupancy%
      */
-    private int lastRequestedBatchSize;
-    private int lastActualBatchSize;
+    private long lastRequestedBatchSize;
+    private long lastActualBatchSize;
 
     /**
      * Last tick when this entry ran a craft.
@@ -351,16 +351,16 @@ public class CrafterEntry {
      * @param requested The batch size requested (from config)
      * @param actual The actual batch size achieved (may be lower due to resource constraints)
      */
-    public void setBatchSizeTracking(int requested, int actual) {
+    public void setBatchSizeTracking(long requested, long actual) {
         this.lastRequestedBatchSize = requested;
         this.lastActualBatchSize = actual;
     }
 
-    public int getLastRequestedBatchSize() {
+    public long getLastRequestedBatchSize() {
         return lastRequestedBatchSize;
     }
 
-    public int getLastActualBatchSize() {
+    public long getLastActualBatchSize() {
         return lastActualBatchSize;
     }
 
@@ -384,7 +384,7 @@ public class CrafterEntry {
      * @param requestedCrafts Max batch size that was requested (0 if error/not crafting)
      * @param actualCrafts Actual batch size achieved (0 if error/not crafting)
      */
-    public void recordMetrics(boolean wasError, int requestedCrafts, int actualCrafts) {
+    public void recordMetrics(boolean wasError, long requestedCrafts, long actualCrafts) {
         metricsTotal++;
         if (wasError) metricsError++;
 

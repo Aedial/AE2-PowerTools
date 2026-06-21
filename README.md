@@ -6,12 +6,16 @@ A collection of handy utility tools for Applied Energistics 2 network management
 
 ### Network Health Scanner
 A diagnostic tool for detecting network issues:
-- **Loop Detection**: Scans your AE2 network to find cable loops that may cause network instability
-- **Non-Chunkloaded Chunks Detection**: Identifies network components in non-chunkloaded chunks
-- **Channel Chokepoints**: Finds locations where channel demand exceeds cable capacity, with per-direction flow breakdown
-- **Missing Channels**: Lists devices that require a channel but couldn't get one
-- **Visual Overlay**: Shows directional arrows pointing to problem locations
-- **Interactive GUI**: Browse and select detected issues, organized by dimension
+- **Loop Detection**: Scans your AE2 network to find cable loops that may cause network instability. Do note that loops are not necessarily a problem, as AE2 can handle them just fine, but they can cause issues in some specific cases. Loops are only relevant if all other potential issues have been ruled out.
+- **Non-Chunkloaded Chunks Detection**: Identifies network components in non-chunkloaded chunks. Cables and wireless connectors in unloaded chunks should also be detected (as long as they are connected to a loaded chunk), but unloaded Quantum Bridges cannot be detected, due to only being registered when the chunk is loaded. Detecting them would involve scanning every unloaded chunk in the world.
+- **Channel Chokepoints**: Finds locations where channel demand exceeds cable capacity, with per-direction flow breakdown. Due to slight differences in how AE2 calculates channel flow, the exact chokepoints may differ from what cables actually see, but it should still give you a good idea of where the bottlenecks are.
+- **Missing Channels**: Lists devices that require a channel but couldn't get one. This category usually pairs with the chokepoints, as they point to the exact places where the channels are missing. Providing enough channels to the chokepoints should make these issues disappear.
+- **Fatal Errors**: Detects critical issues that may cause the network to work in a degraded state or not work at all. As these issues are unusual, they are aggregated instead of having their own categories. This currently includes:
+  - **Main Network connected to itself via Subnet**: This creates a loop that causes ghost items, desync, and general instability.
+  - **Multiple Storage Buses on the same block**: This causes double counting (ghost items), resulting in 
+- **Visual Overlay**: Shows directional arrows pointing to problem locations.
+- **Interactive GUI**: Browse and select detected issues, organized by dimension.
+- **Subnet Scanning**: Toggle whether to include components from connected subnets in the scan.
 
 **Usage:**
 - Right-click on any network component to start a scan
@@ -30,50 +34,49 @@ A tool for quickly setting and applying storage priorities:
 - Hold in off-hand for automatic priority application on block placement
 
 ### Cards Distributor
-A tool to distribute cards from your inventory to Molecular Assemblers on the network.
+A tool to distribute cards from your inventory to Molecular Assemblers on the network. It can be linked in the Security Station to pull cards from the network, if there aren't enough cards in the inventory.
 Supports:
 - **Acceleration Cards** for AE2 Molecular Assemblers
 
 ### AutoCrafter
-A powerful automation block that automatically crafts items using patterns from your AE2 network. Think of it as a RFTools Crafter with 12 recipe slots and a whole AE2 Network as both input and output.
+A powerful automation block that automatically crafts items using patterns from your AE2 network. Think of it as a RFTools Crafter with 12 recipe slots and a whole AE2 Network for inputs/outputs. You can use it on-demand by using it in a subnet: interface (mainnet) -> interface (subnet) -> AutoCrafter -> insert-only storage bus (subnet) -> interface (mainnet).
 
 **Features:**
-- **12 Recipe Slots**: Configure up to 12 different recipes
-- **Pattern Support**: Insert any AE2 crafting pattern to define the recipe (does not work with PROCESSING patterns, for obvious reasons).
-- **Pattern Multi-Tool support**: If you have the Pattern Multi-Tool in your inventory/baubles, you can access its patterns directly from the AutoCrafter GUI. The x2/x3/+1 buttons do not work as they make no sense for CRAFTING patterns.
+- **12 Recipe Slots**: Configure up to 12 different recipes.
+- **Pattern Support**: Insert any AE2 crafting pattern to define the recipe (does not work with PROCESSING patterns, for obvious reasons). You can insert patterns from the outside by right-clicking the block with them, or from the inside by placing them in the pattern slot of each recipe entry.
+- **Pattern Multi-Tool support**: If you have the Pattern Multi-Tool in your inventory/baubles, you can access its patterns directly from the AutoCrafter GUI. The x2/x3/+1 buttons do not work as they make no sense for CRAFTING patterns (converting the patterns into PROCESSING patterns when used).
 - **Recipe Preview**: Visual 3x3 input grid showing required ingredients and output.
-- **Catalyst Inventory**: 9-slot internal inventory per recipe for reusable/duplication items, or intermediary tools with durability (if the last recipe didn't completely consume them).
-- **Performance Optimization**: Caches recipe simulations and only recalculates when necessary (when recipe changes)
-- **Batch Crafting**: Configure how many items to craft per operation, while decreasing the crafting speed accordingly. A batch size of 50x means 50x the inputs, for 50x the output, but it will run 1/50th of the speed, so it will still consume the same amount of resources per second, just in bigger bursts. This is ideal if you want to run less frequently, while still getting the same overall throughput. A Crafter Speed Upgrade card (tier I/II/III/IV) can be used to increase this batch size even further, without speed penalty (the batch size is increased instead of the speed to avoid spamming the network, which causes lag). The base batch per operation can be set in config.
-- **Speed Control**: Set crafting interval from 1 second to days (1s, 1m, 1h, 1d increments). Note: this explicitly slows down crafting. You may want to use "Batch size" instead, to craft more items per operation without slowing down the overall crafting speed.
-- **Network Integration**: Automatically extracts inputs from ME storage and inserts outputs back
+- **Catalyst Inventory**: Local 9-slot internal inventory per recipe for reusable/duplication items, or intermediary tools with durability (if the last recipe didn't completely consume them). AE2 is notoriously bad at handling reusable or nested items in crafting recipes, so this is a necessary workaround to be able to use them in automation.
+- **Performance Optimization**: Caches recipe simulation on load and only recalculates it the when recipe changes. This means the expensive part (when it comes to crafting) is only done once, and then the AutoCrafter will just rely on the cached results for subsequent crafts, which is very fast.
+- **Batch Crafting**: Configure how many items to craft per operation, while decreasing the crafting speed accordingly. A batch size of 50x means 50x the inputs, for 50x the output, but will run 1/50th of the speed. It will still consume the same amount of resources per second, just in bigger, slower bursts. This is ideal for performance, as the importing/exporting of resource will run less frequently, while keeping the same overall throughput. A Crafter Speed Upgrade card (tier I/II/III/IV) can be used to increase this batch size even further, without speed penalty (the batch size is increased instead of the speed to avoid spamming the network, which causes lag). The base batch per operation can be set in config.
+- **Speed Control**: Set crafting interval from 1 second to days (1s, 1m, 1h, 1d increments). NOTE: this setting explicitly slows down crafting. You may want to use "Batch size" instead, to craft more items per operation without slowing down the overall crafting speed.
+- **Partial Crafting**: If there aren't enough resources to craft the full batch size, the crafter will automatically scale down the batch size to craft as many items as possible with the available resources, instead of just waiting for a full batch worth of resources to be available. You can see precise statistics about the error rate (see States Indicators) and occupancy (how much the recipe had to be scaled down) of each recipe in the Overview page, to help identify bottlenecks or resource shortages. The efficiency% of a recipe can be calculated as (1 - error rate%) * occupancy%, so a recipe with 50% error rate and 50% occupancy would have an overall efficiency of 25%, while a recipe with 0% error rate and 50% occupancy would have an overall efficiency of 50%.
+- **Network Integration**: Automatically extracts inputs from ME storage and inserts outputs back. There is no external inventory, the whole network is the inventory. Just make sure to have enough drives/interfaces/storage buses to hold the required items, and the AutoCrafter will take care of the rest.
 - **State Indicators**: Color-coded status for each recipe entry:
   - **Gray (Disabled)**: Recipe is disabled
   - **No color (Idle)**: Waiting for next craft cycle
-  - **Orange (Missing Catalyst)**: Required catalyst items (inserted manually in the internal inventory)
+  - **Orange (Missing Catalyst)**: Required catalyst items (insert manually in the internal inventory)
   - **Red (Missing Input)**: Required ingredients not available in network (couldn't even make a single item)
   - **Purple (No Output Space)**: Network storage full
   - **Yellow (Simulation Failed)**: Recipe simulation failed
   - **Blue (Holding Output)**: Waiting to insert output into network
-- **Overview Mode**: See all 12 recipes at a glance on a single page
-- **Efficiency statistics**: The error rate and occupancy (since world load) of each recipe is tracked and displayed in the GUI, to help identify bottlenecks or resource shortages
-- **Fake Player Crafting**: Compatible with mods that require player context for crafting
+- **Overview Mode**: See all 12 recipes at a glance on a single page, without having to switch between pages. The output item, state indicator, and error rate/occupancy (since world load) are shown for each recipe, to help identify bottlenecks or resource shortages.
+- **Fake Player Crafting**: Compatible with mods that require player context for crafting.
 
 **Usage:**
 1. Place the AutoCrafter block and right-click to open the GUI
 2. Insert a crafting pattern into the pattern slot
 3. The recipe preview will show required inputs and output
 4. Add the required reusable/duplication items to the 9-slot internal inventory
-5. Configure batch size (how many to craft per cycle) via the Batch button
-6. Configure speed (base crafting interval) via the Speed button
+5. Configure batch size (how many to craft per cycle) via the Batch button. Higher batch sizes are always recommended for better performance, as they reduce the number of times the AutoCrafter has to interact with the network, which is the most expensive part
+6. Configure speed (base crafting interval) via the Speed button (only if you want to make less items per second, to avoid resource shortages)
 7. Toggle entries on/off by clicking the state indicator
 8. Use page navigation or Overview button to switch between recipes
 9. Add drives to hold the input/output items
 10. Add interfaces to interact with your main AE2 network, like you would do a normal crafter
-11. You can add patterns from the outside by right-clicking the block with them.
 
 **Tips:**
-- Use larger batch size to avoid querying the network too often. Do note a very large batch size may cause resource shortages or crafting failures if the network can't keep up with the demand, but the recipes should automatically scale down the batch size if resources are insufficient.
+- Use larger batch size to avoid querying the network too often.
 - The Overview mode lets you quickly check the status of all 12 recipes
 - Shift-click on +/- buttons in Speed GUI for 10x increments
 
@@ -81,11 +84,11 @@ A powerful automation block that automatically crafts items using patterns from 
 A block that automatically maintains item quantities in your AE2 network by scheduling crafting jobs.
 
 **Features:**
-- **Multiple Recipes**: Manage an unlimited(-ish) number of items to maintain
-- **Target Quantities**: Set the desired quantity for each item (shift-scroll the entry to double/halve quantity quickly)
-- **Batch Crafting**: Configure how many items to craft per run
-- **Customizable Frequency**: Set check intervals from seconds to days (ctrl-scroll the entry to double/halve the time quickly)
-- **CPU Management**: Automatically queues tasks when no CPU is available
+- **Multiple Recipes**: Manage an unlimited(-ish) number of things to maintain (supports items, fluids, and gases).
+- **Target Quantities**: Set the desired quantity for each item (shift-scroll the entry to double/halve quantity quickly).
+- **Batch Crafting**: Configure how many items to craft per run. The maintainer WILL NOT ask less than the batch size, so do not set it too high, or you may end up with no request at all if the network can't reach the required amount of input resources.
+- **Customizable Frequency**: Set check intervals from seconds to days (ctrl-scroll the entry to double/halve the time quickly).
+- **CPU Management**: Automatically queues tasks when no CPU is available, up to a certain limit (configurable). Any tasks that exceed this limit will be marked as "error" until a CPU is available again. This prevents the maintainer from scheduling an unmanageable amount of tasks when the network is under heavy load or can't keep up with the demand.
 - **Status Indicators**: Visual color coding shows the state of each recipe:
   - **Gray**: Recipe is disabled (click the item name or right-click the entry to enable/disable)
   - **No color**: Idle, waiting for next check
@@ -102,7 +105,7 @@ A block that automatically maintains item quantities in your AE2 network by sche
 4. Set the target quantity (how many items you want to maintain)
 5. Set the batch size (how many to craft at once)
 6. Set the frequency (how often to check, e.g., "1h 30m" for every 1.5 hours)
-7. The maintainer will automatically craft <batch size> items when quantity falls below target
+7. The maintainer will automatically craft <batch size> items when quantity falls below <target quantity>
 
 **Tips:**
 - Set batch size high to avoid frequent crafting (you may even set it to several times the target quantity). Be mindful of setting it too high, as it may cause resource shortages or crafting failures if the network can't keep up.
@@ -141,11 +144,29 @@ An advanced tool for finding and navigating to specific components in your AE2 n
 - Use subnet scanning when you need to find components across multiple connected networks
 - Toggle overlay off when not needed to reduce screen clutter, if you may hold it in hand for prolonged periods of time
 
+### Storage Level Emitter & Display
+A full-block/part variant of the Level Emitter and Storage Monitor, with a configured polling type and item/fluid/gas/essentia support.
+- **Polling Interval**: Set how often to check the quantity in the network (from 1 second to days). This keeps the process efficient by avoiding constant checks and updates, while still providing timely information.
+- **Multiple resources**: You can set up to 24 resources in a single block, which will decide on the state. Using the AND/OR logic, you can create complex conditions to trigger redstone signals based on multiple resource levels. For example, you could set it to emit a signal if "Iron Ingots <= 100 OR Redstone > 50", or "Water > 500 AND Buckets > 500".
+- **Colored corners**: The Storage Display block has colored corners that visually indicate the state of the matching logic, telling you at a glance if the conditions are met or not.
 
-## FAQ
+### Remote Storage Monitor
+A bauble/held item that shows the quantity variation of configured content in the network as an overlay on the screen, over a set period of time.
+- **Configurable Content**: Set any item/fluid/gas/essentia to monitor from your network
+- **Configurable Time Window**: Choose the time period over which to track quantity changes (e.g., last 5 minutes)
+- **Real-Time Overlay**: See the quantity variation as an overlay on your screen, updating every time the time window elapses. This means a 5-minute window will update every 5 minutes, showing the change in quantity over the last 5 minutes.
+- **Reduced Screen Clutter**: Only the resources that changed within the last time window are shown, so you can easily track active resources without being overwhelmed by the full 81 slots of the Storage Monitor GUI.
 
-### Will the scanner detect all unloaded chunks in my network?
-No, this is an AE2 limitation, due to them not storing grid nodes for unloaded chunks. Detecting them would involve loading neighboring chunks during the scan, which would refresh the whole network and trigger a heavy lag spike over large networks. The scanner can only detect chunks that were loaded at scan time but are not force-loaded. See `NetworkScanner.checkChunkLoaded()` for more details.
+**Usage:**
+1. Configure the monitor by right-clicking it in air, and selecting the content to track and the time window
+2. Hold the monitor in your main/off-hand or baubles to see the overlay on screen
+3. Once you do not need it anymore, you can simply put it in your inventory or a chest, and the overlay will disappear
+
+### Level Monitor Alarm
+A block that monitors contents in the attached AE2 network and alerts any registered player (register in the GUI) when the level of any monitored content falls below a specified threshold. You will get a warning overlay for as long as any of your monitored alarms are active, with location details. You can also use the Level Monitor Alarm Locator to get a visual overlay pointing to the location of the active alarms.
+The overall system works very similarly to the Storage Level Emitter, but with direct user feedback instead of redstone output. You can import filters from any Better Level Maintainer, AE2 AutoCrafter, Storage Level Emitter, or Storage Display via Memory Card. If you do, I would recommend setting the threshold to a fraction of the target quantity in the source block, to avoid getting constant alarms when the level fluctuates around the threshold.
+
+**NOTE:** This block is intended as a safety net for automation systems. It is usually recommended to pair it with a Better Level Maintainer, an AutoCrafter, or any passive setup, to warn you when something broke or cannot keep up with the demand. For a monitoring tool, prefer the Storage Level Emitter/Storage Display or the Remote Storage Monitor. The warning overlay WILL NOT DISAPPEAR until the content levels are back above the threshold!
 
 
 ## Requirements

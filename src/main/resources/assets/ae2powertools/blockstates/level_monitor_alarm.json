@@ -1,0 +1,7 @@
+{
+    "variants": {
+        "inventory": { "model": "ae2powertools:level_monitor_alarm" },
+        "state=false": { "model": "ae2powertools:level_monitor_alarm" },
+        "state=true": { "model": "ae2powertools:level_monitor_alarm_on" }
+    }
+}

@@ -333,27 +333,43 @@ public class MonitoredResource {
         MonitoredResource that = (MonitoredResource) o;
         if (type != that.type) return false;
 
-        // Compare stacks ignoring quantity
         if (stack == null && that.stack == null) return Objects.equals(displayName, that.displayName);
-        if (stack == null || that.stack == null) return false;
 
-        return stack.getChannel().equals(that.stack.getChannel());
+        return sameIdentity(type, stack, that.stack);
     }
 
     @Override
     public int hashCode() {
-        // Use display name as fallback when stack is null
-        if (stack == null) return 31 * type.hashCode() + displayName.hashCode();
+        if (stack == null) return 31 * type.hashCode() + Objects.hashCode(displayName);
 
-        // Use the same identity-only serialization as persistence and packets.
-        NBTTagCompound tag = serializeStack(this.type, this.stack);
+        NBTTagCompound identityTag = identityTag(this.type, this.stack);
 
-        return 31 * type.hashCode() + tag.hashCode();
+        return 31 * type.hashCode() + Objects.hashCode(identityTag);
     }
 
     @Override
     public String toString() {
         return "MonitoredResource{" + type.getName() + ": " + displayName + "}";
+    }
+
+    @Nullable
+    private static NBTTagCompound identityTag(ResourceType type, @Nullable IAEStack<?> stack) {
+        if (stack == null) return null;
+
+        NBTTagCompound tag = serializeStack(type, stack);
+        return tag.isEmpty() ? null : tag;
+    }
+
+    private static boolean sameIdentity(ResourceType type, @Nullable IAEStack<?> left, @Nullable IAEStack<?> right) {
+        if (left == null || right == null) return false;
+
+        NBTTagCompound leftTag = identityTag(type, left);
+        if (leftTag == null) return false;
+
+        NBTTagCompound rightTag = identityTag(type, right);
+        if (rightTag == null) return false;
+
+        return leftTag.equals(rightTag);
     }
 
 
@@ -364,13 +380,13 @@ public class MonitoredResource {
 
         private final ResourceType type;
         @Nullable
-        private final IAEStack<?> stack;
+        private final NBTTagCompound identityTag;
         private final String displayName;
-        private int hashCode;
+        private Integer hashCode;
 
         private MonitoredResourceKey(MonitoredResource resource) {
             this.type = resource.type;
-            this.stack = resource.stack;
+            this.identityTag = identityTag(resource.type, resource.stack);
             this.displayName = resource.displayName;
         }
 
@@ -381,15 +397,17 @@ public class MonitoredResource {
 
             MonitoredResourceKey that = (MonitoredResourceKey) o;
             if (type != that.type) return false;
-            if (stack == null && that.stack == null) return Objects.equals(displayName, that.displayName);
-            if (stack == null || that.stack == null) return false;
+            if (identityTag == null && that.identityTag == null) return Objects.equals(displayName, that.displayName);
+            if (identityTag == null || that.identityTag == null) return false;
 
-            return stack.getChannel().equals(that.stack.getChannel());
+            return identityTag.equals(that.identityTag);
         }
 
         @Override
         public int hashCode() {
-            this.hashCode = this.stack.hashCode();
+            if (hashCode == null) {
+                hashCode = 31 * type.hashCode() + Objects.hashCode(identityTag != null ? identityTag : displayName);
+            }
             return hashCode;
         }
     }

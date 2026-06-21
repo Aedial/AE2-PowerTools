@@ -19,6 +19,7 @@ import appeng.util.ReadableNumberConverter;
 import baubles.api.BaublesApi;
 
 import com.ae2powertools.features.locator.LocatorRenderer;
+import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmArrowRenderer;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
 import com.ae2powertools.features.scanner.ScannerRenderer;
@@ -92,7 +93,10 @@ public class RemoteMonitorOverlay {
         }
 
         int boxX = PADDING_EXTERNAL;
-        int boxY = PADDING_EXTERNAL + ScannerRenderer.getOverlayHeight() + LocatorRenderer.getOverlayHeight();
+        int boxY = PADDING_EXTERNAL
+            + ScannerRenderer.getOverlayHeight()
+            + LocatorRenderer.getOverlayHeight()
+            + LevelMonitorAlarmArrowRenderer.getOverlayHeight();
 
         int iconX = boxX + PADDING_INTERNAL;
         int textX = iconX + ICON_SIZE + ICON_TEXT_GAP;

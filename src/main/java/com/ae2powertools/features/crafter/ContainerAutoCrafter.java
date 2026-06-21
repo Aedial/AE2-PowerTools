@@ -64,10 +64,10 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     public boolean overviewMode = false;
 
     @GuiSync(1)
-    public int syncSpeedTicks = TileAutoCrafter.DEFAULT_SPEED_TICKS;
+    public long syncSpeedTicks = TileAutoCrafter.DEFAULT_SPEED_TICKS;
 
     @GuiSync(2)
-    public int syncBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
+    public long syncBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
 
     /**
      * Effective batch size (base * user batch * upgrade multiplier).
@@ -75,7 +75,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
      * Synced from server since it depends on upgrades and config.
      */
     @GuiSync(4)
-    public int syncEffectiveBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
+    public long syncEffectiveBatchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
 
     // ============================= Server-side diff caches =============================
     // These mirror the LAST sent snapshot to each listener. Per-tick detectAndSendChanges

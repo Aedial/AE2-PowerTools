@@ -12,6 +12,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import com.ae2powertools.client.BlockHighlightRenderer;
 import com.ae2powertools.client.DisplayBlockColor;
+import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmArrowRenderer;
+import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmOverlay;
 import com.ae2powertools.features.monitor.display.DisplayRenderHelper;
 import com.ae2powertools.features.monitor.display.TESRStorageDisplay;
 import com.ae2powertools.features.monitor.display.TileStorageDisplay;
@@ -40,6 +42,8 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new ScannerRenderer());
         MinecraftForge.EVENT_BUS.register(new LocatorRenderer());
         MinecraftForge.EVENT_BUS.register(new RemoteMonitorOverlay());
+        MinecraftForge.EVENT_BUS.register(new LevelMonitorAlarmOverlay());
+        MinecraftForge.EVENT_BUS.register(new LevelMonitorAlarmArrowRenderer());
         MinecraftForge.EVENT_BUS.register(new BlockHighlightRenderer());
 
         // Register TESRs for dynamic content rendering (item icon + quantity text)
