@@ -133,6 +133,7 @@ ae2powertools.scanner.complete.summary.line5=- 找到了%d个致命错误
 tile.ae2powertools.better_level_maintainer.name=更好的缓存指令器
 tile.ae2powertools.better_level_maintainer.tooltip=自动合成指定物品，以维持网络中目标物品的数量。
 tile.ae2powertools.better_level_maintainer.warning=警告：如果放置在大型网络，或用于复杂配方，该方块可能导致显著的服务器卡顿。请在小型的子网络中使用，并搭配简单配方。
+tile.ae2powertools.better_level_maintainer.memory_card.tooltip=缓存目标
 
 # Config
 ae2powertools.config.client.maintainer=缓存指令器
@@ -410,15 +411,24 @@ ae2powertools.config.client.locator.useTallView.tooltip=使用高视图（行数
 # Blocks
 tile.ae2powertools.storage_level_emitter.name=ME存储发信器
 tile.ae2powertools.storage_level_emitter.tooltip=根据监控物品的数量输出红石信号。
+tile.ae2powertools.storage_level_emitter.memory_card.tooltip=存储监控器过滤项
+
+tile.ae2powertools.level_monitor_alarm.name=发信警报器
+tile.ae2powertools.level_monitor_alarm.tooltip=当任意配置的警报条目触发时，向已注册的玩家发出警告。
+tile.ae2powertools.level_monitor_alarm.tooltip2=可通过内存卡接受来自任意更好的缓存指令器、AE2自动合成器、存储发信器或存储显示器的过滤项。
+tile.ae2powertools.level_monitor_alarm.memory_card.tooltip=警报器过滤项
 
 tile.ae2powertools.storage_display.name=ME存储显示器
 tile.ae2powertools.storage_display.tooltip=显示网络中监控物品的数量。
+tile.ae2powertools.storage_display.memory_card.tooltip=存储显示器过滤项
 
 # Items
 item.ae2powertools.storage_level_emitter_part.name=ME存储发信器
 item.ae2powertools.storage_display_part.name=ME存储显示器
 item.ae2powertools.storage_display_part_smaller.name=ME存储显示器（小型）
 item.ae2powertools.storage_display_part_smallerer.name=ME存储显示器（超小型）
+item.ae2powertools.level_monitor_alarm_locator.name=发信警报器定位器
+item.ae2powertools.level_monitor_alarm_locator.tip1=手持该物品时，渲染指向活动中警报位置的箭头。
 
 # Config
 ae2powertools.config.client.monitor=存储监控
@@ -462,3 +472,9 @@ gui.ae2powertools.storage_emitter.decreasing_label=下降：
 gui.ae2powertools.storage_emitter.controls.title=控制
 gui.ae2powertools.storage_emitter.controls.scroll=Shift+滚轮：加倍/减半目标值
 gui.ae2powertools.storage_emitter.controls.toggle=右键点击：切换启用状态
+gui.ae2powertools.level_monitor_alarm.registration.registered=接收来自此警报器的警告
+gui.ae2powertools.level_monitor_alarm.registration.unregistered=不接收来自此警报器的警告
+gui.ae2powertools.level_monitor_alarm.registration.click_register=点击以注册接收警告
+gui.ae2powertools.level_monitor_alarm.registration.click_unregister=点击以停止接收警告
+gui.ae2powertools.level_monitor_alarm.overlay.single=警报器位置：%s
+gui.ae2powertools.level_monitor_alarm.overlay.multiple=警报器位置：%s
