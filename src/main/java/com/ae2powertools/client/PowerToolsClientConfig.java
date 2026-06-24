@@ -72,6 +72,7 @@ public class PowerToolsClientConfig {
         public int sortModeChokepoints = 0;
         public int sortModeMissing = 0;
         public int sortModeFatal = 0;
+        public int sortModePatterns = 0;
 
         public int getSortMode(int tabOrdinal) {
             switch (tabOrdinal) {
@@ -80,6 +81,7 @@ public class PowerToolsClientConfig {
                 case 2: return sortModeChokepoints;
                 case 3: return sortModeMissing;
                 case 4: return sortModeFatal;
+                case 5: return sortModePatterns;
                 default: return 0;
             }
         }
@@ -91,6 +93,7 @@ public class PowerToolsClientConfig {
                 case 2: if (sortModeChokepoints == value) return; sortModeChokepoints = value; break;
                 case 3: if (sortModeMissing == value) return; sortModeMissing = value; break;
                 case 4: if (sortModeFatal == value) return; sortModeFatal = value; break;
+                case 5: if (sortModePatterns == value) return; sortModePatterns = value; break;
                 default: return;
             }
 

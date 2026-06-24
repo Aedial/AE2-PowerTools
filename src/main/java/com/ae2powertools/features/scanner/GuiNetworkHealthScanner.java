@@ -21,6 +21,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.ae2powertools.Tags;
 import com.ae2powertools.features.scanner.FatalNetworkError.Category;
 import com.ae2powertools.features.scanner.ScannerClientState.ChunkLocationClient;
 import com.ae2powertools.features.scanner.ScannerClientState.ChokeLocationClient;
@@ -71,14 +72,18 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     // AE2 states.png texture for sort button icons
     private static final ResourceLocation STATES_TEXTURE =
         new ResourceLocation("appliedenergistics2", "textures/guis/states.png");
+    private static final ResourceLocation PATTERN_ICON =
+        new ResourceLocation(Tags.MODID, "textures/guis/pattern_icon.png");
     private static final int SORT_BUTTON_SIZE = 16;
     // Icon grid positions in states.png (column * 16, row * 16)
-    private static final int ICON_COORDS_U = 6 * 16;   // "Coords" icon at column 6, row 6
+    private static final int ICON_COORDS_U = 6 * 16;    // "Coords" icon at column 6, row 6
     private static final int ICON_COORDS_V = 6 * 16;
     private static final int ICON_NAME_U = 0;           // "Name" icon at column 0, row 4
     private static final int ICON_NAME_V = 4 * 16;
     private static final int ICON_SUBNET_U = 5 * 16;    // Wireless icon for subnet toggle
     private static final int ICON_SUBNET_V = 0;
+    private static final int ICON_PATTERN_U = 15 * 16;  // "Pattern" icon at column 15, row 7
+    private static final int ICON_PATTERN_V = 7 * 16;
 
     // Dynamic dimensions
     private int guiWidth;
@@ -214,8 +219,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             + cancelWidth + 10;
         guiWidth = Math.max(guiWidth, minButtonsWidth);
 
-        // Minimum height to fit all 5 tabs: HEADER_HEIGHT + 5 tabs + 4 spacers (2px each)
-        int minTabsHeight = HEADER_HEIGHT + 5 * TAB_SIZE + 4 * 2;
+        // Minimum height to fit all 6 tabs: HEADER_HEIGHT + 6 tabs + 5 spacers (2px each)
+        int minTabsHeight = HEADER_HEIGHT + 6 * TAB_SIZE + 5 * 2;
 
         // Calculate height based on number of rows (fit as many as possible up to max)
         int availableContentHeight = maxGuiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
@@ -289,6 +294,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             rebuildChokeRows();
         } else if (currentTab == Tab.MISSING_CHANNELS) {
             rebuildMissingRows();
+        } else if (currentTab == Tab.PATTERNS) {
+            rebuildPatternRows();
         } else {
             rebuildFatalRows();
         }
@@ -560,6 +567,55 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             (current, next) -> next.dimensionName.equals(current.dimensionName) && next.dimension == current.dimension);
     }
 
+    private void rebuildPatternRows() {
+        List<PatternIssue> sorted = ScannerClientState.getSortedPatternIssues();
+        List<PatternIssue> original = ScannerClientState.getPatternIssues();
+        if (sorted.isEmpty()) return;
+
+        Map<PatternIssue.Category, Integer> categoryCounts = new HashMap<>();
+        for (PatternIssue issue : sorted) {
+            categoryCounts.merge(issue.getCategory(), 1, Integer::sum);
+        }
+
+        PatternIssue.Category lastCategory = null;
+        for (int i = 0; i < sorted.size(); i++) {
+            PatternIssue issue = sorted.get(i);
+            int originalIndex = original.indexOf(issue);
+            PatternIssue.Category category = issue.getCategory();
+            String groupKey = category.name();
+
+            if (category != lastCategory) {
+                int count = categoryCounts.getOrDefault(category, 0);
+                String categoryText = I18n.format(category.getTitleKey()) + " (" + count + ")";
+                displayRows.add(new DisplayRow(groupKey, categoryText, category.getTooltipKey()));
+                maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(categoryText));
+                lastCategory = category;
+            }
+
+            if (collapsedGroups.getOrDefault(groupKey, false)) continue;
+
+            boolean isLast = isLastPatternInCategory(sorted, i);
+
+            BlockPos pos = issue.getPos();
+            String posStr = String.format("[%d, %d, %d]", pos.getX(), pos.getY(), pos.getZ());
+
+            double distance = 0;
+            if (mc.player != null && mc.player.dimension == issue.getDimension()) {
+                distance = issue.getDistanceFrom(mc.player.getPosition());
+            }
+            String distStr = distance > 0 ? String.format(" - %.0fm", distance) : "";
+            String text = ScannerClientState.getPatternIssueDisplayText(issue) + " " + posStr + distStr;
+
+            displayRows.add(new DisplayRow(originalIndex, text, isLast));
+            maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(text));
+        }
+    }
+
+    private boolean isLastPatternInCategory(List<PatternIssue> sorted, int index) {
+        return isLastInSortedGroup(sorted, index,
+            (current, next) -> next.getCategory() == current.getCategory());
+    }
+
     private void rebuildFatalRows() {
         List<FatalNetworkError> sorted = ScannerClientState.getSortedFatalErrors();
         List<FatalNetworkError> original = ScannerClientState.getFatalErrors();
@@ -747,8 +803,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
             int textX = x + 28;
             // For missing device entries, draw the item icon
-            // FIXME: Needs to be connected inventory, not AE2 part item
-            //        Also needs to be ajusted to fit properly
+            // TODO: Needs to be connected inventory, not AE2 part item
+            //       Also needs to be ajusted to fit properly
             /*
             if (row.type == DisplayRow.Type.MISSING_ENTRY && row.missingDevice != null) {
                 ItemStack itemStack = row.missingDevice.itemStack;
@@ -817,9 +873,14 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         tabY = drawSingleTab(mouseX, mouseY, tabY, 3, Tab.CHOKEPOINTS, currentTab,
             "⚡", chokeCount, chokeCount > 0 ? 0xFF66AAFF : COLOR_TEXT_DIM);
 
-        // Tab 4: Fatal errors (critical - red count color)
+        // Tab 4: Patterns (warning - yellow count color)
+        int patternCount = ScannerClientState.getPatternIssues().size();
+        tabY = drawSingleTab(mouseX, mouseY, tabY, 4, Tab.PATTERNS, currentTab,
+            "", patternCount, patternCount > 0 ? 0xFFE0C060 : COLOR_TEXT_DIM);
+
+        // Tab 5: Fatal errors (critical - red count color)
         int fatalCount = ScannerClientState.getFatalErrors().size();
-        drawSingleTab(mouseX, mouseY, tabY, 4, Tab.FATAL_ERRORS, currentTab,
+        drawSingleTab(mouseX, mouseY, tabY, 5, Tab.FATAL_ERRORS, currentTab,
             "!", fatalCount, fatalCount > 0 ? 0xFFFF4444 : COLOR_TEXT_DIM);
     }
 
@@ -845,8 +906,19 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         // Draw icon
         int iconColor = isSelected ? COLOR_CATEGORY_TEXT : (isHovered ? COLOR_TEXT : COLOR_TEXT_DIM);
-        fontRenderer.drawString(icon, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(icon)) / 2,
-            tabY + 4, iconColor);
+        if (tab == Tab.PATTERNS) {
+            GlStateManager.pushMatrix();
+            mc.getTextureManager().bindTexture(PATTERN_ICON);
+            GlStateManager.enableBlend();
+            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            drawScaledCustomSizeModalRect(guiLeft + 8, tabY + 3,
+                                       0, 0, SORT_BUTTON_SIZE, SORT_BUTTON_SIZE,
+                                          8, 8, SORT_BUTTON_SIZE, SORT_BUTTON_SIZE);
+            GlStateManager.popMatrix();
+        } else {
+            fontRenderer.drawString(icon, guiLeft + (TAB_SIZE - fontRenderer.getStringWidth(icon)) / 2,
+                tabY + 4, iconColor);
+        }
 
         // Draw count below icon
         String countStr = String.valueOf(count);
@@ -877,6 +949,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             int count = ScannerClientState.getChokeLocations().size();
             tooltip.add(I18n.format("gui.ae2powertools.scanner.tab_chokepoints", count));
         } else if (hoveredTabIndex == 4) {
+            int count = ScannerClientState.getPatternIssues().size();
+            tooltip.add(I18n.format("gui.ae2powertools.scanner.tab_patterns", count));
+        } else if (hoveredTabIndex == 5) {
             int count = ScannerClientState.getFatalErrors().size();
             tooltip.add(I18n.format("gui.ae2powertools.scanner.tab_fatal", count));
         }
@@ -890,9 +965,22 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         if (displayRows == null || hoveredRowIndex < 0 || hoveredRowIndex >= displayRows.size()) return;
 
         DisplayRow row = displayRows.get(hoveredRowIndex);
-        if (row.type != DisplayRow.Type.CATEGORY || row.tooltipKey == null) return;
+        if (row.type == DisplayRow.Type.CATEGORY) {
+            if (row.tooltipKey == null) return;
 
-        List<String> tooltip = fontRenderer.listFormattedStringToWidth(I18n.format(row.tooltipKey), 240);
+            List<String> tooltip = fontRenderer.listFormattedStringToWidth(I18n.format(row.tooltipKey), 240);
+            if (!tooltip.isEmpty()) drawHoveringText(tooltip, mouseX, mouseY);
+
+            return;
+        }
+
+        if (ScannerClientState.getCurrentTab() != Tab.PATTERNS) return;
+
+        List<PatternIssue> issues = ScannerClientState.getPatternIssues();
+        if (row.locationIndex < 0 || row.locationIndex >= issues.size()) return;
+
+        String tooltipText = ScannerClientState.getPatternIssueTooltipText(issues.get(row.locationIndex));
+        List<String> tooltip = fontRenderer.listFormattedStringToWidth(tooltipText, 240);
         if (!tooltip.isEmpty()) drawHoveringText(tooltip, mouseX, mouseY);
     }
 
@@ -930,23 +1018,33 @@ public class GuiNetworkHealthScanner extends GuiScreen {
      * on the dark GUI background.
      */
     private void drawInvertedIcon(int x, int y, int u, int v) {
+        drawInvertedIconScaled(x, y, u, v, 1.0f, COLOR_TEXT);
+    }
+
+    private void drawInvertedIconScaled(int x, int y, int u, int v, float scale, int color) {
+        float red = ((color >> 16) & 0xFF) / 255.0f;
+        float green = ((color >> 8) & 0xFF) / 255.0f;
+        float blue = (color & 0xFF) / 255.0f;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0.0f);
+        if (scale != 1.0f) GlStateManager.scale(scale, scale, 1.0f);
+
         mc.getTextureManager().bindTexture(STATES_TEXTURE);
         GlStateManager.enableBlend();
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        GlStateManager.color(red, green, blue, 1.0f);
 
-        // Use GL_COMBINE to replace texture RGB with vertex color (white),
-        // keeping the texture alpha for transparency masking
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL13.GL_COMBINE);
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_RGB, GL11.GL_REPLACE);
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_RGB, GL13.GL_PRIMARY_COLOR);
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_COMBINE_ALPHA, GL11.GL_REPLACE);
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL13.GL_SOURCE0_ALPHA, GL11.GL_TEXTURE);
 
-        drawTexturedModalRect(x, y, u, v, SORT_BUTTON_SIZE, SORT_BUTTON_SIZE);
+        drawTexturedModalRect(0, 0, u, v, SORT_BUTTON_SIZE, SORT_BUTTON_SIZE);
 
-        // Reset texture environment to default
         GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        GlStateManager.popMatrix();
     }
 
     /**
@@ -1037,6 +1135,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int tab2Y = tab1Y + TAB_SIZE + 2;
         int tab3Y = tab2Y + TAB_SIZE + 2;
         int tab4Y = tab3Y + TAB_SIZE + 2;
+        int tab5Y = tab4Y + TAB_SIZE + 2;
 
         if (mouseX >= guiLeft && mouseX < guiLeft + TAB_SIZE) {
             if (mouseY >= tab0Y && mouseY < tab0Y + TAB_SIZE) {
@@ -1084,6 +1183,17 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             }
 
             if (mouseY >= tab4Y && mouseY < tab4Y + TAB_SIZE) {
+                if (ScannerClientState.getCurrentTab() != Tab.PATTERNS) {
+                    ScannerClientState.setCurrentTab(Tab.PATTERNS);
+                    scrollOffset = 0;
+                    rebuildDisplayRows();
+                    recalculateLayout();
+                }
+
+                return;
+            }
+
+            if (mouseY >= tab5Y && mouseY < tab5Y + TAB_SIZE) {
                 if (ScannerClientState.getCurrentTab() != Tab.FATAL_ERRORS) {
                     ScannerClientState.setCurrentTab(Tab.FATAL_ERRORS);
                     scrollOffset = 0;

@@ -57,6 +57,8 @@ public class ScannerRenderer {
     private static final int CHOKE_COLOR = 0x66AAFF;
     // Fatal error color (strong red)
     private static final int FATAL_COLOR = 0xFF4444;
+    // Pattern issue color (golden)
+    private static final int PATTERN_COLOR = 0xD8B45A;
 
     /**
      * Render the scanner overlay on the HUD for info about the positions (top-left corner).
@@ -138,6 +140,19 @@ public class ScannerRenderer {
                 String excessStr = excess > 0 ? " (-" + excess + ")" : "";
                 lines.add(loc.description + " " + posStr + " " + channelStr + excessStr + ": " + distanceStr);
                 colors.add(CHOKE_COLOR);
+            }
+        } else if (currentTab == Tab.PATTERNS) {
+            List<PatternIssue> selected = ScannerClientState.getSelectedPatternIssues();
+
+            for (PatternIssue issue : selected) {
+                if (issue.getDimension() != playerDim) continue;
+
+                double distance = issue.getDistanceFrom(playerPos);
+                String distanceStr = formatDistance(distance);
+                String posStr = String.format("[%d, %d, %d]", issue.getPos().getX(), issue.getPos().getY(),
+                    issue.getPos().getZ());
+                lines.add(ScannerClientState.getPatternIssueDisplayText(issue) + " " + posStr + ": " + distanceStr);
+                colors.add(PATTERN_COLOR);
             }
         } else {
             List<FatalNetworkError> selected = ScannerClientState.getSelectedFatalErrors();
@@ -222,6 +237,8 @@ public class ScannerRenderer {
             renderMissingLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks);
         } else if (currentTab == Tab.CHOKEPOINTS) {
             renderChokeLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks);
+        } else if (currentTab == Tab.PATTERNS) {
+            renderPatternLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks);
         } else {
             renderFatalLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks);
         }
@@ -232,48 +249,8 @@ public class ScannerRenderer {
      */
     private void renderLoopLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
             double playerX, double playerY, double playerZ, float partialTicks) {
-        List<LoopLocationClient> selected = ScannerClientState.getSelectedLoops();
-
-        // Render block outlines (only within wireframe distance and in current dimension)
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(-playerX, -playerY, -playerZ);
-
-        GlStateManager.disableTexture2D();
-        GlStateManager.disableLighting();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.disableDepth();
-        GlStateManager.depthMask(false);
-        GlStateManager.glLineWidth(3.0F);
-
-        for (LoopLocationClient loc : selected) {
-            if (loc.dimension != playerDim) continue;
-
-            double distance = loc.getDistanceFrom(playerPos);
-            if (distance <= WIREFRAME_MAX_DISTANCE) {
-                BlockHighlightRenderer.renderBlockOutline(loc.pos, 1.0f, 0.27f, 0.27f, 0.8f);
-            }
-        }
-
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
-        GlStateManager.disableBlend();
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.popMatrix();
-
-        // Render direction arrows (for locations beyond wireframe distance)
-        ItemStack heldScanner = getHeldScanner(mc);
-        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
-            for (LoopLocationClient loc : selected) {
-                if (loc.dimension != playerDim) continue;
-
-                double distance = loc.getDistanceFrom(playerPos);
-                if (distance > WIREFRAME_MAX_DISTANCE) {
-                    DirectionArrowRenderer.drawDirectionArrow(player, loc.pos, LOOP_COLOR, distance, partialTicks);
-                }
-            }
-        }
+        renderBlockIssueLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks,
+            ScannerClientState.getSelectedLoops(), 1.0f, 0.27f, 0.27f, LOOP_COLOR);
     }
 
     /**
@@ -303,49 +280,8 @@ public class ScannerRenderer {
 
     private void renderMissingLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
             double playerX, double playerY, double playerZ, float partialTicks) {
-        List<MissingDeviceClient> selected = ScannerClientState.getSelectedMissing();
-
-        // Render block outlines (only within wireframe distance and in current dimension)
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(-playerX, -playerY, -playerZ);
-
-        GlStateManager.disableTexture2D();
-        GlStateManager.disableLighting();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.disableDepth();
-        GlStateManager.depthMask(false);
-        GlStateManager.glLineWidth(3.0F);
-
-        for (MissingDeviceClient loc : selected) {
-            if (loc.dimension != playerDim) continue;
-
-            double distance = loc.getDistanceFrom(playerPos);
-            if (distance <= WIREFRAME_MAX_DISTANCE) {
-                // Red-ish color for missing channels
-                BlockHighlightRenderer.renderBlockOutline(loc.pos, 1.0f, 0.4f, 0.4f, 0.8f);
-            }
-        }
-
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
-        GlStateManager.disableBlend();
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.popMatrix();
-
-        // Render direction arrows (for locations beyond wireframe distance)
-        ItemStack heldScanner = getHeldScanner(mc);
-        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
-            for (MissingDeviceClient loc : selected) {
-                if (loc.dimension != playerDim) continue;
-
-                double distance = loc.getDistanceFrom(playerPos);
-                if (distance > WIREFRAME_MAX_DISTANCE) {
-                    DirectionArrowRenderer.drawDirectionArrow(player, loc.pos, MISSING_COLOR, distance, partialTicks);
-                }
-            }
-        }
+        renderBlockIssueLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks,
+            ScannerClientState.getSelectedMissing(), 1.0f, 0.4f, 0.4f, MISSING_COLOR);
     }
 
     /**
@@ -353,46 +289,17 @@ public class ScannerRenderer {
      */
     private void renderFatalLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
             double playerX, double playerY, double playerZ, float partialTicks) {
-        List<FatalNetworkError> selected = ScannerClientState.getSelectedFatalErrors();
+        renderBlockIssueLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks,
+            ScannerClientState.getSelectedFatalErrors(), 1.0f, 0.27f, 0.27f, FATAL_COLOR);
+    }
 
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(-playerX, -playerY, -playerZ);
-
-        GlStateManager.disableTexture2D();
-        GlStateManager.disableLighting();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.disableDepth();
-        GlStateManager.depthMask(false);
-        GlStateManager.glLineWidth(3.0F);
-
-        for (FatalNetworkError error : selected) {
-            if (error.getDimension() != playerDim) continue;
-
-            double distance = error.getDistanceFrom(playerPos);
-            if (distance <= WIREFRAME_MAX_DISTANCE) {
-                BlockHighlightRenderer.renderBlockOutline(error.getPos(), 1.0f, 0.27f, 0.27f, 0.8f);
-            }
-        }
-
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
-        GlStateManager.disableBlend();
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.popMatrix();
-
-        ItemStack heldScanner = getHeldScanner(mc);
-        if (ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) {
-            for (FatalNetworkError error : selected) {
-                if (error.getDimension() != playerDim) continue;
-
-                double distance = error.getDistanceFrom(playerPos);
-                if (distance > WIREFRAME_MAX_DISTANCE) {
-                    DirectionArrowRenderer.drawDirectionArrow(player, error.getPos(), FATAL_COLOR, distance, partialTicks);
-                }
-            }
-        }
+    /**
+     * Render pattern issue location markers.
+     */
+    private void renderPatternLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
+            double playerX, double playerY, double playerZ, float partialTicks) {
+        renderBlockIssueLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks,
+            ScannerClientState.getSelectedPatternIssues(), 0.85f, 0.71f, 0.35f, PATTERN_COLOR);
     }
 
     /**
@@ -404,34 +311,8 @@ public class ScannerRenderer {
         List<ChokeLocationClient> selected = ScannerClientState.getSelectedChokes();
         if (selected.isEmpty()) return;
 
-        // Render block outlines and floating text (only within wireframe distance)
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(-playerX, -playerY, -playerZ);
-
-        GlStateManager.disableTexture2D();
-        GlStateManager.disableLighting();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.disableDepth();
-        GlStateManager.depthMask(false);
-        GlStateManager.glLineWidth(3.0F);
-
-        for (ChokeLocationClient loc : selected) {
-            if (loc.dimension != playerDim) continue;
-
-            double distance = loc.getDistanceFrom(playerPos);
-            if (distance <= WIREFRAME_MAX_DISTANCE) {
-                // Cyan-ish color for chokepoints
-                BlockHighlightRenderer.renderBlockOutline(loc.pos, 0.4f, 0.67f, 1.0f, 0.8f);
-            }
-        }
-
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
-        GlStateManager.disableBlend();
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.popMatrix();
+        renderBlockIssueLocations(mc, player, playerDim, playerPos, playerX, playerY, playerZ, partialTicks,
+            selected, 0.4f, 0.67f, 1.0f, CHOKE_COLOR);
 
         // Render floating text for nearby chokepoints
         for (ChokeLocationClient loc : selected) {
@@ -453,6 +334,56 @@ public class ScannerRenderer {
                 if (distance > WIREFRAME_MAX_DISTANCE) {
                     DirectionArrowRenderer.drawDirectionArrow(player, loc.pos, CHOKE_COLOR, distance, partialTicks);
                 }
+            }
+        }
+    }
+
+    /**
+     * Wireframe render for block-related issues with directional arrows for distant ones.
+     */
+    private <T extends AbstractLocation> void renderBlockIssueLocations(Minecraft mc, EntityPlayer player, int playerDim, BlockPos playerPos,
+            double playerX, double playerY, double playerZ, float partialTicks, List<T> selected,
+            float red, float green, float blue, int arrowColor) {
+        if (selected.isEmpty()) return;
+
+        // wireframe render for nearby locations
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(-playerX, -playerY, -playerZ);
+
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableLighting();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.disableDepth();
+        GlStateManager.depthMask(false);
+        GlStateManager.glLineWidth(3.0F);
+
+        for (T entry : selected) {
+            if (entry.dimension != playerDim) continue;
+
+            double distance = entry.getDistanceFrom(playerPos);
+            if (distance <= WIREFRAME_MAX_DISTANCE) {
+                BlockHighlightRenderer.renderBlockOutline(entry.pos, red, green, blue, 0.8f);
+            }
+        }
+
+        // arrow render for distant locations
+        GlStateManager.depthMask(true);
+        GlStateManager.enableDepth();
+        GlStateManager.disableBlend();
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableLighting();
+        GlStateManager.popMatrix();
+
+        ItemStack heldScanner = getHeldScanner(mc);
+        if (!ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) return;
+
+        for (T entry : selected) {
+            if (entry.dimension != playerDim) continue;
+
+            double distance = entry.getDistanceFrom(playerPos);
+            if (distance > WIREFRAME_MAX_DISTANCE) {
+                DirectionArrowRenderer.drawDirectionArrow(player, entry.pos, arrowColor, distance, partialTicks);
             }
         }
     }
