@@ -6,13 +6,14 @@ import net.minecraft.util.math.BlockPos;
 
 
 /**
- * Fatal network issue tied to a specific block position that the player can inspect.
+ * Pattern-related issue tied to a crafting provider position.
  */
-public class FatalNetworkError extends AbstractLocation {
+public class PatternIssue extends AbstractLocation {
 
     public enum Category {
-        DUPLICATE_STORAGE_TARGET("duplicate_storage_target"),
-        SAME_NETWORK_INTERFACE_LINK("same_network_interface_link");
+        INVALID_CRAFTING_RECIPE("invalid"),
+        CONFLICTING_OUTPUTS("conflicting_outputs"),
+        NESTED_INPUT_OUTPUT("nested_input_output");
 
         private final String translationSuffix;
 
@@ -21,31 +22,27 @@ public class FatalNetworkError extends AbstractLocation {
         }
 
         public String getTitleKey() {
-            return "gui.ae2powertools.scanner.fatal." + translationSuffix + ".title";
+            return "gui.ae2powertools.scanner.pattern." + translationSuffix + ".title";
         }
 
         public String getTooltipKey() {
-            return "gui.ae2powertools.scanner.fatal." + translationSuffix + ".tooltip";
-        }
-
-        public String getEntryKey() {
-            return "gui.ae2powertools.scanner.fatal." + translationSuffix + ".entry";
+            return "gui.ae2powertools.scanner.pattern." + translationSuffix + ".tooltip";
         }
     }
 
     private final Category category;
     private final String dimensionName;
     private final String description;
-    private final BlockPos sourcePos;
+    private final String summary;
 
-    public FatalNetworkError(Category category, BlockPos pos, int dimension, String dimensionName,
-            String description, BlockPos sourcePos) {
+    public PatternIssue(Category category, BlockPos pos, int dimension, String dimensionName,
+            String description, String summary) {
         super(pos, dimension);
 
         this.category = category;
         this.dimensionName = dimensionName;
         this.description = description;
-        this.sourcePos = sourcePos;
+        this.summary = summary;
     }
 
     public Category getCategory() {
@@ -68,25 +65,25 @@ public class FatalNetworkError extends AbstractLocation {
         return description;
     }
 
-    public BlockPos getSourcePos() {
-        return sourcePos;
+    public String getSummary() {
+        return summary;
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof FatalNetworkError)) return false;
+        if (!(obj instanceof PatternIssue)) return false;
 
-        FatalNetworkError other = (FatalNetworkError) obj;
+        PatternIssue other = (PatternIssue) obj;
         return dimension == other.dimension
             && category == other.category
             && Objects.equals(pos, other.pos)
-            && Objects.equals(sourcePos, other.sourcePos)
-            && Objects.equals(description, other.description);
+            && Objects.equals(description, other.description)
+            && Objects.equals(summary, other.summary);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(category, pos, dimension, description, sourcePos);
+        return Objects.hash(category, pos, dimension, description, summary);
     }
 }

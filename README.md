@@ -10,9 +10,13 @@ A diagnostic tool for detecting network issues:
 - **Non-Chunkloaded Chunks Detection**: Identifies network components in non-chunkloaded chunks. Cables and wireless connectors in unloaded chunks should also be detected (as long as they are connected to a loaded chunk), but unloaded Quantum Bridges cannot be detected, due to only being registered when the chunk is loaded. Detecting them would involve scanning every unloaded chunk in the world.
 - **Channel Chokepoints**: Finds locations where channel demand exceeds cable capacity, with per-direction flow breakdown. Due to slight differences in how AE2 calculates channel flow, the exact chokepoints may differ from what cables actually see, but it should still give you a good idea of where the bottlenecks are.
 - **Missing Channels**: Lists devices that require a channel but couldn't get one. This category usually pairs with the chokepoints, as they point to the exact places where the channels are missing. Providing enough channels to the chokepoints should make these issues disappear.
+- **Pattern issues**: Detect issues with patterns in the network, such as :
+  - **Duplicate outputs**: Multiple patterns producing the same item, which will cause conflicts. One of the patterns will be chosen at random by AE2, which can lead to unpredictable crafting behavior.
+  - **Broken patterns**: Crafting patterns whose recipe is not valid anymore, usually due to a mod update/removal. These patterns will be ignored by the crafting system, which can lead to crafting failures if they were used in any active recipes.
+  - **Nested patterns**: Patterns that require the output as an input. These patterns will fail to craft, as AE2 cannot handle this kind of recipe. Note that this cannot detect a loop of patterns, only direct self-dependencies in a pattern, as detecting loops of patterns would require simulating the crafting of each pattern, which is very expensive performance-wise.
 - **Fatal Errors**: Detects critical issues that may cause the network to work in a degraded state or not work at all. As these issues are unusual, they are aggregated instead of having their own categories. This currently includes:
   - **Main Network connected to itself via Subnet**: This creates a loop that causes ghost items, desync, and general instability.
-  - **Multiple Storage Buses on the same block**: This causes double counting (ghost items), resulting in 
+  - **Multiple Storage Buses on the same block**: This causes double counting (ghost items), resulting in desync and instability.
 - **Visual Overlay**: Shows directional arrows pointing to problem locations.
 - **Interactive GUI**: Browse and select detected issues, organized by dimension.
 - **Subnet Scanning**: Toggle whether to include components from connected subnets in the scan.

@@ -5,11 +5,14 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -34,19 +37,29 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.storage.RegionFileCache;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.items.IItemHandler;
 
+import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.implementations.parts.IPartCable;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.networking.crafting.ICraftingMedium;
+import appeng.api.networking.crafting.ICraftingProvider;
+import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AEColor;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
+import appeng.helpers.IInterfaceHost;
+import appeng.helpers.InvalidPatternHelper;
+import appeng.items.misc.ItemEncodedPattern;
 import appeng.me.cluster.IAECluster;
 import appeng.me.cluster.IAEMultiBlock;
 import appeng.tile.networking.TileController;
@@ -71,6 +84,9 @@ public class NetworkScanner {
     private static final String NODE_TAG_OUTER = "outer";
     private static final String NODE_TAG_PART = "part";
     private static final String NODE_TAG_AE2STUFF = "ae_node";
+    private static final String PATTERN_TYPE_TAG = "PatternType";
+    private static final String PATTERN_TYPE_PACKAGED_AUTO_PACKAGE = "package";
+    private static final String PATTERN_TYPE_PACKAGED_AUTO_RECIPE = "recipe";
 
     private static final int MAX_NODES_PER_TICK = 100;
     private static final int MAX_TOTAL_NODES = 1000000;
@@ -104,6 +120,8 @@ public class NetworkScanner {
     private final Set<ChannelChokepoint> subnetChokepoints = new HashSet<>();
     private final Set<MissingChannelDevice> subnetMissingDevices = new HashSet<>();
     private final Set<FatalNetworkError> subnetFatalErrors = new HashSet<>();
+    private final List<PatternIssue> patternIssues = new ArrayList<>();
+    private final List<PatternIssue> subnetPatternIssues = new ArrayList<>();
     private NetworkScanner activeSubnetScanner = null;
     private int completedSubnetNodeCount = 0;
 
@@ -148,6 +166,77 @@ public class NetworkScanner {
         SavedCableData(AEColor color, EnumSet<EnumFacing> blockedSides) {
             this.color = color;
             this.blockedSides = blockedSides;
+        }
+    }
+
+    private static class ProviderContext {
+        final ICraftingProvider provider;
+        final IGridNode node;
+        final BlockPos pos;
+        final int dimension;
+        final String dimensionName;
+        final String description;
+
+        ProviderContext(ICraftingProvider provider, IGridNode node, BlockPos pos, int dimension,
+                String dimensionName, String description) {
+            this.provider = provider;
+            this.node = node;
+            this.pos = pos;
+            this.dimension = dimension;
+            this.dimensionName = dimensionName;
+            this.description = description;
+        }
+    }
+
+    private static class ProviderPatternSnapshot {
+        final ProviderContext provider;
+        final ICraftingPatternDetails details;
+        final String identityKey;
+        final String outputSignature;
+        final List<String> inputTypeKeys;
+        final Set<String> inputTypeSet;
+        final Set<String> outputTypeSet;
+        final String summary;
+        final String patternType;
+        final String packagerOutputTypeKey;
+
+        ProviderPatternSnapshot(ProviderContext provider, ICraftingPatternDetails details,
+                String identityKey, String outputSignature, List<String> inputTypeKeys,
+                Set<String> inputTypeSet, Set<String> outputTypeSet, String summary,
+                String patternType, String packagerOutputTypeKey) {
+            this.provider = provider;
+            this.details = details;
+            this.identityKey = identityKey;
+            this.outputSignature = outputSignature;
+            this.inputTypeKeys = inputTypeKeys;
+            this.inputTypeSet = inputTypeSet;
+            this.outputTypeSet = outputTypeSet;
+            this.summary = summary;
+            this.patternType = patternType;
+            this.packagerOutputTypeKey = packagerOutputTypeKey;
+        }
+
+        boolean isPackagedAutoPackage() {
+            return PATTERN_TYPE_PACKAGED_AUTO_PACKAGE.equals(patternType);
+        }
+
+        boolean isPackagedAutoRecipe() {
+            return PATTERN_TYPE_PACKAGED_AUTO_RECIPE.equals(patternType);
+        }
+    }
+
+    private static class CraftingOptionCollector implements ICraftingProviderHelper {
+        final List<ICraftingPatternDetails> patternDetails = new ArrayList<>();
+
+        @Override
+        public void addCraftingOption(ICraftingMedium medium, ICraftingPatternDetails api) {
+            if (api == null) return;
+
+            patternDetails.add(api);
+        }
+
+        @Override
+        public void setEmitable(IAEItemStack what) {
         }
     }
 
@@ -277,14 +366,20 @@ public class NetworkScanner {
      * Process channel scan phase.
      */
     private boolean processChannelScan() {
-        if (channelScanner == null) return advanceAfterCurrentGridScan();
+        if (channelScanner == null) return processPatternScan();
 
         boolean channelDone = channelScanner.processBatch();
-        if (channelDone) return advanceAfterCurrentGridScan();
+        if (channelDone) return processPatternScan();
 
         statusMessage = channelScanner.getStatusMessage();
 
         return false;
+    }
+
+    private boolean processPatternScan() {
+        scanPatternIssues();
+
+        return advanceAfterCurrentGridScan();
     }
 
     private boolean advanceAfterCurrentGridScan() {
@@ -329,6 +424,7 @@ public class NetworkScanner {
         subnetChokepoints.addAll(subnetScanner.getChokepoints());
         subnetMissingDevices.addAll(subnetScanner.getMissingDevices());
         subnetFatalErrors.addAll(subnetScanner.getFatalErrors());
+        subnetPatternIssues.addAll(subnetScanner.getPatternIssues());
     }
 
     /**
@@ -341,16 +437,395 @@ public class NetworkScanner {
         int chokeCount = getChokepoints().size();
         int missingCount = getMissingDevices().size();
         int fatalCount = getFatalErrors().size();
+        int patternCount = getPatternIssues().size();
 
         // Loops are not counted, because they are not necessarily "issues".
         // Just a catch to be aware of.
-        if (getUnloadedChunks().isEmpty() && chokeCount == 0 && missingCount == 0 && fatalCount == 0) {
+        if (getUnloadedChunks().isEmpty() && chokeCount == 0 && missingCount == 0 && fatalCount == 0
+            && patternCount == 0) {
             statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_issues", totalNodes);
         } else {
             statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.found_issues", totalNodes);
         }
 
         return true;
+    }
+
+    private void scanPatternIssues() {
+        patternIssues.clear();
+
+        List<ProviderContext> providers = collectCraftingProviders();
+        List<ProviderPatternSnapshot> snapshots = new ArrayList<>();
+
+        for (ProviderContext provider : providers) {
+            try {
+                collectProviderPatterns(provider, snapshots);
+                collectInvalidCraftingPatterns(provider);
+            } catch (Exception e) {
+                AE2PowerTools.LOGGER.warn("Failed scanning patterns for provider {} at {} in dim {}",
+                    provider.description, provider.pos, provider.dimension, e);
+            }
+        }
+
+        detectConflictingOutputs(snapshots);
+        detectNestedInputOutputPatterns(snapshots);
+    }
+
+    private List<ProviderContext> collectCraftingProviders() {
+        Map<Object, ProviderContext> uniqueProviders = new IdentityHashMap<>();
+
+        for (IGridNode node : visitedNodes.keySet()) {
+            IGridHost host = node.getMachine();
+            if (!(host instanceof ICraftingProvider)) continue;
+
+            BlockPos pos = getNodePosition(node);
+            if (pos == null) continue;
+
+            Object uniqueKey = getCraftingProviderKey(host);
+            if (uniqueProviders.containsKey(uniqueKey)) continue;
+
+            uniqueProviders.put(uniqueKey, new ProviderContext(
+                (ICraftingProvider) host,
+                node,
+                pos,
+                getNodeDimension(node),
+                getNodeDimensionName(node),
+                ScannerTextHelper.getNodeDescription(node)
+            ));
+        }
+
+        return new ArrayList<>(uniqueProviders.values());
+    }
+
+    private Object getCraftingProviderKey(IGridHost host) {
+        IAECluster cluster = getClusterOf(host);
+        if (cluster != null) return cluster;
+
+        return host;
+    }
+
+    private void collectProviderPatterns(ProviderContext provider, List<ProviderPatternSnapshot> snapshots) {
+        CraftingOptionCollector collector = new CraftingOptionCollector();
+        provider.provider.provideCrafting(collector);
+
+        Set<String> seenPatternIdentities = new HashSet<>();
+
+        for (ICraftingPatternDetails details : collector.patternDetails) {
+            ProviderPatternSnapshot snapshot = createPatternSnapshot(provider, details);
+            if (snapshot == null) continue;
+            if (!seenPatternIdentities.add(snapshot.identityKey)) continue;
+
+            snapshots.add(snapshot);
+        }
+    }
+
+    private ProviderPatternSnapshot createPatternSnapshot(ProviderContext provider,
+            ICraftingPatternDetails details) {
+        String identityKey = buildPatternIdentityKey(details);
+        if (identityKey.isEmpty()) return null;
+
+        List<String> inputTypeKeys = buildTypeKeys(details.getInputs());
+        Set<String> inputTypeSet = new HashSet<>(inputTypeKeys);
+        Set<String> outputTypeSet = new HashSet<>(buildTypeKeys(details.getOutputs()));
+        String outputSignature = buildOutputSignature(details.getCondensedOutputs());
+        String summary = summarizeOutputs(details.getCondensedOutputs());
+        String patternType = getPatternType(details.getPattern());
+        String packagerOutputTypeKey = null;
+
+        if (PATTERN_TYPE_PACKAGED_AUTO_PACKAGE.equals(patternType)) {
+            List<String> outputTypeKeys = buildTypeKeys(details.getOutputs());
+            if (!outputTypeKeys.isEmpty()) packagerOutputTypeKey = outputTypeKeys.get(0);
+        }
+
+        return new ProviderPatternSnapshot(provider, details, identityKey, outputSignature,
+            inputTypeKeys, inputTypeSet, outputTypeSet, summary, patternType, packagerOutputTypeKey);
+    }
+
+    private void collectInvalidCraftingPatterns(ProviderContext provider) {
+        if (!(provider.provider instanceof IInterfaceHost)) return;
+
+        IItemHandler patternInventory = ((IInterfaceHost) provider.provider).getInterfaceDuality().getPatterns();
+        if (patternInventory == null) return;
+
+        World nodeWorld = getNodeWorld(provider.node);
+        if (nodeWorld == null) return;
+
+        Set<String> seenSummaries = new HashSet<>();
+
+        for (int slot = 0; slot < patternInventory.getSlots(); slot++) {
+            try {
+                ItemStack patternStack = patternInventory.getStackInSlot(slot);
+                if (patternStack.isEmpty()) continue;
+                if (!(patternStack.getItem() instanceof ItemEncodedPattern)) continue;
+                if (!(patternStack.getItem() instanceof ICraftingPatternItem)) continue;
+                if (!patternStack.hasTagCompound()) continue;
+
+                ICraftingPatternDetails details = ((ICraftingPatternItem) patternStack.getItem())
+                    .getPatternForItem(patternStack, nodeWorld);
+                if (details != null) continue;
+
+                InvalidPatternHelper invalidPattern = new InvalidPatternHelper(patternStack);
+                if (!invalidPattern.isCraftable()) continue;
+
+                String summary = summarizeInvalidOutputs(invalidPattern);
+                if (!seenSummaries.add(summary)) continue;
+
+                addPatternIssue(new PatternIssue(PatternIssue.Category.INVALID_CRAFTING_RECIPE,
+                    provider.pos, provider.dimension, provider.dimensionName, provider.description, summary));
+            } catch (Exception e) {
+                AE2PowerTools.LOGGER.warn("Failed reading raw pattern stack in slot {} for provider {} at {} in dim {}",
+                    slot, provider.description, provider.pos, provider.dimension, e);
+            }
+        }
+    }
+
+    private void detectConflictingOutputs(List<ProviderPatternSnapshot> snapshots) {
+        Map<String, List<ProviderPatternSnapshot>> byOutputSignature = new HashMap<>();
+
+        for (ProviderPatternSnapshot snapshot : snapshots) {
+            if (snapshot.outputSignature.isEmpty()) continue;
+
+            byOutputSignature.computeIfAbsent(snapshot.outputSignature, key -> new ArrayList<>()).add(snapshot);
+        }
+
+        for (List<ProviderPatternSnapshot> group : byOutputSignature.values()) {
+            Set<String> uniqueIdentities = new HashSet<>();
+            for (ProviderPatternSnapshot snapshot : group) uniqueIdentities.add(snapshot.identityKey);
+
+            if (uniqueIdentities.size() < 2) continue;
+
+            int variantCount = uniqueIdentities.size();
+            for (ProviderPatternSnapshot snapshot : group) {
+                String summary = snapshot.summary + " (" + variantCount + " variants)";
+                addPatternIssue(new PatternIssue(PatternIssue.Category.CONFLICTING_OUTPUTS,
+                    snapshot.provider.pos,
+                    snapshot.provider.dimension,
+                    snapshot.provider.dimensionName,
+                    snapshot.provider.description,
+                    summary));
+            }
+        }
+    }
+
+    private void detectNestedInputOutputPatterns(List<ProviderPatternSnapshot> snapshots) {
+        List<ProviderPatternSnapshot> nestedCandidates = buildNestedDetectionSnapshots(snapshots);
+
+        for (ProviderPatternSnapshot snapshot : nestedCandidates) {
+            Set<String> overlap = new HashSet<>(snapshot.inputTypeSet);
+            overlap.retainAll(snapshot.outputTypeSet);
+            if (overlap.isEmpty()) continue;
+
+            addPatternIssue(new PatternIssue(PatternIssue.Category.NESTED_INPUT_OUTPUT,
+                snapshot.provider.pos,
+                snapshot.provider.dimension,
+                snapshot.provider.dimensionName,
+                snapshot.provider.description,
+                snapshot.summary));
+        }
+    }
+
+    private void addPatternIssue(PatternIssue issue) {
+        if (patternIssues.contains(issue)) return;
+
+        patternIssues.add(issue);
+    }
+
+    /**
+     * PackagedAuto exposes package creation and recipe execution as separate AE2 providers.
+     * When every recipe input can be matched back to a packager output, use the original
+     * package inputs for nested input/output detection so package items do not create false negatives.
+     */
+    private List<ProviderPatternSnapshot> buildNestedDetectionSnapshots(List<ProviderPatternSnapshot> snapshots) {
+        List<ProviderPatternSnapshot> nestedCandidates = new ArrayList<>();
+        Map<String, List<ProviderPatternSnapshot>> packageSnapshotsByOutput = new HashMap<>();
+        Set<ProviderPatternSnapshot> mergedPackages = Collections.newSetFromMap(new IdentityHashMap<>());
+
+        for (ProviderPatternSnapshot snapshot : snapshots) {
+            if (!snapshot.isPackagedAutoPackage()) continue;
+            if (snapshot.packagerOutputTypeKey == null || snapshot.packagerOutputTypeKey.isEmpty()) continue;
+
+            packageSnapshotsByOutput.computeIfAbsent(snapshot.packagerOutputTypeKey, key -> new ArrayList<>())
+                .add(snapshot);
+        }
+
+        for (ProviderPatternSnapshot snapshot : snapshots) {
+            if (!snapshot.isPackagedAutoRecipe()) {
+                nestedCandidates.add(snapshot);
+                continue;
+            }
+
+            Set<String> mergedInputTypes = new HashSet<>();
+            boolean matchedAnyPackage = false;
+            boolean mergedAllPackageInputs = true;
+
+            for (String inputTypeKey : snapshot.inputTypeKeys) {
+                List<ProviderPatternSnapshot> packageCandidates = packageSnapshotsByOutput.get(inputTypeKey);
+                ProviderPatternSnapshot mergedSnapshot = resolveUniquePackageSnapshot(packageCandidates);
+
+                if (mergedSnapshot == null) {
+                    mergedAllPackageInputs = false;
+                    mergedInputTypes.add(inputTypeKey);
+                    continue;
+                }
+
+                matchedAnyPackage = true;
+                mergedPackages.add(mergedSnapshot);
+                mergedInputTypes.addAll(mergedSnapshot.inputTypeSet);
+            }
+
+            if (!matchedAnyPackage || !mergedAllPackageInputs) {
+                nestedCandidates.add(snapshot);
+                continue;
+            }
+
+            nestedCandidates.add(new ProviderPatternSnapshot(
+                snapshot.provider,
+                snapshot.details,
+                snapshot.identityKey,
+                snapshot.outputSignature,
+                new ArrayList<>(mergedInputTypes),
+                mergedInputTypes,
+                snapshot.outputTypeSet,
+                snapshot.summary,
+                snapshot.patternType,
+                snapshot.packagerOutputTypeKey
+            ));
+        }
+
+        for (ProviderPatternSnapshot snapshot : snapshots) {
+            if (!snapshot.isPackagedAutoPackage()) continue;
+            if (mergedPackages.contains(snapshot)) continue;
+
+            nestedCandidates.add(snapshot);
+        }
+
+        return nestedCandidates;
+    }
+
+    private ProviderPatternSnapshot resolveUniquePackageSnapshot(List<ProviderPatternSnapshot> candidates) {
+        if (candidates == null || candidates.isEmpty()) return null;
+        if (candidates.size() == 1) return candidates.get(0);
+
+        ProviderPatternSnapshot first = candidates.get(0);
+        for (int i = 1; i < candidates.size(); i++) {
+            ProviderPatternSnapshot other = candidates.get(i);
+            if (!first.identityKey.equals(other.identityKey)) return null;
+        }
+
+        return first;
+    }
+
+    private String buildPatternIdentityKey(ICraftingPatternDetails details) {
+        ItemStack patternStack = details.getPattern();
+        if (!patternStack.isEmpty()) return buildSizedItemKey(patternStack);
+
+        return (details.isCraftable() ? "C" : "P") + ':' + buildOutputSignature(details.getOutputs())
+            + ':' + buildOutputSignature(details.getInputs());
+    }
+
+    private String getPatternType(ItemStack patternStack) {
+        if (patternStack.isEmpty() || !patternStack.hasTagCompound()) return "";
+
+        return patternStack.getTagCompound().getString(PATTERN_TYPE_TAG);
+    }
+
+    private String buildOutputSignature(appeng.api.storage.data.IAEItemStack[] stacks) {
+        List<String> keys = new ArrayList<>();
+
+        for (appeng.api.storage.data.IAEItemStack stack : stacks) {
+            if (stack == null) continue;
+
+            keys.add(buildSizedItemKey(stack.createItemStack(), stack.getStackSize()));
+        }
+
+        Collections.sort(keys);
+        return String.join("|", keys);
+    }
+
+    private List<String> buildTypeKeys(appeng.api.storage.data.IAEItemStack[] stacks) {
+        List<String> keys = new ArrayList<>();
+
+        for (appeng.api.storage.data.IAEItemStack stack : stacks) {
+            if (stack == null) continue;
+
+            ItemStack itemStack = stack.createItemStack();
+            if (itemStack.isEmpty()) continue;
+
+            itemStack.setCount(1);
+            keys.add(buildItemTypeKey(itemStack));
+        }
+
+        return keys;
+    }
+
+    private String buildSizedItemKey(ItemStack stack) {
+        return buildSizedItemKey(stack, stack.getCount());
+    }
+
+    private String buildSizedItemKey(ItemStack stack, long count) {
+        if (stack.isEmpty()) return "";
+
+        return buildItemTypeKey(stack) + 'x' + count;
+    }
+
+    private String buildItemTypeKey(ItemStack stack) {
+        if (stack.isEmpty() || stack.getItem().getRegistryName() == null) return "";
+
+        String nbtKey = stack.hasTagCompound() ? stack.getTagCompound().toString() : "";
+        return stack.getItem().getRegistryName() + "@" + stack.getItemDamage() + '#' + nbtKey;
+    }
+
+    private String summarizeOutputs(IAEItemStack[] outputs) {
+        List<String> parts = new ArrayList<>();
+        int outputCount = 0;
+
+        for (IAEItemStack output : outputs) {
+            if (output == null) continue;
+
+            outputCount++;
+            if (parts.size() >= 2) continue;
+
+            ItemStack itemStack = output.createItemStack();
+            if (itemStack.isEmpty()) continue;
+
+            parts.add(output.getStackSize() + "x " + itemStack.getDisplayName());
+        }
+
+        if (parts.isEmpty()) {
+            return ScannerTextHelper.serializeComponent(
+                new TextComponentTranslation("gui.ae2powertools.scanner.pattern.unknown_output"));
+        }
+
+        if (outputCount > parts.size()) {
+            parts.add(ScannerTextHelper.deserializeComponent(ScannerTextHelper.serializeComponent(
+                new TextComponentTranslation("gui.ae2powertools.scanner.pattern.more_outputs",
+                    outputCount - parts.size()))).getFormattedText());
+        }
+
+        return ScannerTextHelper.serializeComponent(new TextComponentString(String.join(", ", parts)));
+    }
+
+    private String summarizeInvalidOutputs(InvalidPatternHelper invalidPattern) {
+        List<String> parts = new ArrayList<>();
+        int outputCount = invalidPattern.getOutputs().size();
+
+        for (int i = 0; i < invalidPattern.getOutputs().size() && i < 2; i++) {
+            InvalidPatternHelper.PatternIngredient ingredient = invalidPattern.getOutputs().get(i);
+            parts.add(ingredient.getCount() + "x " + ingredient.getName());
+        }
+
+        if (parts.isEmpty()) {
+            return ScannerTextHelper.serializeComponent(
+                new TextComponentTranslation("gui.ae2powertools.scanner.pattern.unknown_output"));
+        }
+
+        if (outputCount > parts.size()) {
+            parts.add(ScannerTextHelper.deserializeComponent(ScannerTextHelper.serializeComponent(
+                new TextComponentTranslation("gui.ae2powertools.scanner.pattern.more_outputs",
+                    outputCount - parts.size()))).getFormattedText());
+        }
+
+        return ScannerTextHelper.serializeComponent(new TextComponentString(String.join(", ", parts)));
     }
 
     /**
@@ -670,6 +1145,7 @@ public class NetworkScanner {
         return new SavedTileData(nodeIds, savedCableData);
     }
 
+    @SuppressWarnings("rawtypes")
     private SavedCableData collectSavedCenterCable(NBTTagCompound tileData) {
         String centerKey = "def:" + AEPartLocation.INTERNAL.ordinal();
         if (!tileData.hasKey(centerKey, Constants.NBT.TAG_COMPOUND)) return null;
@@ -856,6 +1332,18 @@ public class NetworkScanner {
 
         if (channelScanner != null) combined.addAll(channelScanner.getFatalErrors());
         if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getFatalErrors());
+
+        return combined;
+    }
+
+    public List<PatternIssue> getPatternIssues() {
+        if (!includeSubnets && activeSubnetScanner == null && subnetPatternIssues.isEmpty()) {
+            return new ArrayList<>(patternIssues);
+        }
+
+        List<PatternIssue> combined = new ArrayList<>(patternIssues);
+        combined.addAll(subnetPatternIssues);
+        if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getPatternIssues());
 
         return combined;
     }

@@ -288,6 +288,7 @@ public class ScanSessionManager {
         int chokepoints = scanner.getChokepoints().size();
         int missing = scanner.getMissingDevices().size();
         int fatal = scanner.getFatalErrors().size();
+        int patterns = scanner.getPatternIssues().size();
 
         // Build the message as a composite component: each line is its own TextComponentTranslation
         // so the receiving client formats it in its own locale.
@@ -303,6 +304,8 @@ public class ScanSessionManager {
         root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line4", missing));
         root.appendText("\n");
         root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line5", fatal));
+        root.appendText("\n");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line6", patterns));
 
         return root;
     }
