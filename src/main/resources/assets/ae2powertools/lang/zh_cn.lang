@@ -75,9 +75,18 @@ gui.ae2powertools.scanner.tab_chunks=未常加载区块（%d）
 gui.ae2powertools.scanner.tab_chokepoints=阻塞点（%d）
 gui.ae2powertools.scanner.tab_missing=缺失频道（%d）
 gui.ae2powertools.scanner.tab_fatal=致命错误（%d）
+gui.ae2powertools.scanner.tab_patterns=样板（%d）
 gui.ae2powertools.scanner.chunk_entry=区块 [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d 频道
 gui.ae2powertools.scanner.loops_info=注意：除非网络行为异常且已排除其他原因，否则环路不一定是问题。尽管如此，还是要尽量避免造成环路。
+gui.ae2powertools.scanner.pattern.invalid.title=无效的合成样板
+gui.ae2powertools.scanner.pattern.invalid.tooltip=合成样板不再能解析为有效的合成配方。通常发生在配方或模组变更之后。
+gui.ae2powertools.scanner.pattern.conflicting_outputs.title=输出冲突
+gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=不同的样板输出了相同的结果。AE2在构建合成树时可能会在这些样板之间随机选择，从而导致不稳定或预期外的配方路径。
+gui.ae2powertools.scanner.pattern.nested_input_output.title=输入/输出嵌套
+gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=样板的输入和输出中包含了相同的物品。这类自嵌套配方会在AE2合成树构建时失败。
+gui.ae2powertools.scanner.pattern.unknown_output=未知输出
+gui.ae2powertools.scanner.pattern.more_outputs=+%d 更多
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.title=重复的存储总线目标
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.tooltip=两个或更多存储总线指向同一个目标方块。这会导致目标容器被重复计算，并报告错误的数量。
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.entry=%1$s -> 共享目标
@@ -124,6 +133,7 @@ ae2powertools.scanner.complete.summary.line2=- 找到了%d个未常加载区块
 ae2powertools.scanner.complete.summary.line3=- 找到了%d个阻塞点
 ae2powertools.scanner.complete.summary.line4=- 找到了%d台缺失频道的设备
 ae2powertools.scanner.complete.summary.line5=- 找到了%d个致命错误
+ae2powertools.scanner.complete.summary.line6=- 找到了%d个样板问题
 
 # =====================================================
 # Better Level Maintainer
