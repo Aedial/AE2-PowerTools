@@ -2,7 +2,7 @@
     "conditions": [
         {
             "type": "minecraft:item_exists",
-            "item": "ae2powertools:storage_level_alarm"
+            "item": "ae2powertools:level_monitor_alarm"
         },
         {
             "type": "minecraft:item_exists",
@@ -18,7 +18,7 @@
         }
     ],
     "result": {
-        "item": "ae2powertools:storage_level_alarm"
+        "item": "ae2powertools:level_monitor_alarm"
     },
     "type": "forge:ore_shaped",
     "pattern": [

@@ -365,6 +365,7 @@ gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
 gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d: %s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
+jei.ae2powertools.reusable=Reusable
 
 # =====================================================
 # Network Advanced Component Locator
