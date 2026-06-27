@@ -57,7 +57,9 @@ public class ClientProxy extends CommonProxy {
         Minecraft.getMinecraft().getItemColors().registerItemColorHandler(
             displayColor,
             Item.getItemFromBlock(BlockRegistry.STORAGE_DISPLAY),
-            ItemRegistry.STORAGE_DISPLAY_PART);
+            ItemRegistry.STORAGE_DISPLAY_PART,
+            ItemRegistry.STORAGE_DISPLAY_SMALLER_PART,
+            ItemRegistry.STORAGE_DISPLAY_SMALLLER_PART);
     }
 
     @SubscribeEvent
