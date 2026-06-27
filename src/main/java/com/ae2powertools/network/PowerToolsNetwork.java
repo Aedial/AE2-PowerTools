@@ -70,6 +70,7 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketRemoveMonitorEntry.Handler.class, PacketRemoveMonitorEntry.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetMatchMode.Handler.class, PacketSetMatchMode.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetHysteresisMode.Handler.class, PacketSetHysteresisMode.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetEmitterRedstonePower.Handler.class, PacketSetEmitterRedstonePower.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetEmitterRedstoneStrength.Handler.class, PacketSetEmitterRedstoneStrength.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketToggleAlarmRegistration.Handler.class, PacketToggleAlarmRegistration.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSyncLevelMonitorAlarms.Handler.class, PacketSyncLevelMonitorAlarms.class, packetId++, Side.CLIENT);

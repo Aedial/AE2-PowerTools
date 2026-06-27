@@ -13,6 +13,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix large GUI-synced numeric values being truncated above 32k in the AutoCrafter and Storage Monitor screens by syncing susceptible counters as long instead of int.
 
 ### Added
+- Add configurable 1-15 redstone strength controls to the Storage Level Emitter GUI.
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 - Add Remote Storage Monitor, a bauble/held item that shows the quantity variation of configured content in the network as an overlay on the screen, over a set period of time.
 - Add client config for the Remote Storage Monitor overlay visuals.
