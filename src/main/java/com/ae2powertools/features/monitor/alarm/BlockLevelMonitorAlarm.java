@@ -18,7 +18,6 @@ import com.ae2powertools.features.monitor.dependent.BlockStorageMonitorBase;
 
 /**
  * Alarm variant of the storage monitor. Reuses the emitter's on/off model structure.
- * TODO: Add a pulsing texture when alarming, so that players can see the alarm state from afar.
  */
 public class BlockLevelMonitorAlarm extends BlockStorageMonitorBase {
 

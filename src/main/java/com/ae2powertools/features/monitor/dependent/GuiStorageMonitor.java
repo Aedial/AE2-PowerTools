@@ -510,7 +510,6 @@ public class GuiStorageMonitor extends GuiContainer {
         EmitterRedstoneStrength signalStrength = container.getSyncEmitterRedstoneSignalStrength();
 
         List<String> tt = new ArrayList<>();
-        // TODO: add some color to the signal strength level. Not Green/Red, because both are "active" states.
         tt.add(I18n.format(
             "gui.ae2powertools.storage_emitter.redstone_signal",
             I18n.format(signalStrength.getLangKey())));
