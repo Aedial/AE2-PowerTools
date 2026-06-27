@@ -273,6 +273,28 @@ gui.ae2powertools.remote_monitor.polling_rate.tooltip=Compare against the last %
 gui.ae2powertools.remote_monitor.polling_rate.description=Set the time span used to measure quantity changes
 gui.ae2powertools.remote_monitor.selector.title=Select Content
 
+# Config
+ae2powertools.config.client.remoteMonitor=Remote Monitor
+ae2powertools.config.client.remoteMonitor.tooltip=Remote Storage Monitor overlay settings
+ae2powertools.config.client.remoteMonitor.x=Overlay X position
+ae2powertools.config.client.remoteMonitor.x.tooltip=Horizontal screen position of the remote monitor overlay
+ae2powertools.config.client.remoteMonitor.y=Overlay Y position
+ae2powertools.config.client.remoteMonitor.y.tooltip=Vertical screen position of the remote monitor overlay
+ae2powertools.config.client.remoteMonitor.paddingInternal=Inner padding
+ae2powertools.config.client.remoteMonitor.paddingInternal.tooltip=Padding between the overlay edge and its icon/text content
+ae2powertools.config.client.remoteMonitor.lineSpacing=Line spacing
+ae2powertools.config.client.remoteMonitor.lineSpacing.tooltip=Vertical space between remote monitor entries
+ae2powertools.config.client.remoteMonitor.iconSize=Icon size
+ae2powertools.config.client.remoteMonitor.iconSize.tooltip=Rendered size of monitored resource icons. Keep it a power of two (8, 16, 32, etc.) to avoid blurry icons
+ae2powertools.config.client.remoteMonitor.iconTextGap=Icon/text gap
+ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=Horizontal space between the icon and delta text
+ae2powertools.config.client.remoteMonitor.textScalePercent=Text size
+ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=Percentage scale for remote monitor delta text relative to the normal HUD font size
+ae2powertools.config.client.remoteMonitor.gainColor=Gain color
+ae2powertools.config.client.remoteMonitor.gainColor.tooltip=Text color (hex) used for positive quantity deltas
+ae2powertools.config.client.remoteMonitor.lossColor=Loss color
+ae2powertools.config.client.remoteMonitor.lossColor.tooltip=Text color (hex) used for negative quantity deltas
+
 # =====================================================
 # AE2 AutoCrafter
 # =====================================================
@@ -462,8 +484,8 @@ gui.ae2powertools.storage_emitter.condition_not_met=Condition Not Met
 gui.ae2powertools.storage_emitter.select_content=Resource
 gui.ae2powertools.storage_emitter.match_mode.click_toggle=Click to toggle AND/OR
 gui.ae2powertools.storage_emitter.redstone_signal=Redstone output: %s
-gui.ae2powertools.storage_emitter.redstone_signal.weak=Weak
-gui.ae2powertools.storage_emitter.redstone_signal.strong=Strong
+gui.ae2powertools.storage_emitter.redstone_signal.weak=§bWeak
+gui.ae2powertools.storage_emitter.redstone_signal.strong=§dStrong
 gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=Click to toggle weak/strong output
 gui.ae2powertools.storage_emitter.hysteresis=Hysteresis: %s
 gui.ae2powertools.storage_emitter.hysteresis.on=On

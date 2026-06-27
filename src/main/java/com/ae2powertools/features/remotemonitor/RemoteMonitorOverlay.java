@@ -18,11 +18,9 @@ import appeng.util.ReadableNumberConverter;
 
 import baubles.api.BaublesApi;
 
-import com.ae2powertools.features.locator.LocatorRenderer;
-import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmArrowRenderer;
+import com.ae2powertools.client.PowerToolsClientConfig;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
-import com.ae2powertools.features.scanner.ScannerRenderer;
 import com.ae2powertools.items.ItemRemoteStorageMonitor;
 
 
@@ -32,15 +30,6 @@ import com.ae2powertools.items.ItemRemoteStorageMonitor;
  */
 @SideOnly(Side.CLIENT)
 public class RemoteMonitorOverlay {
-
-    // TODO: make some of these configurable, to give players some control over the overlay
-    private static final int PADDING_EXTERNAL = 5;
-    private static final int PADDING_INTERNAL = 4;
-    private static final int LINE_SPACING = 2;
-    private static final int ICON_SIZE = 16;
-    private static final int ICON_TEXT_GAP = 4;
-    private static final int COLOR_GAIN = 0x66FF66;
-    private static final int COLOR_LOSS = 0xFF6666;
 
     private static int lastOverlayHeight;
 
@@ -65,6 +54,7 @@ public class RemoteMonitorOverlay {
         RemoteMonitorClientState.requestSyncIfNeeded(deviceId, !hasState);
         if (!hasState) return;
 
+        PowerToolsClientConfig.RemoteMonitor config = PowerToolsClientConfig.remoteMonitor;
         RemoteMonitorClientState.DeviceState state = RemoteMonitorClientState.getOrCreateState(deviceId);
         List<MonitoredResource> resources = new ArrayList<>();
         List<String> lines = new ArrayList<>();
@@ -79,39 +69,36 @@ public class RemoteMonitorOverlay {
 
             resources.add(resource);
             lines.add(formatDelta(delta));
-            colors.add(delta > 0 ? COLOR_GAIN : COLOR_LOSS);
+            colors.add(delta > 0 ? config.getGainColor() : config.getLossColor());
 
             // TODO: add the %total of the delta, as "+5k (10%)" for a resource that was at 50k before delta
         }
 
         if (lines.isEmpty()) return;
 
-        int lineHeight = Math.max(mc.fontRenderer.FONT_HEIGHT, ICON_SIZE);
-        int maxTextWidth = 0;
-        for (String line : lines) {
-            maxTextWidth = Math.max(maxTextWidth, mc.fontRenderer.getStringWidth(line));
-        }
+        float textScale = config.getTextScale();
+        float scaledTextHeight = mc.fontRenderer.FONT_HEIGHT * textScale;
+        int lineHeight = Math.max((int) Math.ceil(scaledTextHeight), config.getIconSize());
+        int boxX = config.getX();
+        int boxY = config.getY();
 
-        int boxX = PADDING_EXTERNAL;
-        int boxY = PADDING_EXTERNAL
-            + ScannerRenderer.getOverlayHeight()
-            + LocatorRenderer.getOverlayHeight()
-            + LevelMonitorAlarmArrowRenderer.getOverlayHeight();
-
-        int iconX = boxX + PADDING_INTERNAL;
-        int textX = iconX + ICON_SIZE + ICON_TEXT_GAP;
-        int lineY = boxY + PADDING_INTERNAL;
+        int iconX = boxX + config.getPaddingInternal();
+        int textX = iconX + config.getIconSize() + config.getIconTextGap();
+        int lineY = boxY + config.getPaddingInternal();
 
         for (int i = 0; i < lines.size(); i++) {
-            MonitoredResourceRenderer.renderIcon(resources.get(i), iconX, lineY, ICON_SIZE);
+            MonitoredResourceRenderer.renderIcon(resources.get(i), iconX, lineY, config.getIconSize());
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            mc.fontRenderer.drawStringWithShadow(lines.get(i), textX, lineY + (lineHeight - mc.fontRenderer.FONT_HEIGHT) / 2,
-                colors.get(i));
-            lineY += lineHeight + LINE_SPACING;
+
+            float textY = lineY + (lineHeight - scaledTextHeight) / 2.0F;
+            drawScaledText(mc, lines.get(i), textX, textY, colors.get(i), textScale);
+            lineY += lineHeight + config.getLineSpacing();
         }
 
-        int boxHeight = PADDING_INTERNAL * 2 + lines.size() * lineHeight + (lines.size() - 1) * LINE_SPACING;
-        lastOverlayHeight = boxHeight + 2 + PADDING_EXTERNAL;
+        int boxHeight = config.getPaddingInternal() * 2
+            + lines.size() * lineHeight
+            + (lines.size() - 1) * config.getLineSpacing();
+        lastOverlayHeight = boxHeight + 2 + boxY;
     }
 
     public static int getOverlayHeight() {
@@ -121,6 +108,19 @@ public class RemoteMonitorOverlay {
     private String formatDelta(long delta) {
         String prefix = delta > 0 ? "+" : "-";
         return prefix + ReadableNumberConverter.INSTANCE.toWideReadableForm(Math.abs(delta));
+    }
+
+    private void drawScaledText(Minecraft mc, String text, int x, float y, int color, float scale) {
+        if (scale == 1.0F) {
+            mc.fontRenderer.drawStringWithShadow(text, x, y, color);
+            return;
+        }
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0.0F);
+        GlStateManager.scale(scale, scale, 1.0F);
+        mc.fontRenderer.drawStringWithShadow(text, 0.0F, 0.0F, color);
+        GlStateManager.popMatrix();
     }
 
     private ItemStack findDisplayedMonitor(Minecraft mc) {

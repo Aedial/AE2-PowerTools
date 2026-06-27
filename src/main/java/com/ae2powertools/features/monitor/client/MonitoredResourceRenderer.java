@@ -58,7 +58,7 @@ public final class MonitoredResourceRenderer {
 
         switch (type) {
             case ITEM:
-                if (stack instanceof IAEItemStack) renderItem((IAEItemStack) stack, x, y);
+                if (stack instanceof IAEItemStack) renderItem((IAEItemStack) stack, x, y, size);
                 break;
 
             case FLUID:
@@ -79,15 +79,26 @@ public final class MonitoredResourceRenderer {
 
     // ==================== Item rendering ====================
 
-    private static void renderItem(IAEItemStack aeStack, int x, int y) {
+    private static void renderItem(IAEItemStack aeStack, int x, int y, int size) {
         ItemStack is = aeStack.getDefinition();
         if (is.isEmpty()) return;
 
         Minecraft mc = Minecraft.getMinecraft();
+        float scale = size / 16.0F;
 
         GlStateManager.enableDepth();
         RenderHelper.enableGUIStandardItemLighting();
-        mc.getRenderItem().renderItemAndEffectIntoGUI(is, x, y);
+
+        if (scale == 1.0F) {
+            mc.getRenderItem().renderItemAndEffectIntoGUI(is, x, y);
+        } else {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(x, y, 0.0F);
+            GlStateManager.scale(scale, scale, 1.0F);
+            mc.getRenderItem().renderItemAndEffectIntoGUI(is, 0, 0);
+            GlStateManager.popMatrix();
+        }
+
         RenderHelper.disableStandardItemLighting();
         GlStateManager.disableDepth();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
