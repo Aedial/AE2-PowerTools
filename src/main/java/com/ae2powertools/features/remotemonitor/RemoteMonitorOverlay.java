@@ -2,6 +2,7 @@ package com.ae2powertools.features.remotemonitor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
@@ -62,16 +63,16 @@ public class RemoteMonitorOverlay {
 
         MonitoredResource[] configured = state.getResources();
         long[] deltas = state.getDeltas();
-        for (int slotIndex = 0; slotIndex < configured.length && slotIndex < deltas.length; slotIndex++) {
+        long[] currentQuantities = state.getCurrentQuantities();
+        int slotCount = Math.min(configured.length, Math.min(deltas.length, currentQuantities.length));
+        for (int slotIndex = 0; slotIndex < slotCount; slotIndex++) {
             MonitoredResource resource = configured[slotIndex];
             long delta = deltas[slotIndex];
             if (resource == null || delta == 0) continue;
 
             resources.add(resource);
-            lines.add(formatDelta(delta));
+            lines.add(formatDelta(delta, currentQuantities[slotIndex]));
             colors.add(delta > 0 ? config.getGainColor() : config.getLossColor());
-
-            // TODO: add the %total of the delta, as "+5k (10%)" for a resource that was at 50k before delta
         }
 
         if (lines.isEmpty()) return;
@@ -105,9 +106,29 @@ public class RemoteMonitorOverlay {
         return lastOverlayHeight;
     }
 
+    private String formatDelta(long delta, long currentQuantity) {
+        String deltaText = formatDelta(delta);
+
+        // The sync carries the post-poll quantity, so subtract the signed delta to recover the prior total.
+        double previousQuantity = currentQuantity - (double) delta;
+        if (previousQuantity <= 0.0D) previousQuantity = delta;  // 100% change if previous = 0
+
+        double percent = Math.abs((double) delta) * 100.0D / previousQuantity;
+        if (!Double.isFinite(percent) || percent <= 0.1D) return deltaText;
+
+        return deltaText + " (" + formatPercent(percent) + "%)";
+    }
+
     private String formatDelta(long delta) {
         String prefix = delta > 0 ? "+" : "-";
         return prefix + ReadableNumberConverter.INSTANCE.toWideReadableForm(Math.abs(delta));
+    }
+
+    private String formatPercent(double percent) {
+        String formattedPercent = String.format(Locale.US, "%.1f", percent);
+        if (formattedPercent.endsWith(".0")) return formattedPercent.substring(0, formattedPercent.length() - 2);
+
+        return formattedPercent;
     }
 
     private void drawScaledText(Minecraft mc, String text, int x, float y, int color, float scale) {

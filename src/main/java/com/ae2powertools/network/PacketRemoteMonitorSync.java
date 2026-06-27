@@ -13,7 +13,8 @@ import com.ae2powertools.features.remotemonitor.RemoteMonitorClientState;
 
 /**
  * Full state sync for a Remote Storage Monitor session.
- * Carries the selected resources, current polling rate, and latest per-slot deltas.
+ * Carries the selected resources, current polling rate, latest per-slot deltas,
+ * and the current per-slot quantities used to render percent-of-total changes.
  */
 public class PacketRemoteMonitorSync implements IMessage {
 
@@ -21,14 +22,17 @@ public class PacketRemoteMonitorSync implements IMessage {
     private int refreshRate;
     private MonitoredResource[] resources;
     private long[] deltas;
+    private long[] currentQuantities;
 
     public PacketRemoteMonitorSync() {}
 
-    public PacketRemoteMonitorSync(long deviceId, int refreshRate, MonitoredResource[] resources, long[] deltas) {
+    public PacketRemoteMonitorSync(long deviceId, int refreshRate, MonitoredResource[] resources, long[] deltas,
+            long[] currentQuantities) {
         this.deviceId = deviceId;
         this.refreshRate = refreshRate;
         this.resources = resources;
         this.deltas = deltas;
+        this.currentQuantities = currentQuantities;
     }
 
     @Override
@@ -39,9 +43,11 @@ public class PacketRemoteMonitorSync implements IMessage {
         int slotCount = buf.readInt();
         this.resources = new MonitoredResource[slotCount];
         this.deltas = new long[slotCount];
+        this.currentQuantities = new long[slotCount];
         for (int i = 0; i < slotCount; i++) {
             if (buf.readBoolean()) this.resources[i] = MonitoredResource.readFromBuf(buf);
             this.deltas[i] = buf.readLong();
+            this.currentQuantities[i] = buf.readLong();
         }
     }
 
@@ -56,6 +62,7 @@ public class PacketRemoteMonitorSync implements IMessage {
             buf.writeBoolean(resource != null);
             if (resource != null) resource.writeToBuf(buf);
             buf.writeLong(this.deltas[i]);
+            buf.writeLong(this.currentQuantities[i]);
         }
     }
 
@@ -68,7 +75,8 @@ public class PacketRemoteMonitorSync implements IMessage {
                     message.deviceId,
                     message.refreshRate,
                     message.resources,
-                    message.deltas));
+                    message.deltas,
+                    message.currentQuantities));
             return null;
         }
     }
