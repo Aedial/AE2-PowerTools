@@ -273,6 +273,28 @@ gui.ae2powertools.remote_monitor.polling_rate.tooltip=与%s前状态进行对比
 gui.ae2powertools.remote_monitor.polling_rate.description=设置用于衡量数量变化的时间跨度
 gui.ae2powertools.remote_monitor.selector.title=选择内容
 
+# Config
+ae2powertools.config.client.remoteMonitor=远程监控器
+ae2powertools.config.client.remoteMonitor.tooltip=远程存储监控器的叠加层设置
+ae2powertools.config.client.remoteMonitor.x=叠加层X位置
+ae2powertools.config.client.remoteMonitor.x.tooltip=远程监控器叠加层的水平屏幕位置
+ae2powertools.config.client.remoteMonitor.y=叠加层Y位置
+ae2powertools.config.client.remoteMonitor.y.tooltip=远程监控器叠加层的垂直屏幕位置
+ae2powertools.config.client.remoteMonitor.paddingInternal=内边距
+ae2powertools.config.client.remoteMonitor.paddingInternal.tooltip=叠加层边缘与其图标/文本内容之间的间距
+ae2powertools.config.client.remoteMonitor.lineSpacing=行间距
+ae2powertools.config.client.remoteMonitor.lineSpacing.tooltip=远程监控器条目之间的垂直间距
+ae2powertools.config.client.remoteMonitor.iconSize=图标大小
+ae2powertools.config.client.remoteMonitor.iconSize.tooltip=所监控资源图标的渲染大小。请保持为2的幂（8、16、32等），以避免图标模糊
+ae2powertools.config.client.remoteMonitor.iconTextGap=图标/文本间距
+ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=图标与增量文本之间的水平间距
+ae2powertools.config.client.remoteMonitor.textScalePercent=文本大小
+ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=远程监控器增量文本相对于正常HUD字体大小的百分比缩放
+ae2powertools.config.client.remoteMonitor.gainColor=正向颜色
+ae2powertools.config.client.remoteMonitor.gainColor.tooltip=用于正数量增量的文本颜色（十六进制）
+ae2powertools.config.client.remoteMonitor.lossColor=负向颜色
+ae2powertools.config.client.remoteMonitor.lossColor.tooltip=用于负数量增量的文本颜色（十六进制）
+
 # =====================================================
 # AE2 AutoCrafter
 # =====================================================
@@ -365,6 +387,7 @@ gui.ae2powertools.crafter.error.limited_by=受限于%s（分配%d，需要%d）
 gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
 gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂：%s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误：应当是%s，实际为%s
+jei.ae2powertools.reusable=可重复使用
 
 # =====================================================
 # Network Advanced Component Locator
@@ -460,16 +483,19 @@ gui.ae2powertools.storage_emitter.condition_not_met=条件未满足
 gui.ae2powertools.storage_emitter.select_content=资源
 gui.ae2powertools.storage_emitter.match_mode.click_toggle=点击切换“与/或”模式
 gui.ae2powertools.storage_emitter.redstone_signal=红石输出：%s
-gui.ae2powertools.storage_emitter.redstone_signal.weak=弱
-gui.ae2powertools.storage_emitter.redstone_signal.strong=强
-gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=点击切换弱/强输出
+gui.ae2powertools.storage_emitter.redstone_signal.weak=§b弱
+gui.ae2powertools.storage_emitter.redstone_signal.strong=§d强
+gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=点击切换弱/强输出。强输出信号会通过受影响的方块传播，而弱输出仅影响直接相邻的方块。
 gui.ae2powertools.storage_emitter.hysteresis=迟滞：%s
-gui.ae2powertools.storage_emitter.hysteresis.on=开
-gui.ae2powertools.storage_emitter.hysteresis.off=关
+gui.ae2powertools.storage_emitter.hysteresis.on=§a开
+gui.ae2powertools.storage_emitter.hysteresis.off=§c关
 gui.ae2powertools.storage_emitter.hysteresis.click_toggle=点击切换迟滞模式。迟滞可防止数量接近阈值时频繁切换状态。
 gui.ae2powertools.storage_emitter.polling_rate.title=轮询率
 gui.ae2powertools.storage_emitter.polling_rate.tooltip=轮询率：%s
 gui.ae2powertools.storage_emitter.polling_rate.description=点击配置存储内容的轮询频率。
+gui.ae2powertools.storage_emitter.strength=强度
+gui.ae2powertools.storage_emitter.strength.tooltip=红石强度
+gui.ae2powertools.storage_emitter.strength.description=红石强度指直接相邻方块接收到的初始强度。随后每传导一个红石粉，信号强度衰减1。
 gui.ae2powertools.storage_emitter.empty_slot=未选择资源
 gui.ae2powertools.storage_emitter.current_quantity=当前：%s
 gui.ae2powertools.storage_emitter.current_target=目标：%s %s (%s)
