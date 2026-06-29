@@ -130,7 +130,12 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
         if (session == null) return;
 
         PowerToolsNetwork.INSTANCE.sendTo(
-            new PacketRemoteMonitorSync(deviceId, session.getRefreshRate(), session.copyResources(), session.copyDeltas()),
+            new PacketRemoteMonitorSync(
+                deviceId,
+                session.getRefreshRate(),
+                session.copyResources(),
+                session.copyDeltas(),
+                session.copyCurrentQuantities()),
             player);
     }
 

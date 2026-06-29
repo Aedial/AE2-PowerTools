@@ -30,6 +30,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.util.ReadableNumberConverter;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.client.gui.VanillaButtonRenderer;
 import com.ae2powertools.features.crafter.pmt.PMTManager;
 import com.ae2powertools.features.crafter.pmt.PMTRenderer;
 import com.ae2powertools.features.crafter.pmt.PMTSlot;
@@ -607,42 +608,7 @@ public class GuiAutoCrafter extends GuiContainer {
      * Uses darker colors matching vanilla Minecraft button style.
      */
     private void drawSquareButton(int x, int y, int size, String text, boolean enabled, boolean hovered) {
-        // Vanilla-style button colors (darker, more muted)
-        int bgColor;
-        if (!enabled) {
-            bgColor = 0xFF606060; // Disabled: dark gray
-        } else if (hovered) {
-            bgColor = 0xFF7090B0; // Hovered: slightly brighter blue-gray
-        } else {
-            bgColor = 0xFF808080; // Normal: medium gray (vanilla button base)
-        }
-
-        // Draw button background
-        drawRect(x + 1, y + 1, x + size - 1, y + size - 1, bgColor);
-
-        // Draw beveled border (vanilla 3D style)
-        int borderLight = enabled ? 0xFFAAAAAA : 0xFF808080;  // Top/left highlight
-        int borderDark = enabled ? 0xFF404040 : 0xFF505050;   // Bottom/right shadow
-        int borderOuter = 0xFF000000;  // Outer edge
-
-        // Outer black border
-        drawHorizontalLine(x, x + size - 1, y, borderOuter);
-        drawHorizontalLine(x, x + size - 1, y + size - 1, borderOuter);
-        drawVerticalLine(x, y, y + size - 1, borderOuter);
-        drawVerticalLine(x + size - 1, y, y + size - 1, borderOuter);
-
-        // Inner beveled edges (light top/left, dark bottom/right)
-        drawHorizontalLine(x + 1, x + size - 2, y + 1, borderLight);
-        drawVerticalLine(x + 1, y + 1, y + size - 2, borderLight);
-        drawHorizontalLine(x + 1, x + size - 2, y + size - 2, borderDark);
-        drawVerticalLine(x + size - 2, y + 1, y + size - 2, borderDark);
-
-        // Draw text centered with vanilla colors and shadow
-        int textColor = enabled ? (hovered ? 0xFFFFFFA0 : 0xFFE0E0E0) : 0xFFA0A0A0;
-        int textWidth = fontRenderer.getStringWidth(text);
-        int textX = x + (size - textWidth) / 2 + 1;
-        int textY = y + (size - fontRenderer.FONT_HEIGHT) / 2 + 1;
-        fontRenderer.drawStringWithShadow(text, textX, textY, textColor);
+        VanillaButtonRenderer.drawBeveledButton(fontRenderer, x, y, size, size, text, enabled, hovered);
     }
 
     /**

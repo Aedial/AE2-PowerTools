@@ -106,6 +106,10 @@ public final class RemoteMonitorSessionManager {
             return Arrays.copyOf(this.deltas, this.deltas.length);
         }
 
+        public long[] copyCurrentQuantities() {
+            return Arrays.copyOf(this.baselineQuantities, this.baselineQuantities.length);
+        }
+
         @Nullable
         public MonitoredResource getResource(int slotIndex) {
             if (!isValidSlot(slotIndex)) return null;

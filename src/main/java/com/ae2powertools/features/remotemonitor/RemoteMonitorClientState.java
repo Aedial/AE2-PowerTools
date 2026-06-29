@@ -17,8 +17,8 @@ import com.ae2powertools.network.PowerToolsNetwork;
 
 /**
  * Client-side RAM mirror of Remote Storage Monitor sessions.
- * Stores the latest synced slot selections, polling rate, overlay deltas, and the
- * current selector contents per device ID.
+ * Stores the latest synced slot selections, polling rate, overlay deltas,
+ * current slot quantities, and the current selector contents per device ID.
  */
 @SideOnly(Side.CLIENT)
 public final class RemoteMonitorClientState {
@@ -28,6 +28,7 @@ public final class RemoteMonitorClientState {
         private int refreshRate = RemoteMonitorSessionManager.DEFAULT_REFRESH_RATE;
         private MonitoredResource[] resources = new MonitoredResource[RemoteMonitorSessionManager.SLOT_COUNT];
         private long[] deltas = new long[RemoteMonitorSessionManager.SLOT_COUNT];
+        private long[] currentQuantities = new long[RemoteMonitorSessionManager.SLOT_COUNT];
         private List<MonitoredResource> selectorResources = new ArrayList<>();
         private long lastSyncRequestTick = Long.MIN_VALUE;
 
@@ -43,14 +44,19 @@ public final class RemoteMonitorClientState {
             return this.deltas;
         }
 
+        public long[] getCurrentQuantities() {
+            return this.currentQuantities;
+        }
+
         public List<MonitoredResource> getSelectorResources() {
             return this.selectorResources;
         }
 
-        private void syncState(int refreshRate, MonitoredResource[] resources, long[] deltas) {
+        private void syncState(int refreshRate, MonitoredResource[] resources, long[] deltas, long[] currentQuantities) {
             this.refreshRate = refreshRate;
             this.resources = Arrays.copyOf(resources, resources.length);
             this.deltas = Arrays.copyOf(deltas, deltas.length);
+            this.currentQuantities = Arrays.copyOf(currentQuantities, currentQuantities.length);
         }
 
         private void setSelectorResources(List<MonitoredResource> selectorResources) {
@@ -95,8 +101,9 @@ public final class RemoteMonitorClientState {
         return DEVICE_STATES.containsKey(deviceId);
     }
 
-    public static void syncState(long deviceId, int refreshRate, MonitoredResource[] resources, long[] deltas) {
-        getOrCreateState(deviceId).syncState(refreshRate, resources, deltas);
+    public static void syncState(long deviceId, int refreshRate, MonitoredResource[] resources, long[] deltas,
+            long[] currentQuantities) {
+        getOrCreateState(deviceId).syncState(refreshRate, resources, deltas, currentQuantities);
     }
 
     public static void requestSyncIfNeeded(long deviceId, boolean forceSync) {

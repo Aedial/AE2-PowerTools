@@ -1,0 +1,5 @@
+{
+    "recipes": {
+        "shapeless_reusable": "com.ae2powertools.recipes.ShapelessReusableIngredientRecipeFactory"
+    }
+}

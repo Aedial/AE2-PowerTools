@@ -12,8 +12,8 @@ import appeng.container.guisync.GuiSync;
 import appeng.util.Platform;
 
 import com.ae2powertools.features.monitor.MonitoredEntry;
-import com.ae2powertools.features.monitor.emitter.EmitterRedstoneStrength;
-import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneStrengthHost;
+import com.ae2powertools.features.monitor.emitter.EmitterRedstonePower;
+import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 import com.ae2powertools.network.PacketStorageEntryStateSync;
 import com.ae2powertools.network.PacketSyncMonitorEntries;
 import com.ae2powertools.network.PowerToolsNetwork;
@@ -53,6 +53,9 @@ public class ContainerStorageMonitor extends AEBaseContainer {
 
     @GuiSync(6)
     public int playerRegistered;
+
+    @GuiSync(7)
+    public int emitterStrength;
 
     // --- Cached per-entry state for change detection (server-side only) ---
     /** Cached quantities for each entry, used to detect changes worth syncing to the client. */
@@ -192,9 +195,12 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         this.matchMode = host.getMatchMode().ordinal();
         this.conditionMet = host.isConditionMet() ? 1 : 0;
         this.firstEntryQuantity = host.getFirstEntryQuantity();
-        this.emitterRedstoneSignalStrength = supportsEmitterRedstoneStrength()
-            ? ((IEmitterRedstoneStrengthHost) host).getRedstoneSignalStrength().getId()
-            : EmitterRedstoneStrength.WEAK.getId();
+        this.emitterRedstoneSignalStrength = supportsEmitterRedstone()
+            ? ((IEmitterRedstoneHost) host).getRedstonePower().getId()
+            : EmitterRedstonePower.WEAK.getId();
+        this.emitterStrength = supportsEmitterRedstone()
+            ? ((IEmitterRedstoneHost) host).getRedstoneStrength()
+            : IEmitterRedstoneHost.DEFAULT_REDSTONE_STRENGTH;
         this.hysteresisEnabled = host.isHysteresisEnabled() ? 1 : 0;
         this.playerRegistered = supportsPlayerRegistration() && host.isPlayerRegistered(viewer) ? 1 : 0;
     }
@@ -220,8 +226,14 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         return firstEntryQuantity;
     }
 
-    public EmitterRedstoneStrength getSyncEmitterRedstoneSignalStrength() {
-        return EmitterRedstoneStrength.fromId(emitterRedstoneSignalStrength);
+    public EmitterRedstonePower getSyncEmitterRedstonePower() {
+        return EmitterRedstonePower.fromId(emitterRedstoneSignalStrength);
+    }
+
+    public int getSyncEmitterStrength() {
+        return Math.max(
+            IEmitterRedstoneHost.MIN_REDSTONE_STRENGTH,
+            Math.min(IEmitterRedstoneHost.MAX_REDSTONE_STRENGTH, emitterStrength));
     }
 
     public boolean isSyncHysteresisEnabled() {
@@ -240,8 +252,8 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         return host.getHostType();
     }
 
-    public boolean supportsEmitterRedstoneStrength() {
-        return host.getHostType() == MonitorHostType.EMITTER && host instanceof IEmitterRedstoneStrengthHost;
+    public boolean supportsEmitterRedstone() {
+        return host.getHostType() == MonitorHostType.EMITTER && host instanceof IEmitterRedstoneHost;
     }
 
     public boolean supportsMatchMode() {

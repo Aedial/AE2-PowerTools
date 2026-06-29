@@ -80,11 +80,11 @@ gui.ae2powertools.scanner.chunk_entry=Chunk [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d channels
 gui.ae2powertools.scanner.loops_info=Note: Loops are not necessarily a problem unless the network is misbehaving and other causes have been ruled out. Nonetheless, try to avoid causing loops if possible.
 gui.ae2powertools.scanner.pattern.invalid.title=Invalid crafting recipes
-gui.ae2powertools.scanner.pattern.invalid.tooltip=Crafting patterns stored in providers that no longer resolve to a valid crafting recipe. This usually happens after recipe or mod changes.
+gui.ae2powertools.scanner.pattern.invalid.tooltip=Crafting patterns that no longer resolve to a valid crafting recipe. This usually happens after recipe or mod changes.
 gui.ae2powertools.scanner.pattern.conflicting_outputs.title=Conflicting outputs
-gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=Different pattern identities expose the same output set. AE2 may pick between them during tree building, which can lead to unstable or unintended recipe paths.
+gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=Different patterns exposing the same outputs. AE2 may pick between them during tree building, leading to unstable or unintended recipe paths.
 gui.ae2powertools.scanner.pattern.nested_input_output.title=Nested input/output
-gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=A pattern has the same item in both its inputs and outputs. These self-nesting recipes will fail during AE2 crafting tree construction.
+gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=Patterns that have the same item in both inputs and outputs. These self-nesting recipes will fail during AE2 crafting tree construction.
 gui.ae2powertools.scanner.pattern.unknown_output=Unknown output
 gui.ae2powertools.scanner.pattern.more_outputs=+%d more
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.title=Duplicate storage bus targets
@@ -273,6 +273,28 @@ gui.ae2powertools.remote_monitor.polling_rate.tooltip=Compare against the last %
 gui.ae2powertools.remote_monitor.polling_rate.description=Set the time span used to measure quantity changes
 gui.ae2powertools.remote_monitor.selector.title=Select Content
 
+# Config
+ae2powertools.config.client.remoteMonitor=Remote Monitor
+ae2powertools.config.client.remoteMonitor.tooltip=Remote Storage Monitor overlay settings
+ae2powertools.config.client.remoteMonitor.x=Overlay X position
+ae2powertools.config.client.remoteMonitor.x.tooltip=Horizontal screen position of the remote monitor overlay
+ae2powertools.config.client.remoteMonitor.y=Overlay Y position
+ae2powertools.config.client.remoteMonitor.y.tooltip=Vertical screen position of the remote monitor overlay
+ae2powertools.config.client.remoteMonitor.paddingInternal=Inner padding
+ae2powertools.config.client.remoteMonitor.paddingInternal.tooltip=Padding between the overlay edge and its icon/text content
+ae2powertools.config.client.remoteMonitor.lineSpacing=Line spacing
+ae2powertools.config.client.remoteMonitor.lineSpacing.tooltip=Vertical space between remote monitor entries
+ae2powertools.config.client.remoteMonitor.iconSize=Icon size
+ae2powertools.config.client.remoteMonitor.iconSize.tooltip=Rendered size of monitored resource icons. Keep it a power of two (8, 16, 32, etc.) to avoid blurry icons
+ae2powertools.config.client.remoteMonitor.iconTextGap=Icon/text gap
+ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=Horizontal space between the icon and delta text
+ae2powertools.config.client.remoteMonitor.textScalePercent=Text size
+ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=Percentage scale for remote monitor delta text relative to the normal HUD font size
+ae2powertools.config.client.remoteMonitor.gainColor=Gain color
+ae2powertools.config.client.remoteMonitor.gainColor.tooltip=Text color (hex) used for positive quantity deltas
+ae2powertools.config.client.remoteMonitor.lossColor=Loss color
+ae2powertools.config.client.remoteMonitor.lossColor.tooltip=Text color (hex) used for negative quantity deltas
+
 # =====================================================
 # AE2 AutoCrafter
 # =====================================================
@@ -365,6 +387,7 @@ gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
 gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d: %s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
+jei.ae2powertools.reusable=Reusable
 
 # =====================================================
 # Network Advanced Component Locator
@@ -461,16 +484,19 @@ gui.ae2powertools.storage_emitter.condition_not_met=Condition Not Met
 gui.ae2powertools.storage_emitter.select_content=Resource
 gui.ae2powertools.storage_emitter.match_mode.click_toggle=Click to toggle AND/OR
 gui.ae2powertools.storage_emitter.redstone_signal=Redstone output: %s
-gui.ae2powertools.storage_emitter.redstone_signal.weak=Weak
-gui.ae2powertools.storage_emitter.redstone_signal.strong=Strong
-gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=Click to toggle weak/strong output
+gui.ae2powertools.storage_emitter.redstone_signal.weak=§bWeak
+gui.ae2powertools.storage_emitter.redstone_signal.strong=§dStrong
+gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=Click to toggle weak/strong output. Strong output spreads through the affected block(s), while weak output only affects the directly adjacent block(s).
 gui.ae2powertools.storage_emitter.hysteresis=Hysteresis: %s
-gui.ae2powertools.storage_emitter.hysteresis.on=On
-gui.ae2powertools.storage_emitter.hysteresis.off=Off
+gui.ae2powertools.storage_emitter.hysteresis.on=§aOn
+gui.ae2powertools.storage_emitter.hysteresis.off=§cOff
 gui.ae2powertools.storage_emitter.hysteresis.click_toggle=Click to toggle hysteresis. Hysteresis prevents rapid toggling when quantity is near the threshold.
 gui.ae2powertools.storage_emitter.polling_rate.title=Polling Rate
 gui.ae2powertools.storage_emitter.polling_rate.tooltip=Polling Rate: %s
 gui.ae2powertools.storage_emitter.polling_rate.description=Click to configure how often the storage is polled.
+gui.ae2powertools.storage_emitter.strength=Strength
+gui.ae2powertools.storage_emitter.strength.tooltip=Redstone Strength
+gui.ae2powertools.storage_emitter.strength.description=Redstone Strength is the starting strength that the directly adjacent block receives. The signal then decays by 1 for each redstone dust it travels through.
 gui.ae2powertools.storage_emitter.empty_slot=No resource selected
 gui.ae2powertools.storage_emitter.current_quantity=Current: %s
 gui.ae2powertools.storage_emitter.current_target=Target: %s %s (%s)
