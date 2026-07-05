@@ -8,13 +8,22 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.5] - 2026-07-15
+### Added
+- Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
+
+
+## [1.6.4] - 2026-07-05
+### Fixed
+- Fix crash on server load due to client-only code not being properly annotated as client-only.
+
+
 ## [1.6.3] - 2026-07-05
 ### Fixed
 - Fix large GUI-synced numeric values being truncated above 32k in the AutoCrafter and Storage Monitor screens by syncing susceptible counters as long instead of int.
 
 ### Added
 - Add configurable 1-15 redstone strength controls to the Storage Level Emitter GUI.
-- Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 - Add Remote Storage Monitor, a bauble/held item that shows the quantity variation of configured content in the network as an overlay on the screen, over a set period of time.
 - Add client config for the Remote Storage Monitor overlay visuals.
 - Add Storage Level Alarm, a block that tracks the quantity of a configured content in the network and send a continuous warning to any player that registered to it when any content goes below the configured threshold.

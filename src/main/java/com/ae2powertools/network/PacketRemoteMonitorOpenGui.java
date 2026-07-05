@@ -6,6 +6,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.features.remotemonitor.GuiRemoteMonitor;
 import com.ae2powertools.features.remotemonitor.RemoteMonitorClientState;
@@ -37,12 +39,17 @@ public class PacketRemoteMonitorOpenGui implements IMessage {
     public static class Handler implements IMessageHandler<PacketRemoteMonitorOpenGui, IMessage> {
 
         @Override
+        @SideOnly(Side.CLIENT)
         public IMessage onMessage(PacketRemoteMonitorOpenGui message, MessageContext ctx) {
-            Minecraft.getMinecraft().addScheduledTask(() -> {
-                RemoteMonitorClientState.setActiveDeviceId(message.deviceId);
-                Minecraft.getMinecraft().displayGuiScreen(new GuiRemoteMonitor(message.deviceId));
-            });
+            Minecraft.getMinecraft().addScheduledTask(() -> handleClient(message));
+
             return null;
+        }
+
+        @SideOnly(Side.CLIENT)
+        private static void handleClient(PacketRemoteMonitorOpenGui message) {
+            RemoteMonitorClientState.setActiveDeviceId(message.deviceId);
+            Minecraft.getMinecraft().displayGuiScreen(new GuiRemoteMonitor(message.deviceId));
         }
     }
 }

@@ -9,6 +9,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.remotemonitor.GuiRemoteMonitor;
@@ -50,12 +52,17 @@ public class PacketRemoteMonitorContentsSync implements IMessage {
     public static class Handler implements IMessageHandler<PacketRemoteMonitorContentsSync, IMessage> {
 
         @Override
+        @SideOnly(Side.CLIENT)
         public IMessage onMessage(PacketRemoteMonitorContentsSync message, MessageContext ctx) {
-            Minecraft.getMinecraft().addScheduledTask(() -> {
-                RemoteMonitorClientState.setSelectorResources(message.deviceId, message.resources);
-                GuiRemoteMonitor.receiveSelectorResources(message.deviceId, message.resources);
-            });
+            Minecraft.getMinecraft().addScheduledTask(() -> handleClient(message));
+
             return null;
+        }
+
+        @SideOnly(Side.CLIENT)
+        private static void handleClient(PacketRemoteMonitorContentsSync message) {
+            RemoteMonitorClientState.setSelectorResources(message.deviceId, message.resources);
+            GuiRemoteMonitor.receiveSelectorResources(message.deviceId, message.resources);
         }
     }
 }
