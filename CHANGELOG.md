@@ -8,7 +8,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.6.3] - 2026-06-30
+## [1.6.3] - 2026-07-05
 ### Fixed
 - Fix large GUI-synced numeric values being truncated above 32k in the AutoCrafter and Storage Monitor screens by syncing susceptible counters as long instead of int.
 

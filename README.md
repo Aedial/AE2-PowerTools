@@ -190,4 +190,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Textures
 Priority Tuner, Network Health Scanner: SangreBK
-Storage Level Emitter block, Storage Display block: @NerdySpider
+Storage Level Emitter block, Storage Display block, Remote Storage Monitor item, Storage Level Alarm block, Storage Level Alarm Locator item: @NerdySpider
