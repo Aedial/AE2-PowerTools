@@ -2,6 +2,8 @@ package com.ae2powertools.features.monitor.emitter;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.block.properties.PropertyBool;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -21,8 +23,43 @@ public class BlockStorageLevelEmitter extends BlockStorageMonitorBase {
 
     public static final String NAME = "storage_level_emitter";
 
+    /**
+     * Block property for the state (off/on).
+     * This determines which model variant to render.
+     */
+    public static final PropertyBool STATE = PropertyBool.create("state");
+
     public BlockStorageLevelEmitter() {
         super(NAME);
+
+        setDefaultState(blockState.getBaseState().withProperty(STATE, true));
+    }
+
+    @Override
+    protected BlockStateContainer createBlockState() {
+        return new BlockStateContainer(this, STATE);
+    }
+
+    @Override
+    public int getMetaFromState(IBlockState state) {
+        // State is stored in TileEntity, not in metadata
+        return 0;
+    }
+
+    @Override
+    public IBlockState getStateFromMeta(int meta) {
+        return getDefaultState();
+    }
+
+    @Override
+    public IBlockState getActualState(IBlockState state, IBlockAccess world, BlockPos pos) {
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TileStorageLevelEmitter) {
+            boolean isOn = ((TileStorageLevelEmitter) te).isOn();
+            return state.withProperty(STATE, isOn);
+        }
+
+        return state;
     }
 
     @Override

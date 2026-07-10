@@ -21,7 +21,7 @@ public class ContainerStorageMonitorPollingRate extends AEBaseContainer {
     private final IStorageMonitorHost host;
 
     @GuiSync(0)
-    public int refreshRate;
+    public long refreshRate;
 
     public ContainerStorageMonitorPollingRate(InventoryPlayer playerInv, IStorageMonitorHost host) {
         super(playerInv, host);

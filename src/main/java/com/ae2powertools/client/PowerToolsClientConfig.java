@@ -26,6 +26,9 @@ public class PowerToolsClientConfig {
     @Config.LangKey("ae2powertools.config.client.monitor")
     public static final Monitor monitor = new Monitor();
 
+    @Config.LangKey("ae2powertools.config.client.remoteMonitor")
+    public static final RemoteMonitor remoteMonitor = new RemoteMonitor();
+
     @Config.LangKey("ae2powertools.config.client.locator")
     public static final Locator locator = new Locator();
 
@@ -72,6 +75,7 @@ public class PowerToolsClientConfig {
         public int sortModeChokepoints = 0;
         public int sortModeMissing = 0;
         public int sortModeFatal = 0;
+        public int sortModePatterns = 0;
 
         public int getSortMode(int tabOrdinal) {
             switch (tabOrdinal) {
@@ -80,6 +84,7 @@ public class PowerToolsClientConfig {
                 case 2: return sortModeChokepoints;
                 case 3: return sortModeMissing;
                 case 4: return sortModeFatal;
+                case 5: return sortModePatterns;
                 default: return 0;
             }
         }
@@ -91,6 +96,7 @@ public class PowerToolsClientConfig {
                 case 2: if (sortModeChokepoints == value) return; sortModeChokepoints = value; break;
                 case 3: if (sortModeMissing == value) return; sortModeMissing = value; break;
                 case 4: if (sortModeFatal == value) return; sortModeFatal = value; break;
+                case 5: if (sortModePatterns == value) return; sortModePatterns = value; break;
                 default: return;
             }
 
@@ -115,6 +121,90 @@ public class PowerToolsClientConfig {
         }
     }
 
+    public static class RemoteMonitor {
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.x")
+        @Config.RangeInt(min = 0, max = 4096)
+        public int x = 5;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.y")
+        @Config.RangeInt(min = 0, max = 4096)
+        public int y = 5;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.paddingInternal")
+        @Config.RangeInt(min = 0, max = 64)
+        public int paddingInternal = 4;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.lineSpacing")
+        @Config.RangeInt(min = 0, max = 32)
+        public int lineSpacing = 2;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.iconSize")
+        @Config.RangeInt(min = 8, max = 64)
+        public int iconSize = 16;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.iconTextGap")
+        @Config.RangeInt(min = 0, max = 32)
+        public int iconTextGap = 4;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.textScalePercent")
+        @Config.RangeInt(min = 10, max = 1000)
+        public int textScalePercent = 100;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.gainColor")
+        @Config.Comment("Text color (hex) for positive deltas. Accepts RRGGBB or AARRGGBB.")
+        public String gainColor = "66FF66";
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.lossColor")
+        @Config.Comment("Text color (hex) for negative deltas. Accepts RRGGBB or AARRGGBB.")
+        public String lossColor = "FF6666";
+
+        private transient int parsedGainColor = 0x66FF66;
+        private transient int parsedLossColor = 0xFF6666;
+
+        public int getX() {
+            return x;
+        }
+
+        public int getY() {
+            return y;
+        }
+
+        public int getPaddingInternal() {
+            return paddingInternal;
+        }
+
+        public int getLineSpacing() {
+            return lineSpacing;
+        }
+
+        public int getIconSize() {
+            return iconSize;
+        }
+
+        public int getIconTextGap() {
+            return iconTextGap;
+        }
+
+        public float getTextScale() {
+            return textScalePercent / 100.0f;
+        }
+
+        public int getGainColor() {
+            parsedGainColor = parseArgb(gainColor, parsedGainColor);
+            return parsedGainColor;
+        }
+
+        public int getLossColor() {
+            parsedLossColor = parseArgb(lossColor, parsedLossColor);
+            return parsedLossColor;
+        }
+
+        public void reParseColors() {
+            parsedGainColor = parseArgb(gainColor, 0x66FF66);
+            parsedLossColor = parseArgb(lossColor, 0xFF6666);
+        }
+    }
+
     @Mod.EventBusSubscriber(modid = Tags.MODID, value = Side.CLIENT)
     public static class ConfigSyncHandler {
         @SubscribeEvent
@@ -122,6 +212,7 @@ public class PowerToolsClientConfig {
             if (event.getModID().equals(Tags.MODID)) {
                 ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
                 monitor.reParseColors();
+                remoteMonitor.reParseColors();
             }
         }
     }
@@ -148,10 +239,12 @@ public class PowerToolsClientConfig {
         private transient int parsedColorBelow = 0xFFCCCC00;
 
         public int getColorAbove() {
+            parsedColorAbove = parseArgb(displayColorAbove, parsedColorAbove);
             return parsedColorAbove;
         }
 
         public int getColorBelow() {
+            parsedColorBelow = parseArgb(displayColorBelow, parsedColorBelow);
             return parsedColorBelow;
         }
 
@@ -162,21 +255,6 @@ public class PowerToolsClientConfig {
         public void reParseColors() {
             parsedColorAbove = parseArgb(displayColorAbove, 0xFF00CC00);
             parsedColorBelow = parseArgb(displayColorBelow, 0xFFCCCC00);
-        }
-
-        private static int parseArgb(String hex, int fallback) {
-            if (hex == null || hex.isEmpty()) return fallback;
-
-            // Strip leading # or 0x if present
-            String clean = hex.startsWith("#") ? hex.substring(1)
-                         : hex.startsWith("0x") || hex.startsWith("0X") ? hex.substring(2)
-                         : hex;
-
-            try {
-                return (int) Long.parseLong(clean, 16);
-            } catch (NumberFormatException e) {
-                return fallback;
-            }
         }
     }
 
@@ -193,6 +271,21 @@ public class PowerToolsClientConfig {
 
             useTallView = value;
             ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
+        }
+    }
+
+    private static int parseArgb(String hex, int fallback) {
+        if (hex == null || hex.isEmpty()) return fallback;
+
+        // Strip leading # or 0x if present
+        String clean = hex.startsWith("#") ? hex.substring(1)
+                     : hex.startsWith("0x") || hex.startsWith("0X") ? hex.substring(2)
+                     : hex;
+
+        try {
+            return (int) Long.parseLong(clean, 16);
+        } catch (NumberFormatException e) {
+            return fallback;
         }
     }
 }

@@ -1,0 +1,50 @@
+{
+    "conditions": [
+        {
+            "type": "minecraft:item_exists",
+            "item": "ae2powertools:level_monitor_alarm"
+        },
+        {
+            "type": "minecraft:item_exists",
+            "item": "ae2powertools:storage_level_emitter"
+        },
+        {
+            "type": "appliedenergistics2:material_exists",
+            "material": "material.fluix_pearl"
+        },
+        {
+            "type": "appliedenergistics2:material_exists",
+            "material": "material.calculation_processor"
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:level_monitor_alarm"
+    },
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "ipi",
+        "cec",
+        "ifi"
+    ],
+    "key": {
+        "c": {
+            "item": "appliedenergistics2:material",
+            "data": 23
+        },
+        "e": {
+            "item": "ae2powertools:storage_level_emitter"
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 9
+        },
+        "i": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "p": {
+            "type": "forge:ore_dict",
+            "ore": "itemIlluminatedPanel"
+        }
+    }
+}

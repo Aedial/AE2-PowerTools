@@ -33,6 +33,7 @@ public class PowerToolsNetwork {
         // Scanner packets
         INSTANCE.registerMessage(PacketScannerSync.Handler.class, PacketScannerSync.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketScannerCancel.Handler.class, PacketScannerCancel.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketScannerToggleSubnet.Handler.class, PacketScannerToggleSubnet.class, packetId++, Side.SERVER);
 
         // Locator packets
         INSTANCE.registerMessage(PacketLocatorSync.Handler.class, PacketLocatorSync.class, packetId++, Side.CLIENT);
@@ -69,10 +70,22 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketRemoveMonitorEntry.Handler.class, PacketRemoveMonitorEntry.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetMatchMode.Handler.class, PacketSetMatchMode.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetHysteresisMode.Handler.class, PacketSetHysteresisMode.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetEmitterRedstonePower.Handler.class, PacketSetEmitterRedstonePower.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetEmitterRedstoneStrength.Handler.class, PacketSetEmitterRedstoneStrength.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketToggleAlarmRegistration.Handler.class, PacketToggleAlarmRegistration.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSyncLevelMonitorAlarms.Handler.class, PacketSyncLevelMonitorAlarms.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketStorageEntryStateSync.Handler.class, PacketStorageEntryStateSync.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketSyncMonitorEntries.Handler.class, PacketSyncMonitorEntries.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketOpenStorageMonitorPollingRate.Handler.class, PacketOpenStorageMonitorPollingRate.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketReturnToStorageMonitorGui.Handler.class, PacketReturnToStorageMonitorGui.class, packetId++, Side.SERVER);
+
+        // Remote Storage Monitor packets
+        INSTANCE.registerMessage(PacketRemoteMonitorOpenGui.Handler.class, PacketRemoteMonitorOpenGui.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketRemoteMonitorSync.Handler.class, PacketRemoteMonitorSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketRemoteMonitorContentsSync.Handler.class, PacketRemoteMonitorContentsSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketRemoteMonitorRequestContents.Handler.class, PacketRemoteMonitorRequestContents.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRemoteMonitorRequestSync.Handler.class, PacketRemoteMonitorRequestSync.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRemoteMonitorSelectSlot.Handler.class, PacketRemoteMonitorSelectSlot.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRemoteMonitorSetRefreshRate.Handler.class, PacketRemoteMonitorSetRefreshRate.class, packetId++, Side.SERVER);
     }
 }

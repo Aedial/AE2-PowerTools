@@ -75,9 +75,18 @@ gui.ae2powertools.scanner.tab_chunks=未常加载区块（%d）
 gui.ae2powertools.scanner.tab_chokepoints=阻塞点（%d）
 gui.ae2powertools.scanner.tab_missing=缺失频道（%d）
 gui.ae2powertools.scanner.tab_fatal=致命错误（%d）
+gui.ae2powertools.scanner.tab_patterns=样板（%d）
 gui.ae2powertools.scanner.chunk_entry=区块 [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d 频道
 gui.ae2powertools.scanner.loops_info=注意：除非网络行为异常且已排除其他原因，否则环路不一定是问题。尽管如此，还是要尽量避免造成环路。
+gui.ae2powertools.scanner.pattern.invalid.title=无效的合成样板
+gui.ae2powertools.scanner.pattern.invalid.tooltip=合成样板不再能解析为有效的合成配方。通常发生在配方或模组变更之后。
+gui.ae2powertools.scanner.pattern.conflicting_outputs.title=输出冲突
+gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=不同的样板输出了相同的结果。AE2在构建合成树时可能会在这些样板之间随机选择，从而导致不稳定或预期外的配方路径。
+gui.ae2powertools.scanner.pattern.nested_input_output.title=输入/输出嵌套
+gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=样板的输入和输出中包含了相同的物品。这类自嵌套配方会在AE2合成树构建时失败。
+gui.ae2powertools.scanner.pattern.unknown_output=未知输出
+gui.ae2powertools.scanner.pattern.more_outputs=+%d 更多
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.title=重复的存储总线目标
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.tooltip=两个或更多存储总线指向同一个目标方块。这会导致目标容器被重复计算，并报告错误的数量。
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.entry=%1$s -> 共享目标
@@ -87,6 +96,11 @@ gui.ae2powertools.scanner.fatal.same_network_interface_link.entry=%1$s -> 同网
 gui.ae2powertools.scanner.sort_distance=距离
 gui.ae2powertools.scanner.sort_name=名称
 gui.ae2powertools.scanner.sort_tooltip=排序方式：%s
+gui.ae2powertools.scanner.subnet.title=子网络扫描
+gui.ae2powertools.scanner.subnet.enabled=已启用（包括子网络）
+gui.ae2powertools.scanner.subnet.disabled=已禁用（仅已扫描网络）
+gui.ae2powertools.scanner.subnet.click_toggle=点击切换
+gui.ae2powertools.scanner.subnet.hint=重新扫描网络以应用设置
 
 # Scanner Status Messages
 ae2powertools.scanner.session_started=开始网络扫描……
@@ -119,6 +133,7 @@ ae2powertools.scanner.complete.summary.line2=- 找到了%d个未常加载区块
 ae2powertools.scanner.complete.summary.line3=- 找到了%d个阻塞点
 ae2powertools.scanner.complete.summary.line4=- 找到了%d台缺失频道的设备
 ae2powertools.scanner.complete.summary.line5=- 找到了%d个致命错误
+ae2powertools.scanner.complete.summary.line6=- 找到了%d个样板问题
 
 # =====================================================
 # Better Level Maintainer
@@ -128,6 +143,7 @@ ae2powertools.scanner.complete.summary.line5=- 找到了%d个致命错误
 tile.ae2powertools.better_level_maintainer.name=更好的缓存指令器
 tile.ae2powertools.better_level_maintainer.tooltip=自动合成指定物品，以维持网络中目标物品的数量。
 tile.ae2powertools.better_level_maintainer.warning=警告：如果放置在大型网络，或用于复杂配方，该方块可能导致显著的服务器卡顿。请在小型的子网络中使用，并搭配简单配方。
+tile.ae2powertools.better_level_maintainer.memory_card.tooltip=缓存目标
 
 # Config
 ae2powertools.config.client.maintainer=缓存指令器
@@ -239,6 +255,47 @@ item.ae2powertools.cards_distributor.all_full=网络中的所有装配室都已�
 item.ae2powertools.cards_distributor.pulled_from_ae2=从AE2网络存储中取出了%d张卡片。
 
 # =====================================================
+# Remote Storage Monitor
+# =====================================================
+
+# Items
+item.ae2powertools.remote_storage_monitor.name=远程存储监控器
+item.ae2powertools.remote_storage_monitor.tip1=右击打开远程监控器
+item.ae2powertools.remote_storage_monitor.tip2=手持或装备时，以叠加层形式显示数量变化
+
+# GUI
+gui.ae2powertools.remote_monitor.title=远程存储监控器
+gui.ae2powertools.remote_monitor.empty_slot=空槽位
+gui.ae2powertools.remote_monitor.slot_left_click=左键点击选择内容
+gui.ae2powertools.remote_monitor.slot_right_click=右键点击清除
+gui.ae2powertools.remote_monitor.polling_rate.title=轮询率
+gui.ae2powertools.remote_monitor.polling_rate.tooltip=与%s前状态进行对比
+gui.ae2powertools.remote_monitor.polling_rate.description=设置用于衡量数量变化的时间跨度
+gui.ae2powertools.remote_monitor.selector.title=选择内容
+
+# Config
+ae2powertools.config.client.remoteMonitor=远程监控器
+ae2powertools.config.client.remoteMonitor.tooltip=远程存储监控器的叠加层设置
+ae2powertools.config.client.remoteMonitor.x=叠加层X位置
+ae2powertools.config.client.remoteMonitor.x.tooltip=远程监控器叠加层的水平屏幕位置
+ae2powertools.config.client.remoteMonitor.y=叠加层Y位置
+ae2powertools.config.client.remoteMonitor.y.tooltip=远程监控器叠加层的垂直屏幕位置
+ae2powertools.config.client.remoteMonitor.paddingInternal=内边距
+ae2powertools.config.client.remoteMonitor.paddingInternal.tooltip=叠加层边缘与其图标/文本内容之间的间距
+ae2powertools.config.client.remoteMonitor.lineSpacing=行间距
+ae2powertools.config.client.remoteMonitor.lineSpacing.tooltip=远程监控器条目之间的垂直间距
+ae2powertools.config.client.remoteMonitor.iconSize=图标大小
+ae2powertools.config.client.remoteMonitor.iconSize.tooltip=所监控资源图标的渲染大小。请保持为2的幂（8、16、32等），以避免图标模糊
+ae2powertools.config.client.remoteMonitor.iconTextGap=图标/文本间距
+ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=图标与增量文本之间的水平间距
+ae2powertools.config.client.remoteMonitor.textScalePercent=文本大小
+ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=远程监控器增量文本相对于正常HUD字体大小的百分比缩放
+ae2powertools.config.client.remoteMonitor.gainColor=正向颜色
+ae2powertools.config.client.remoteMonitor.gainColor.tooltip=用于正数量增量的文本颜色（十六进制）
+ae2powertools.config.client.remoteMonitor.lossColor=负向颜色
+ae2powertools.config.client.remoteMonitor.lossColor.tooltip=用于负数量增量的文本颜色（十六进制）
+
+# =====================================================
 # AE2 AutoCrafter
 # =====================================================
 
@@ -330,6 +387,7 @@ gui.ae2powertools.crafter.error.limited_by=受限于%s（分配%d，需要%d）
 gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
 gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂：%s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误：应当是%s，实际为%s
+jei.ae2powertools.reusable=可重复使用
 
 # =====================================================
 # Network Advanced Component Locator
@@ -386,13 +444,24 @@ ae2powertools.config.client.locator.useTallView.tooltip=使用高视图（行数
 # Blocks
 tile.ae2powertools.storage_level_emitter.name=ME存储发信器
 tile.ae2powertools.storage_level_emitter.tooltip=根据监控物品的数量输出红石信号。
+tile.ae2powertools.storage_level_emitter.memory_card.tooltip=存储监控器过滤项
+
+tile.ae2powertools.level_monitor_alarm.name=发信警报器
+tile.ae2powertools.level_monitor_alarm.tooltip=当任意配置的警报条目触发时，向已注册的玩家发出警告。
+tile.ae2powertools.level_monitor_alarm.tooltip2=可通过内存卡接受来自任意更好的缓存指令器、AE2自动合成器、存储发信器或存储显示器的过滤项。
+tile.ae2powertools.level_monitor_alarm.memory_card.tooltip=警报器过滤项
 
 tile.ae2powertools.storage_display.name=ME存储显示器
 tile.ae2powertools.storage_display.tooltip=显示网络中监控物品的数量。
+tile.ae2powertools.storage_display.memory_card.tooltip=存储显示器过滤项
 
 # Items
 item.ae2powertools.storage_level_emitter_part.name=ME存储发信器
 item.ae2powertools.storage_display_part.name=ME存储显示器
+item.ae2powertools.storage_display_part_smaller.name=ME存储显示器（小型）
+item.ae2powertools.storage_display_part_smallerer.name=ME存储显示器（超小型）
+item.ae2powertools.level_monitor_alarm_locator.name=发信警报器定位器
+item.ae2powertools.level_monitor_alarm_locator.tip1=手持该物品时，渲染指向活动中警报位置的箭头。
 
 # Config
 ae2powertools.config.client.monitor=存储监控
@@ -414,16 +483,19 @@ gui.ae2powertools.storage_emitter.condition_not_met=条件未满足
 gui.ae2powertools.storage_emitter.select_content=资源
 gui.ae2powertools.storage_emitter.match_mode.click_toggle=点击切换“与/或”模式
 gui.ae2powertools.storage_emitter.redstone_signal=红石输出：%s
-gui.ae2powertools.storage_emitter.redstone_signal.weak=弱
-gui.ae2powertools.storage_emitter.redstone_signal.strong=强
-gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=点击切换弱/强输出
+gui.ae2powertools.storage_emitter.redstone_signal.weak=§b弱
+gui.ae2powertools.storage_emitter.redstone_signal.strong=§d强
+gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=点击切换弱/强输出。强输出信号会通过受影响的方块传播，而弱输出仅影响直接相邻的方块。
 gui.ae2powertools.storage_emitter.hysteresis=迟滞：%s
-gui.ae2powertools.storage_emitter.hysteresis.on=开
-gui.ae2powertools.storage_emitter.hysteresis.off=关
+gui.ae2powertools.storage_emitter.hysteresis.on=§a开
+gui.ae2powertools.storage_emitter.hysteresis.off=§c关
 gui.ae2powertools.storage_emitter.hysteresis.click_toggle=点击切换迟滞模式。迟滞可防止数量接近阈值时频繁切换状态。
 gui.ae2powertools.storage_emitter.polling_rate.title=轮询率
 gui.ae2powertools.storage_emitter.polling_rate.tooltip=轮询率：%s
 gui.ae2powertools.storage_emitter.polling_rate.description=点击配置存储内容的轮询频率。
+gui.ae2powertools.storage_emitter.strength=强度
+gui.ae2powertools.storage_emitter.strength.tooltip=红石强度
+gui.ae2powertools.storage_emitter.strength.description=红石强度指直接相邻方块接收到的初始强度。随后每传导一个红石粉，信号强度衰减1。
 gui.ae2powertools.storage_emitter.empty_slot=未选择资源
 gui.ae2powertools.storage_emitter.current_quantity=当前：%s
 gui.ae2powertools.storage_emitter.current_target=目标：%s %s (%s)
@@ -436,3 +508,9 @@ gui.ae2powertools.storage_emitter.decreasing_label=下降：
 gui.ae2powertools.storage_emitter.controls.title=控制
 gui.ae2powertools.storage_emitter.controls.scroll=Shift+滚轮：加倍/减半目标值
 gui.ae2powertools.storage_emitter.controls.toggle=右键点击：切换启用状态
+gui.ae2powertools.level_monitor_alarm.registration.registered=接收来自此警报器的警告
+gui.ae2powertools.level_monitor_alarm.registration.unregistered=不接收来自此警报器的警告
+gui.ae2powertools.level_monitor_alarm.registration.click_register=点击以注册接收警告
+gui.ae2powertools.level_monitor_alarm.registration.click_unregister=点击以停止接收警告
+gui.ae2powertools.level_monitor_alarm.overlay.single=警报器位置：%s
+gui.ae2powertools.level_monitor_alarm.overlay.multiple=警报器位置：%s

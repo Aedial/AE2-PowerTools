@@ -1,0 +1,21 @@
+{
+    "conditions": [
+        {
+            "type": "minecraft:item_exists",
+            "item": "ae2powertools:storage_display_part_smallerer"
+        },
+        {
+            "type": "minecraft:item_exists",
+            "item": "ae2powertools:storage_display"
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:storage_display"
+    },
+    "type": "forge:ore_shapeless",
+    "ingredients": [
+        {
+            "item": "ae2powertools:storage_display_part_smallerer"
+        }
+    ]
+}

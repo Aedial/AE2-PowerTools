@@ -11,13 +11,13 @@ public final class FormatUtil {
     /**
      * Formats a time in seconds as a human-readable string (e.g., "1h 30m 15s").
      */
-    public static String formatTime(int totalSeconds) {
+    public static String formatTime(long totalSeconds) {
         if (totalSeconds <= 0) return "0s";
 
-        int days = totalSeconds / 86400;
-        int hours = (totalSeconds % 86400) / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
-        int seconds = totalSeconds % 60;
+        long days = totalSeconds / 86400;
+        long hours = (totalSeconds % 86400) / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
 
         StringBuilder sb = new StringBuilder();
         if (days > 0) sb.append(days).append("d ");
@@ -32,7 +32,7 @@ public final class FormatUtil {
      * Formats a time in ticks as a human-readable string.
      * Assumes 20 ticks per second.
      */
-    public static String formatTimeTicks(int ticks) {
+    public static String formatTimeTicks(long ticks) {
         return formatTime(ticks / 20);
     }
 }

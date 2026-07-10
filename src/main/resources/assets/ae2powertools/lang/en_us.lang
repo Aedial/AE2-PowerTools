@@ -75,9 +75,18 @@ gui.ae2powertools.scanner.tab_chunks=Non-chunkloaded (%d)
 gui.ae2powertools.scanner.tab_chokepoints=Chokepoints (%d)
 gui.ae2powertools.scanner.tab_missing=Missing channels (%d)
 gui.ae2powertools.scanner.tab_fatal=Fatal errors (%d)
+gui.ae2powertools.scanner.tab_patterns=Patterns (%d)
 gui.ae2powertools.scanner.chunk_entry=Chunk [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d channels
 gui.ae2powertools.scanner.loops_info=Note: Loops are not necessarily a problem unless the network is misbehaving and other causes have been ruled out. Nonetheless, try to avoid causing loops if possible.
+gui.ae2powertools.scanner.pattern.invalid.title=Invalid crafting recipes
+gui.ae2powertools.scanner.pattern.invalid.tooltip=Crafting patterns that no longer resolve to a valid crafting recipe. This usually happens after recipe or mod changes.
+gui.ae2powertools.scanner.pattern.conflicting_outputs.title=Conflicting outputs
+gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=Different patterns exposing the same outputs. AE2 may pick between them during tree building, leading to unstable or unintended recipe paths.
+gui.ae2powertools.scanner.pattern.nested_input_output.title=Nested input/output
+gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=Patterns that have the same item in both inputs and outputs. These self-nesting recipes will fail during AE2 crafting tree construction.
+gui.ae2powertools.scanner.pattern.unknown_output=Unknown output
+gui.ae2powertools.scanner.pattern.more_outputs=+%d more
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.title=Duplicate storage bus targets
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.tooltip=Two or more storage buses point at the same target block. This double-counts the target inventory and can report incorrect quantities.
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.entry=%1$s -> shared target
@@ -87,6 +96,11 @@ gui.ae2powertools.scanner.fatal.same_network_interface_link.entry=%1$s -> same-n
 gui.ae2powertools.scanner.sort_distance=Distance
 gui.ae2powertools.scanner.sort_name=Name
 gui.ae2powertools.scanner.sort_tooltip=Sort by: %s
+gui.ae2powertools.scanner.subnet.title=Subnet Scanning
+gui.ae2powertools.scanner.subnet.enabled=Enabled (includes subnets)
+gui.ae2powertools.scanner.subnet.disabled=Disabled (scanned network only)
+gui.ae2powertools.scanner.subnet.click_toggle=Click to toggle
+gui.ae2powertools.scanner.subnet.hint=Rescan network to apply
 
 # Scanner Status Messages
 ae2powertools.scanner.session_started=Network scan started...
@@ -119,6 +133,7 @@ ae2powertools.scanner.complete.summary.line2=- Found %d non-chunkloaded chunk(s)
 ae2powertools.scanner.complete.summary.line3=- Found %d chokepoint(s)
 ae2powertools.scanner.complete.summary.line4=- Found %d device(s) without channels
 ae2powertools.scanner.complete.summary.line5=- Found %d fatal error(s)
+ae2powertools.scanner.complete.summary.line6=- Found %d pattern issue(s)
 
 # =====================================================
 # Better Level Maintainer
@@ -128,6 +143,7 @@ ae2powertools.scanner.complete.summary.line5=- Found %d fatal error(s)
 tile.ae2powertools.better_level_maintainer.name=Better Level Maintainer
 tile.ae2powertools.better_level_maintainer.tooltip=Automates crafting of specified items to maintain a target quantity in the network.
 tile.ae2powertools.better_level_maintainer.warning=Warning: This block can cause significant server lag if put on a large network/used with complex recipes. Use it on a small sub-network, with simple recipes.
+tile.ae2powertools.better_level_maintainer.memory_card.tooltip=Maintainer Targets
 
 # Config
 ae2powertools.config.client.maintainer=Maintainer
@@ -239,6 +255,47 @@ item.ae2powertools.cards_distributor.all_full=All assemblers on the network are 
 item.ae2powertools.cards_distributor.pulled_from_ae2=Pulled %d cards from AE2 network storage.
 
 # =====================================================
+# Remote Storage Monitor
+# =====================================================
+
+# Items
+item.ae2powertools.remote_storage_monitor.name=Remote Storage Monitor
+item.ae2powertools.remote_storage_monitor.tip1=Right-click to open the remote monitor
+item.ae2powertools.remote_storage_monitor.tip2=Hold or wear it to display quantity changes as an overlay
+
+# GUI
+gui.ae2powertools.remote_monitor.title=Remote Storage Monitor
+gui.ae2powertools.remote_monitor.empty_slot=Empty slot
+gui.ae2powertools.remote_monitor.slot_left_click=Left-click to select content
+gui.ae2powertools.remote_monitor.slot_right_click=Right-click to clear
+gui.ae2powertools.remote_monitor.polling_rate.title=Polling Rate
+gui.ae2powertools.remote_monitor.polling_rate.tooltip=Compare against the last %s
+gui.ae2powertools.remote_monitor.polling_rate.description=Set the time span used to measure quantity changes
+gui.ae2powertools.remote_monitor.selector.title=Select Content
+
+# Config
+ae2powertools.config.client.remoteMonitor=Remote Monitor
+ae2powertools.config.client.remoteMonitor.tooltip=Remote Storage Monitor overlay settings
+ae2powertools.config.client.remoteMonitor.x=Overlay X position
+ae2powertools.config.client.remoteMonitor.x.tooltip=Horizontal screen position of the remote monitor overlay
+ae2powertools.config.client.remoteMonitor.y=Overlay Y position
+ae2powertools.config.client.remoteMonitor.y.tooltip=Vertical screen position of the remote monitor overlay
+ae2powertools.config.client.remoteMonitor.paddingInternal=Inner padding
+ae2powertools.config.client.remoteMonitor.paddingInternal.tooltip=Padding between the overlay edge and its icon/text content
+ae2powertools.config.client.remoteMonitor.lineSpacing=Line spacing
+ae2powertools.config.client.remoteMonitor.lineSpacing.tooltip=Vertical space between remote monitor entries
+ae2powertools.config.client.remoteMonitor.iconSize=Icon size
+ae2powertools.config.client.remoteMonitor.iconSize.tooltip=Rendered size of monitored resource icons. Keep it a power of two (8, 16, 32, etc.) to avoid blurry icons
+ae2powertools.config.client.remoteMonitor.iconTextGap=Icon/text gap
+ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=Horizontal space between the icon and delta text
+ae2powertools.config.client.remoteMonitor.textScalePercent=Text size
+ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=Percentage scale for remote monitor delta text relative to the normal HUD font size
+ae2powertools.config.client.remoteMonitor.gainColor=Gain color
+ae2powertools.config.client.remoteMonitor.gainColor.tooltip=Text color (hex) used for positive quantity deltas
+ae2powertools.config.client.remoteMonitor.lossColor=Loss color
+ae2powertools.config.client.remoteMonitor.lossColor.tooltip=Text color (hex) used for negative quantity deltas
+
+# =====================================================
 # AE2 AutoCrafter
 # =====================================================
 
@@ -330,6 +387,7 @@ gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
 gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d: %s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
+jei.ae2powertools.reusable=Reusable
 
 # =====================================================
 # Network Advanced Component Locator
@@ -386,13 +444,24 @@ ae2powertools.config.client.locator.useTallView.tooltip=Use tall view (more rows
 # Blocks
 tile.ae2powertools.storage_level_emitter.name=ME Storage Level Emitter
 tile.ae2powertools.storage_level_emitter.tooltip=Emits a redstone signal based on monitored resource quantity.
+tile.ae2powertools.storage_level_emitter.memory_card.tooltip=Storage Monitor Filters
+
+tile.ae2powertools.level_monitor_alarm.name=Level Monitor Alarm
+tile.ae2powertools.level_monitor_alarm.tooltip=Warns registered players when any configured alarm entry trips.
+tile.ae2powertools.level_monitor_alarm.tooltip2=Accepts filters from any Better Level Maintainer, AE2 AutoCrafter, Storage Level Emitter, or Storage Display through the memory card.
+tile.ae2powertools.level_monitor_alarm.memory_card.tooltip=Alarm Filters
 
 tile.ae2powertools.storage_display.name=ME Storage Display
 tile.ae2powertools.storage_display.tooltip=Displays the quantity of a monitored resource on the network.
+tile.ae2powertools.storage_display.memory_card.tooltip=Storage Monitor Filters
 
 # Items
 item.ae2powertools.storage_level_emitter_part.name=ME Storage Level Emitter
 item.ae2powertools.storage_display_part.name=ME Storage Display
+item.ae2powertools.storage_display_part_smaller.name=ME Storage Display (Smaller)
+item.ae2powertools.storage_display_part_smallerer.name=ME Storage Display (Smallerer)
+item.ae2powertools.level_monitor_alarm_locator.name=Level Monitor Alarm Locator
+item.ae2powertools.level_monitor_alarm_locator.tip1=Hold in either hand to render arrows to active alarm positions.
 
 # Config
 ae2powertools.config.client.monitor=Monitor
@@ -406,6 +475,7 @@ ae2powertools.config.client.monitor.displayColorBelow.tooltip=Corner indicator c
 
 # GUI
 gui.ae2powertools.storage_emitter.title=ME Storage Level Emitter
+gui.ae2powertools.level_monitor_alarm.title=Level Monitor Alarm
 gui.ae2powertools.storage_display.title=ME Storage Display
 gui.ae2powertools.storage_emitter.match_mode=Match: %s
 gui.ae2powertools.storage_emitter.refresh_rate=Refresh: %s
@@ -414,16 +484,19 @@ gui.ae2powertools.storage_emitter.condition_not_met=Condition Not Met
 gui.ae2powertools.storage_emitter.select_content=Resource
 gui.ae2powertools.storage_emitter.match_mode.click_toggle=Click to toggle AND/OR
 gui.ae2powertools.storage_emitter.redstone_signal=Redstone output: %s
-gui.ae2powertools.storage_emitter.redstone_signal.weak=Weak
-gui.ae2powertools.storage_emitter.redstone_signal.strong=Strong
-gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=Click to toggle weak/strong output
+gui.ae2powertools.storage_emitter.redstone_signal.weak=§bWeak
+gui.ae2powertools.storage_emitter.redstone_signal.strong=§dStrong
+gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=Click to toggle weak/strong output. Strong output spreads through the affected block(s), while weak output only affects the directly adjacent block(s).
 gui.ae2powertools.storage_emitter.hysteresis=Hysteresis: %s
-gui.ae2powertools.storage_emitter.hysteresis.on=On
-gui.ae2powertools.storage_emitter.hysteresis.off=Off
+gui.ae2powertools.storage_emitter.hysteresis.on=§aOn
+gui.ae2powertools.storage_emitter.hysteresis.off=§cOff
 gui.ae2powertools.storage_emitter.hysteresis.click_toggle=Click to toggle hysteresis. Hysteresis prevents rapid toggling when quantity is near the threshold.
 gui.ae2powertools.storage_emitter.polling_rate.title=Polling Rate
 gui.ae2powertools.storage_emitter.polling_rate.tooltip=Polling Rate: %s
 gui.ae2powertools.storage_emitter.polling_rate.description=Click to configure how often the storage is polled.
+gui.ae2powertools.storage_emitter.strength=Strength
+gui.ae2powertools.storage_emitter.strength.tooltip=Redstone Strength
+gui.ae2powertools.storage_emitter.strength.description=Redstone Strength is the starting strength that the directly adjacent block receives. The signal then decays by 1 for each redstone dust it travels through.
 gui.ae2powertools.storage_emitter.empty_slot=No resource selected
 gui.ae2powertools.storage_emitter.current_quantity=Current: %s
 gui.ae2powertools.storage_emitter.current_target=Target: %s %s (%s)
@@ -436,3 +509,9 @@ gui.ae2powertools.storage_emitter.decreasing_label=Decreasing:
 gui.ae2powertools.storage_emitter.controls.title=Controls
 gui.ae2powertools.storage_emitter.controls.scroll=Shift + scroll: Double/halve target
 gui.ae2powertools.storage_emitter.controls.toggle=Right-click: Toggle enabled
+gui.ae2powertools.level_monitor_alarm.registration.registered=Receiving warnings from this alarm
+gui.ae2powertools.level_monitor_alarm.registration.unregistered=Not receiving warnings from this alarm
+gui.ae2powertools.level_monitor_alarm.registration.click_register=Click to register for warnings
+gui.ae2powertools.level_monitor_alarm.registration.click_unregister=Click to stop receiving warnings
+gui.ae2powertools.level_monitor_alarm.overlay.single=Alarm at %s
+gui.ae2powertools.level_monitor_alarm.overlay.multiple=Alarms at %s

@@ -2,6 +2,10 @@
     "conditions": [
         {
             "type": "minecraft:item_exists",
+            "item": "ae2powertools:storage_display"
+        },
+        {
+            "type": "minecraft:item_exists",
             "item": "ae2powertools:storage_display_part"
         }
     ],

@@ -1,0 +1,8 @@
+{
+    "parent": "block/cube_bottom_top",
+    "textures": {
+        "bottom": "ae2powertools:blocks/monitor_side",
+        "side": "ae2powertools:blocks/storage_level_alarm_side",
+        "top": "ae2powertools:blocks/storage_level_alarm_top"
+    }
+}

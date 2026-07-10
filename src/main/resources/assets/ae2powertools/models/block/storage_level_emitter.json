@@ -1,6 +1,6 @@
 {
     "parent": "block/cube_all",
     "textures": {
-        "all": "appliedenergistics2:blocks/level_emitter_on"
+        "all": "ae2powertools:blocks/storage_level_emitter"
     }
 }

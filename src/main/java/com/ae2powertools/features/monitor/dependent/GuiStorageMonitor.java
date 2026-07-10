@@ -9,6 +9,7 @@ import java.util.List;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiTextField;
@@ -32,17 +33,21 @@ import appeng.client.gui.widgets.GuiTabButton;
 import appeng.util.ReadableNumberConverter;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.client.gui.VanillaButtonRenderer;
 import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
-import com.ae2powertools.features.monitor.emitter.EmitterRedstoneStrength;
+import com.ae2powertools.features.monitor.emitter.EmitterRedstonePower;
+import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 import com.ae2powertools.integration.jei.JeiTooltipBridge;
 import com.ae2powertools.network.PacketOpenStorageMonitorPollingRate;
 import com.ae2powertools.network.PacketRequestMonitorContents;
 import com.ae2powertools.network.PacketSelectMonitorContent;
+import com.ae2powertools.network.PacketSetEmitterRedstonePower;
 import com.ae2powertools.network.PacketSetEmitterRedstoneStrength;
 import com.ae2powertools.network.PacketSetHysteresisMode;
 import com.ae2powertools.network.PacketSetMatchMode;
+import com.ae2powertools.network.PacketToggleAlarmRegistration;
 import com.ae2powertools.network.PacketUpdateMonitorEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.PollingRateUtils;
@@ -94,6 +99,10 @@ public class GuiStorageMonitor extends GuiContainer {
         Tags.MODID, "textures/guis/emitter_gui.png");
     private static final ResourceLocation COMPARISON_ARROWS = new ResourceLocation(
         Tags.MODID, "textures/guis/comparison_arrows.png");
+    private static final ResourceLocation HYSTERESIS_ICON = new ResourceLocation(
+        Tags.MODID, "textures/guis/hysteresis_icon.png");
+    private static final ResourceLocation REDSTONE_STRENGTH_PANEL = new ResourceLocation(
+        Tags.MODID, "textures/guis/redstone_strength_panel.png");
     /** Reuse the maintainer's selector background so the modal layout matches the Maintainer GUI. */
     private static final ResourceLocation SELECTOR_BACKGROUND = new ResourceLocation(
         Tags.MODID, "textures/guis/recipe_selector.png");
@@ -142,7 +151,6 @@ public class GuiStorageMonitor extends GuiContainer {
     private static final int SIDE_BTN_X_OFFSET = -SIDE_BTN_SIZE - 2;
     private static final int SIDE_BTN_SPACING = 4;
     private static final int MATCH_MODE_BTN_Y = 4;
-    private static final int REDSTONE_SIGNAL_BTN_Y = MATCH_MODE_BTN_Y + SIDE_BTN_SIZE + 4;
 
     // --- Wrench tab button (polling rate sub-GUI launcher) ---
     /**
@@ -151,6 +159,17 @@ public class GuiStorageMonitor extends GuiContainer {
      * which uses the exact same value.
      */
     private static final int WRENCH_ICON_INDEX = 2 + 5 * 16;
+
+    // --- Emitter strength panel (drawn outside the GUI on the right) ---
+    private static final int STRENGTH_PANEL_OFFSET_X = 2;
+    private static final int STRENGTH_PANEL_PADDING = 3;
+    private static final int STRENGTH_PANEL_WIDTH = 72;
+    private static final int STRENGTH_PANEL_HEIGHT = 66;
+    private static final int STRENGTH_BTN_Y_START = 12;
+    private static final int STRENGTH_BTN_X_OFFSET = 40;
+    private static final int STRENGTH_BTN_Y_OFFSET = 16;
+    private static final int STRENGTH_BTN_WIDTH = 25;
+    private static final int STRENGTH_BTN_HEIGHT = 14;
 
     // --- Selector modal (content picker) ---
     private static final int SELECTOR_WIDTH = 195;
@@ -209,6 +228,15 @@ public class GuiStorageMonitor extends GuiContainer {
     /** Wrench tab button (vanilla GuiButton via AE2's GuiTabButton). */
     private GuiTabButton pollingRateBtn;
 
+    /** Alarm-only registration toggle button shown next to the polling-rate tab. */
+    private GuiButton alarmRegistrationBtn;
+
+    /** Compact strength controls drawn in the right-side panel. */
+    private final List<CompactVanillaButton> emitterStrengthButtons = new ArrayList<>();
+    private int emitterStrengthPanelX;
+    private int emitterStrengthPanelY;
+    private boolean emitterStrengthTextHovered = false;
+
     // --- Count field (threshold editor) ---
     private GuiTextField countField;
     /** Index of the entry currently being edited via the count field, or -1 when hidden. */
@@ -241,20 +269,28 @@ public class GuiStorageMonitor extends GuiContainer {
     public void initGui() {
         super.initGui();
         activeInstance = this;
+        emitterStrengthButtons.clear();
 
         matchBtnX = guiLeft + SIDE_BTN_X_OFFSET;
         matchBtnY = guiTop + MATCH_MODE_BTN_Y;
         hysteresisBtnX = matchBtnX;
+        emitterStrengthPanelX = guiLeft + GUI_WIDTH + STRENGTH_PANEL_OFFSET_X;
+        emitterStrengthPanelY = guiTop;
 
-        int nextSideButtonY = guiTop + MATCH_MODE_BTN_Y + SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+        int nextSideButtonY = guiTop + MATCH_MODE_BTN_Y;
 
-        if (container.supportsEmitterRedstoneStrength()) {
+        if (container.supportsMatchMode()) {
+            nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+        }
+
+        if (container.supportsEmitterRedstone()) {
             redstoneSignalBtn = new GuiImgButton(
                 matchBtnX,
-                guiTop + REDSTONE_SIGNAL_BTN_Y,
+                nextSideButtonY,
                 Settings.REDSTONE_EMITTER,
                 RedstoneMode.LOW_SIGNAL);
             this.buttonList.add(redstoneSignalBtn);
+            addEmitterStrengthButtons();
 
             nextSideButtonY = redstoneSignalBtn.y + SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
@@ -271,6 +307,17 @@ public class GuiStorageMonitor extends GuiContainer {
             I18n.format("gui.ae2powertools.storage_emitter.polling_rate.title"),
             this.itemRender);
         this.buttonList.add(pollingRateBtn);
+
+        if (container.supportsPlayerRegistration()) {
+            alarmRegistrationBtn = new GuiButton(
+                201,
+                pollingRateBtn.x - 18,
+                guiTop + 3,
+                16,
+                16,
+                container.isSyncPlayerRegistered() ? "-" : "+");
+            this.buttonList.add(alarmRegistrationBtn);
+        }
 
         // Count field: hidden until the user clicks the right half of a cell.
         // Uses a black background drawn manually so the field clearly "pops" over the entries.
@@ -306,11 +353,16 @@ public class GuiStorageMonitor extends GuiContainer {
     protected void actionPerformed(GuiButton button) throws IOException {
         super.actionPerformed(button);
 
+        if (button instanceof CompactVanillaButton) {
+            adjustEmitterStrength(((CompactVanillaButton) button).getDelta());
+            return;
+        }
+
         if (button == redstoneSignalBtn) {
             PowerToolsNetwork.INSTANCE.sendToServer(
-                new PacketSetEmitterRedstoneStrength(
+                new PacketSetEmitterRedstonePower(
                     container.getHost(),
-                    container.getSyncEmitterRedstoneSignalStrength().next()));
+                    container.getSyncEmitterRedstonePower().next()));
             return;
         }
 
@@ -323,6 +375,11 @@ public class GuiStorageMonitor extends GuiContainer {
                 new PacketOpenStorageMonitorPollingRate(container.getHost()));
             return;
         }
+
+        if (button == alarmRegistrationBtn) {
+            PowerToolsNetwork.INSTANCE.sendToServer(
+                new PacketToggleAlarmRegistration(container.getHost()));
+        }
     }
 
     // ====================== DRAWING ======================
@@ -334,6 +391,8 @@ public class GuiStorageMonitor extends GuiContainer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         mc.getTextureManager().bindTexture(BACKGROUND);
         drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize);
+
+        if (container.supportsEmitterRedstone()) drawEmitterStrengthPanel(mouseX, mouseY);
 
         // Side button: drawn here (clean GL state) to avoid the lighting/blend leaks
         // that occur when drawing custom textures after super.drawScreen has rendered slots.
@@ -358,6 +417,7 @@ public class GuiStorageMonitor extends GuiContainer {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         syncEmitterRedstoneButton();
+        syncAlarmRegistrationButton();
         super.drawScreen(mouseX, mouseY, partialTicks);
 
         // Tooltips and modal go on top of everything (after slot rendering).
@@ -373,8 +433,14 @@ public class GuiStorageMonitor extends GuiContainer {
         if (hysteresisBtnHovered) drawHysteresisTooltip(mouseX, mouseY);
 
         if (isRedstoneSignalButtonHovered(mouseX, mouseY)) {
-            drawRedstoneSignalTooltip(mouseX, mouseY);
+            drawRedstonePowerTooltip(mouseX, mouseY);
         }
+
+        if (isAlarmRegistrationButtonHovered(mouseX, mouseY)) {
+            drawAlarmRegistrationTooltip(mouseX, mouseY);
+        }
+
+        if (emitterStrengthTextHovered) drawRedstoneStrengthTooltip(mouseX, mouseY);
 
         drawHoveredEntryTooltip(mouseX, mouseY);
 
@@ -393,9 +459,11 @@ public class GuiStorageMonitor extends GuiContainer {
     }
 
     private void drawSideButtons(int mouseX, int mouseY) {
-        matchBtnHovered = mouseX >= matchBtnX && mouseX < matchBtnX + SIDE_BTN_SIZE
+        matchBtnHovered = container.supportsMatchMode()
+            && mouseX >= matchBtnX && mouseX < matchBtnX + SIDE_BTN_SIZE
             && mouseY >= matchBtnY && mouseY < matchBtnY + SIDE_BTN_SIZE;
-        hysteresisBtnHovered = mouseX >= hysteresisBtnX && mouseX < hysteresisBtnX + SIDE_BTN_SIZE
+        hysteresisBtnHovered = container.getHost().supportsHysteresis()
+            && mouseX >= hysteresisBtnX && mouseX < hysteresisBtnX + SIDE_BTN_SIZE
             && mouseY >= hysteresisBtnY && mouseY < hysteresisBtnY + SIDE_BTN_SIZE;
 
         // Reset GL state so the button doesn't inherit lighting/depth from prior draws.
@@ -403,20 +471,24 @@ public class GuiStorageMonitor extends GuiContainer {
         GlStateManager.disableDepth();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        drawLabeledSideButton(
-            matchBtnX, matchBtnY,
-            container.getSyncMatchMode().getSymbol(),
-            0xFFFFFFFF,
-            matchBtnHovered
-        );
+        if (container.supportsMatchMode()) {
+            drawLabeledSideButton(
+                matchBtnX, matchBtnY,
+                container.getSyncMatchMode().getSymbol(),
+                0xFFFFFFFF,
+                matchBtnHovered
+            );
+        }
 
-        // TODO: replace with the actual hysteresis state icon once we have one
-        drawLabeledSideButton(
-            hysteresisBtnX, hysteresisBtnY,
-            "H",
-            container.isSyncHysteresisEnabled() ? 0xFF88FF88 : 0xFFA0A0A0,
-            hysteresisBtnHovered
-        );
+        if (container.getHost().supportsHysteresis()) {
+            drawTexturedSideButtonWithOffset(
+                hysteresisBtnX, hysteresisBtnY,
+                HYSTERESIS_ICON,
+                container.isSyncHysteresisEnabled() ? 0 : 1, hysteresisBtnHovered ? 1 : 0,
+                2, 2,
+                hysteresisBtnHovered
+            );
+        }
 
         GlStateManager.enableDepth();
     }
@@ -436,14 +508,15 @@ public class GuiStorageMonitor extends GuiContainer {
         }
     }
 
-    private void drawTexturedSideButton(int x, int y, int textureWidth, int textureHeight,
-            ResourceLocation texture, boolean hovered) {
+    private void drawTexturedSideButtonWithOffset(int x, int y, ResourceLocation texture,
+            int offsetX, int offsetY, int statesX, int statesY, boolean hovered) {
         mc.getTextureManager().bindTexture(AE2_STATES);
         drawTexturedModalRect(x, y, 15 * 16, 15 * 16, SIDE_BTN_SIZE, SIDE_BTN_SIZE);
 
         mc.getTextureManager().bindTexture(texture);
-        drawScaledCustomSizeModalRect(x, y, 0, 0, SIDE_BTN_SIZE, SIDE_BTN_SIZE,
-                                      textureWidth, textureHeight, textureWidth, textureHeight);
+        drawScaledCustomSizeModalRect(x, y, SIDE_BTN_SIZE * offsetX, SIDE_BTN_SIZE * offsetY,
+                                            SIDE_BTN_SIZE, SIDE_BTN_SIZE, SIDE_BTN_SIZE, SIDE_BTN_SIZE,
+                                            SIDE_BTN_SIZE * statesX, SIDE_BTN_SIZE * statesY);
 
         if (hovered) {
             drawRect(x + 1, y + 1, x + SIDE_BTN_SIZE - 1, y + SIDE_BTN_SIZE - 1, 0x40FFFFFF);
@@ -469,15 +542,32 @@ public class GuiStorageMonitor extends GuiContainer {
         GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
     }
 
-    private void drawRedstoneSignalTooltip(int mouseX, int mouseY) {
-        EmitterRedstoneStrength signalStrength = container.getSyncEmitterRedstoneSignalStrength();
+    private void drawRedstonePowerTooltip(int mouseX, int mouseY) {
+        EmitterRedstonePower redstonePower = container.getSyncEmitterRedstonePower();
 
         List<String> tt = new ArrayList<>();
-        // TODO: add some color to the signal strength level. Not Green/Red, because both are "active" states.
         tt.add(I18n.format(
             "gui.ae2powertools.storage_emitter.redstone_signal",
-            I18n.format(signalStrength.getLangKey())));
+            I18n.format(redstonePower.getLangKey())));
         tt.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.redstone_signal.click_toggle") + "§r");
+        GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
+    }
+
+    private void drawRedstoneStrengthTooltip(int mouseX, int mouseY) {
+        List<String> tt = new ArrayList<>();
+        tt.add(I18n.format("gui.ae2powertools.storage_emitter.strength.tooltip"));
+        tt.add("");
+        tt.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.strength.description") + "§r");
+        GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
+    }
+
+    private void drawAlarmRegistrationTooltip(int mouseX, int mouseY) {
+        String prefix = "gui.ae2powertools.level_monitor_alarm.registration";
+        List<String> tt = new ArrayList<>();
+        tt.add(I18n.format(container.isSyncPlayerRegistered() ? prefix + ".registered" : prefix + ".unregistered"));
+        tt.add("§7" + I18n.format(container.isSyncPlayerRegistered()
+            ? prefix + ".click_unregister"
+            : prefix + ".click_register") + "§r");
         GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
     }
 
@@ -615,8 +705,16 @@ public class GuiStorageMonitor extends GuiContainer {
             // Background tint covers the INNER 50x22 area only, leaving the +1 right/bottom border untinted.
             drawEntryBackground(x, y, entry);
 
+            // Skip content when selector open. See Maintainer GUI for rationale (GL leaks).
+            // We still draw the icon background, as it isn't fully covered by the selector modal.
+            if (selectorOpen) {
+                int color = (entry != null && entry.hasResource()) ? 0x20000000 : 0x40000000;
+                drawRect(x, y, x + ICON_SIZE, y + ICON_SIZE, color);
+                continue;
+            }
+
             // Hover highlight per zone. Only suppressed when the modal selector is open.
-            if (!selectorOpen) drawZoneHover(x, y, mouseX, mouseY, entry);
+            drawZoneHover(x, y, mouseX, mouseY, entry);
 
             // Foreground content: icon + (comparison + numbers if filled).
             drawEntryContent(x, y, entry);
@@ -653,7 +751,13 @@ public class GuiStorageMonitor extends GuiContainer {
      * click would do (see {@link #handleEntryClick}).
      */
     private void drawZoneHover(int x, int y, int mouseX, int mouseY, MonitoredEntry entry) {
-        CellZone zone = pickZone(x, y, mouseX, mouseY, container.isSyncHysteresisEnabled());
+        CellZone zone = pickZone(
+            x,
+            y,
+            mouseX,
+            mouseY,
+            container.getHost().supportsEntryComparison(),
+            container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return;
 
         int hl = 0x40FFFFFF;
@@ -684,13 +788,15 @@ public class GuiStorageMonitor extends GuiContainer {
      * Returns the zone the given screen-space mouse coordinate is in for a cell at (x,y).
      * Comparator takes priority over left/right because it visually overlaps both halves.
      */
-    private static CellZone pickZone(int x, int y, int mouseX, int mouseY, boolean hysteresisEnabled) {
+    private static CellZone pickZone(int x, int y, int mouseX, int mouseY,
+            boolean comparisonEnabled, boolean hysteresisEnabled) {
         if (mouseX < x || mouseX >= x + INNER_W || mouseY < y || mouseY >= y + INNER_H) return CellZone.NONE;
 
         int localX = mouseX - x;
         int localY = mouseY - y;
 
-        if (localX >= CMP_X && localX < CMP_X + CMP_SIZE
+        if (comparisonEnabled
+                && localX >= CMP_X && localX < CMP_X + CMP_SIZE
                 && localY >= CMP_Y && localY < CMP_Y + CMP_SIZE) return CellZone.COMPARATOR;
 
         if (localX < LEFT_RIGHT_SPLIT) return CellZone.SELECTOR;
@@ -1089,7 +1195,6 @@ public class GuiStorageMonitor extends GuiContainer {
 
         // If the count field is visible and the click is OUTSIDE it, save+dismiss FIRST,
         // then continue with normal hit detection so the user can interact with what they clicked.
-        boolean dismissedField = false;
         if (countField != null && countField.getVisible()) {
             int fx = countField.x;
             int fy = countField.y;
@@ -1102,7 +1207,6 @@ public class GuiStorageMonitor extends GuiContainer {
             }
 
             hideCountField(true);
-            dismissedField = true;
         }
 
         // Side button: match-mode toggle (lives outside guiLeft).
@@ -1155,7 +1259,13 @@ public class GuiStorageMonitor extends GuiContainer {
         // Use the same zone picker as the hover highlight so click and visual feedback agree.
         // pickZone expects screen-space coords; we pass (0, 0) as the cell origin so localX/localY
         // are evaluated against the inner cell rect.
-        CellZone zone = pickZone(0, 0, localX, localY, container.isSyncHysteresisEnabled());
+        CellZone zone = pickZone(
+            0,
+            0,
+            localX,
+            localY,
+            container.getHost().supportsEntryComparison(),
+            container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return;
 
         switch (zone) {
@@ -1303,13 +1413,21 @@ public class GuiStorageMonitor extends GuiContainer {
         int localY = gy - row * CELL_H;
         if (localX >= INNER_W || localY >= INNER_H) return null;
 
-        CellZone zone = pickZone(0, 0, localX, localY, container.isSyncHysteresisEnabled());
+        CellZone zone = pickZone(
+            0,
+            0,
+            localX,
+            localY,
+            container.getHost().supportsEntryComparison(),
+            container.isSyncHysteresisEnabled());
         if (zone == CellZone.NONE) return null;
 
         return new GridHit(row * GRID_COLS + col, zone);
     }
 
     private void cycleMatchMode() {
+        if (!container.supportsMatchMode()) return;
+
         MatchMode next = container.getSyncMatchMode().next();
         PowerToolsNetwork.INSTANCE.sendToServer(
             new PacketSetMatchMode(container.getHost(), next));
@@ -1320,14 +1438,33 @@ public class GuiStorageMonitor extends GuiContainer {
             new PacketSetHysteresisMode(container.getHost(), !container.isSyncHysteresisEnabled()));
     }
 
+    private void adjustEmitterStrength(int delta) {
+        if (!container.supportsEmitterRedstone()) return;
+
+        int currentStrength = container.getSyncEmitterStrength();
+        int nextStrength = Math.max(
+            IEmitterRedstoneHost.MIN_REDSTONE_STRENGTH,
+            Math.min(IEmitterRedstoneHost.MAX_REDSTONE_STRENGTH, currentStrength + delta));
+        if (nextStrength == currentStrength) return;
+
+        PowerToolsNetwork.INSTANCE.sendToServer(
+            new PacketSetEmitterRedstoneStrength(container.getHost(), nextStrength));
+    }
+
     private void syncEmitterRedstoneButton() {
         if (redstoneSignalBtn == null) return;
 
         // Reuse AE2's redstone-emitter button art while keeping this feature's
         // semantics local to AE2 Power Tools.
-        redstoneSignalBtn.set(container.getSyncEmitterRedstoneSignalStrength() == EmitterRedstoneStrength.STRONG
+        redstoneSignalBtn.set(container.getSyncEmitterRedstonePower() == EmitterRedstonePower.STRONG
             ? RedstoneMode.HIGH_SIGNAL
             : RedstoneMode.LOW_SIGNAL);
+    }
+
+    private void syncAlarmRegistrationButton() {
+        if (alarmRegistrationBtn == null) return;
+
+        alarmRegistrationBtn.displayString = container.isSyncPlayerRegistered() ? "-" : "+";
     }
 
     private boolean isRedstoneSignalButtonHovered(int mouseX, int mouseY) {
@@ -1337,6 +1474,60 @@ public class GuiStorageMonitor extends GuiContainer {
             && mouseX < redstoneSignalBtn.x + redstoneSignalBtn.width
             && mouseY >= redstoneSignalBtn.y
             && mouseY < redstoneSignalBtn.y + redstoneSignalBtn.height;
+    }
+
+    private boolean isAlarmRegistrationButtonHovered(int mouseX, int mouseY) {
+        return alarmRegistrationBtn != null
+            && alarmRegistrationBtn.visible
+            && mouseX >= alarmRegistrationBtn.x
+            && mouseX < alarmRegistrationBtn.x + alarmRegistrationBtn.width
+            && mouseY >= alarmRegistrationBtn.y
+            && mouseY < alarmRegistrationBtn.y + alarmRegistrationBtn.height;
+    }
+
+    private void addEmitterStrengthButtons() {
+        int btnY = emitterStrengthPanelY + STRENGTH_PANEL_PADDING + STRENGTH_BTN_Y_START;
+        int btnId = 300;
+
+        for (int y = 1; y < 4; y++) {  // 1, 2, 3
+            int btnX = emitterStrengthPanelX + STRENGTH_PANEL_PADDING;
+
+            for (int x = -1; x < 2; x += 2) {  // -1, 1
+                int delta = x * y * 5;
+                CompactVanillaButton button = new CompactVanillaButton(btnId, btnX, btnY, delta);
+                emitterStrengthButtons.add(button);
+                this.buttonList.add(button);
+
+                btnId++;
+                btnX += STRENGTH_BTN_X_OFFSET;
+            }
+
+            btnY += STRENGTH_BTN_Y_OFFSET;
+        }
+    }
+
+    private void drawEmitterStrengthPanel(int mouseX, int mouseY) {
+        mc.getTextureManager().bindTexture(REDSTONE_STRENGTH_PANEL);
+        drawTexturedModalRect(emitterStrengthPanelX, emitterStrengthPanelY, 0, 0, STRENGTH_PANEL_WIDTH, STRENGTH_PANEL_HEIGHT);
+
+        String title = I18n.format("gui.ae2powertools.storage_emitter.strength");
+        int titleX = emitterStrengthPanelX + (STRENGTH_PANEL_WIDTH - fontRenderer.getStringWidth(title)) / 2;
+        int titleY = emitterStrengthPanelY + STRENGTH_PANEL_PADDING + 2;
+        fontRenderer.drawString(title, titleX, titleY, 0xFF000000);
+
+        // We want the value to be at centered on the middle button row
+        String value = Integer.toString(container.getSyncEmitterStrength());
+        int width = fontRenderer.getStringWidth(value);
+        int valueX = emitterStrengthPanelX + (STRENGTH_PANEL_WIDTH - width) / 2;
+        int valueY = emitterStrengthPanelY + STRENGTH_PANEL_PADDING + STRENGTH_BTN_Y_START
+                   + STRENGTH_BTN_Y_OFFSET + (STRENGTH_BTN_HEIGHT - fontRenderer.FONT_HEIGHT) / 2 + 1;
+        fontRenderer.drawString(value, valueX, valueY, 0xFF000000);
+
+        boolean emitterStrengthTitleHovered = mouseX >= titleX && mouseX < titleX + fontRenderer.getStringWidth(title)
+            && mouseY >= titleY && mouseY < titleY + fontRenderer.FONT_HEIGHT;
+        boolean emitterStrengthValueHovered = mouseX >= valueX && mouseX < valueX + width
+            && mouseY >= valueY && mouseY < valueY + fontRenderer.FONT_HEIGHT;
+        emitterStrengthTextHovered = emitterStrengthTitleHovered || emitterStrengthValueHovered;
     }
 
     private void cycleComparison(int idx) {
@@ -1479,11 +1670,55 @@ public class GuiStorageMonitor extends GuiContainer {
     public List<Rectangle> getJEIExclusionArea() {
         List<Rectangle> areas = new ArrayList<>();
         areas.add(new Rectangle(matchBtnX, matchBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
-        areas.add(new Rectangle(hysteresisBtnX, hysteresisBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
+        if (container.getHost().supportsHysteresis()) {
+            areas.add(new Rectangle(hysteresisBtnX, hysteresisBtnY, SIDE_BTN_SIZE, SIDE_BTN_SIZE));
+        }
         if (redstoneSignalBtn != null) {
             areas.add(new Rectangle(redstoneSignalBtn.x, redstoneSignalBtn.y,
                                     redstoneSignalBtn.width, redstoneSignalBtn.height));
         }
+        if (container.supportsEmitterRedstone()) {
+            areas.add(new Rectangle(emitterStrengthPanelX, emitterStrengthPanelY,
+                                    STRENGTH_PANEL_WIDTH, STRENGTH_PANEL_HEIGHT));
+        }
         return areas;
+    }
+
+    private static class CompactVanillaButton extends GuiButton {
+
+        private final int delta;
+
+        private CompactVanillaButton(int id, int x, int y, int delta) {
+            super(id, x, y, STRENGTH_BTN_WIDTH, STRENGTH_BTN_HEIGHT, formatDelta(delta));
+            this.delta = delta;
+        }
+
+        private int getDelta() {
+            return delta;
+        }
+
+        @Override
+        public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
+            if (!this.visible) return;
+
+            this.hovered = mouseX >= this.x && mouseY >= this.y
+                && mouseX < this.x + this.width && mouseY < this.y + this.height;
+
+            VanillaButtonRenderer.drawBeveledButton(
+                mc.fontRenderer,
+                this.x,
+                this.y,
+                this.width,
+                this.height,
+                this.displayString,
+                this.enabled,
+                this.hovered);
+
+            this.mouseDragged(mc, mouseX, mouseY);
+        }
+
+        private static String formatDelta(int delta) {
+            return delta > 0 ? "+" + delta : Integer.toString(delta);
+        }
     }
 }

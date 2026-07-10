@@ -9,25 +9,16 @@ import java.util.Set;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridBlock;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
-import appeng.capabilities.Capabilities;
-import appeng.parts.misc.PartInterface;
-import appeng.parts.misc.PartStorageBus;
-import appeng.tile.misc.TileInterface;
 
 import com.ae2powertools.util.ItemStackKey;
+import com.ae2powertools.util.SubnetGridHelper;
 
 
 /**
@@ -98,11 +89,11 @@ public class ComponentScanner {
         // Scan the main grid
         totalNodes += scanGrid(grid, typeMap);
 
-        // Optionally scan subnets connected via Storage Bus -> Interface (ME PassThrough)
+        // Optionally scan each connected subnet grid independently and merge the component totals.
         if (includeSubnets) {
-            Set<IGrid> visitedGrids = new HashSet<>();
-            visitedGrids.add(grid);
-            totalNodes += scanSubnets(grid, typeMap, visitedGrids);
+            Set<IGrid> connectedGrids = new HashSet<>(SubnetGridHelper.collectConnectedGrids(grid));
+
+            for (IGrid connectedGrid : connectedGrids) totalNodes += scanGrid(connectedGrid, typeMap);
         }
 
         // Sort component types by count (descending), then by name
@@ -144,81 +135,4 @@ public class ComponentScanner {
         return totalNodes;
     }
 
-    /**
-     * Detect subnets connected via Storage Bus -> Interface (ME PassThrough) and scan them.
-     * Uses the same pattern as AE2SubnetScanner: iterate PartStorageBus machines on the grid,
-     * check if the target tile has STORAGE_MONITORABLE_ACCESSOR capability (indicating a subnet
-     * connection), then extract the remote grid from the target (TileInterface or PartInterface).
-     *
-     * @param mainGrid     The main grid to find subnet connections from
-     * @param typeMap      Shared type map to merge results into
-     * @param visitedGrids Set of already-scanned grids to prevent infinite recursion
-     * @return Number of nodes scanned across all subnets
-     */
-    private static int scanSubnets(IGrid mainGrid, Map<ItemStackKey, ComponentType> typeMap, Set<IGrid> visitedGrids) {
-        int totalNodes = 0;
-
-        for (IGridNode node : mainGrid.getMachines(PartStorageBus.class)) {
-            if (!node.isActive()) continue;
-
-            PartStorageBus bus = (PartStorageBus) node.getMachine();
-            TileEntity hostTile = bus.getHost().getTile();
-            if (hostTile == null) continue;
-
-            EnumFacing facing = bus.getSide().getFacing();
-            if (facing == null) continue;
-
-            BlockPos targetPos = hostTile.getPos().offset(facing);
-            World world = hostTile.getWorld();
-            TileEntity targetTile = world.getTileEntity(targetPos);
-            if (targetTile == null) continue;
-
-            // Check if target has STORAGE_MONITORABLE_ACCESSOR capability (indicates subnet connection)
-            EnumFacing targetSide = facing.getOpposite();
-            if (!targetTile.hasCapability(Capabilities.STORAGE_MONITORABLE_ACCESSOR, targetSide)) continue;
-
-            // Extract the remote grid from the target tile (Interface)
-            IGrid remoteGrid = getGridFromTile(targetTile);
-            if (remoteGrid == null || visitedGrids.contains(remoteGrid)) continue;
-
-            // Mark as visited and scan the subnet
-            visitedGrids.add(remoteGrid);
-            totalNodes += scanGrid(remoteGrid, typeMap);
-
-            // Recursively scan sub-subnets
-            totalNodes += scanSubnets(remoteGrid, typeMap, visitedGrids);
-        }
-
-        return totalNodes;
-    }
-
-    /**
-     * Extract the ME grid from a tile entity.
-     * Handles both TileInterface (full block) and PartInterface (cable part).
-     */
-    private static IGrid getGridFromTile(TileEntity tile) {
-        if (tile == null) return null;
-
-        // Handle full-block TileInterface
-        if (tile instanceof TileInterface) {
-            IGridNode node = ((TileInterface) tile).getGridNode(AEPartLocation.INTERNAL);
-            if (node != null && node.getGrid() != null) return node.getGrid();
-        }
-
-        // Handle PartInterface on cable buses
-        if (tile instanceof IPartHost) {
-            IPartHost host = (IPartHost) tile;
-
-            for (AEPartLocation loc : AEPartLocation.values()) {
-                IPart part = host.getPart(loc);
-
-                if (part instanceof PartInterface) {
-                    IGridNode node = part.getGridNode();
-                    if (node != null && node.getGrid() != null) return node.getGrid();
-                }
-            }
-        }
-
-        return null;
-    }
 }

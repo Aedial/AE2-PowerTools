@@ -1,8 +1,8 @@
 {
     "parent": "block/block",
     "textures": {
-        "particle": "appliedenergistics2:blocks/storage_monitor",
-        "base":   "appliedenergistics2:blocks/storage_monitor",
+        "particle": "ae2powertools:blocks/monitor_side",
+        "base":   "ae2powertools:blocks/monitor_side",
         "corner": "ae2powertools:blocks/display_color_corner",
         "center": "ae2powertools:blocks/display_color_center",
         "front": "ae2powertools:blocks/monitor_front"

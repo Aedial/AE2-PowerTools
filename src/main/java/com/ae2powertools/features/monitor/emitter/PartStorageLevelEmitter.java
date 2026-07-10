@@ -31,7 +31,7 @@ import com.ae2powertools.features.monitor.dependent.PartStorageMonitorBase;
  * Cable part variant of the ME Storage Level Emitter.
  * Attaches to AE2 cables, uses grid ticking for refresh, provides redstone on its face.
  */
-public class PartStorageLevelEmitter extends PartStorageMonitorBase implements IEmitterRedstoneStrengthHost {
+public class PartStorageLevelEmitter extends PartStorageMonitorBase implements IEmitterRedstoneHost {
 
     // Part model resources
     private static final ResourceLocation MODEL_BASE =
@@ -50,8 +50,6 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     }
 
     private final LevelEmitterLogic emitterLogic;
-
-    private boolean prevEmitting;
 
     public PartStorageLevelEmitter(ItemStack is) {
         super(is);
@@ -76,28 +74,45 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
 
     @Override
     public int isProvidingStrongPower() {
-        return emitterLogic.isEmitting() && emitterLogic.emitsStrongSignal() ? 15 : 0;
+        return emitterLogic.isEmitting() && emitterLogic.emitsStrongSignal()
+            ? emitterLogic.getRedstoneStrength()
+            : 0;
     }
 
     @Override
     public int isProvidingWeakPower() {
-        return emitterLogic.isEmitting() ? 15 : 0;
+        return emitterLogic.isEmitting() ? emitterLogic.getRedstoneStrength() : 0;
     }
 
     @Override
-    public EmitterRedstoneStrength getRedstoneSignalStrength() {
-        return emitterLogic.getRedstoneSignalStrength();
+    public EmitterRedstonePower getRedstonePower() {
+        return emitterLogic.getRedstonePower();
     }
 
     @Override
-    public void setRedstoneSignalStrength(EmitterRedstoneStrength signalStrength) {
-        if (emitterLogic.getRedstoneSignalStrength() == signalStrength) return;
+    public void setRedstonePower(EmitterRedstonePower signalStrength) {
+        if (emitterLogic.getRedstonePower() == signalStrength) return;
 
-        emitterLogic.setRedstoneSignalStrength(signalStrength);
+        emitterLogic.setRedstonePower(signalStrength);
         markDirtyAndSave();
 
         // Always notify neighbors, since changing strength may change whether strong power is emitted
         notifyOutputChanged(true);
+    }
+
+    @Override
+    public int getRedstoneStrength() {
+        return emitterLogic.getRedstoneStrength();
+    }
+
+    @Override
+    public void setRedstoneStrength(int strength) {
+        int clampedStrength = Math.max(MIN_REDSTONE_STRENGTH, Math.min(MAX_REDSTONE_STRENGTH, strength));
+        if (emitterLogic.getRedstoneStrength() == clampedStrength) return;
+
+        emitterLogic.setRedstoneStrength(clampedStrength);
+        markDirtyAndSave();
+        notifyOutputChanged(emitterLogic.emitsStrongSignal());
     }
 
     // --- Part model ---
@@ -151,11 +166,8 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
 
     @Override
     public boolean readFromStream(ByteBuf data) throws IOException {
-        super.readFromStream(data);
-        boolean newState = data.readBoolean();
-        boolean changed = newState != prevEmitting;
-        prevEmitting = newState;
-        return changed;
+        boolean changed = super.readFromStream(data);
+        return emitterLogic.readFromStream(data) || changed;
     }
 
     private void notifyOutputChanged() {

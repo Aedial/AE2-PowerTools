@@ -1,8 +1,11 @@
 package com.ae2powertools.features.monitor.dependent;
 
+import io.netty.buffer.ByteBuf;
+
 import net.minecraft.nbt.NBTTagCompound;
 
-import com.ae2powertools.features.monitor.emitter.EmitterRedstoneStrength;
+import com.ae2powertools.features.monitor.emitter.EmitterRedstonePower;
+import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 
 
 /**
@@ -14,15 +17,19 @@ import com.ae2powertools.features.monitor.emitter.EmitterRedstoneStrength;
  */
 public class LevelEmitterLogic {
 
-    private static final String NBT_REDSTONE_SIGNAL_STRENGTH = "RedstoneSignalStrength";
+    private static final String NBT_REDSTONE_POWER = "RedstoneSignalStrength";
+    private static final String NBT_REDSTONE_STRENGTH = "RedstoneStrength";
 
     private final MonitorLogic monitorLogic;
 
     /** Whether the emitter is currently producing a redstone signal */
     private boolean emitting;
 
-    /** Whether the emitter should provide strong power in addition to weak power. */
-    private EmitterRedstoneStrength redstoneSignalStrength = EmitterRedstoneStrength.WEAK;
+    /** Whether the emitter should provide strong power or weak power. */
+    private EmitterRedstonePower redstonePower = EmitterRedstonePower.WEAK;
+
+    /** Actual emitted redstone strength while active, from 1 to 15. */
+    private int redstoneStrength = IEmitterRedstoneHost.DEFAULT_REDSTONE_STRENGTH;
 
     public LevelEmitterLogic(MonitorLogic monitorLogic) {
         this.monitorLogic = monitorLogic;
@@ -49,30 +56,66 @@ public class LevelEmitterLogic {
     }
 
     public boolean emitsStrongSignal() {
-        return redstoneSignalStrength == EmitterRedstoneStrength.STRONG;
+        return redstonePower == EmitterRedstonePower.STRONG;
     }
 
-    public EmitterRedstoneStrength getRedstoneSignalStrength() {
-        return redstoneSignalStrength;
+    public EmitterRedstonePower getRedstonePower() {
+        return redstonePower;
     }
 
-    public void setRedstoneSignalStrength(EmitterRedstoneStrength redstoneSignalStrength) {
-        this.redstoneSignalStrength = redstoneSignalStrength == null
-            ? EmitterRedstoneStrength.WEAK
-            : redstoneSignalStrength;
+    public void setRedstonePower(EmitterRedstonePower redstonePower) {
+        this.redstonePower = redstonePower == null
+            ? EmitterRedstonePower.WEAK
+            : redstonePower;
+    }
+
+    public int getRedstoneStrength() {
+        return redstoneStrength;
+    }
+
+    public void setRedstoneStrength(int redstoneStrength) {
+        this.redstoneStrength = clampRedstoneStrength(redstoneStrength);
     }
 
     // --- NBT (delegates to the shared monitor logic; emitting is transient) ---
 
     public void writeToNBT(NBTTagCompound tag) {
         monitorLogic.writeToNBT(tag);
-        tag.setInteger(NBT_REDSTONE_SIGNAL_STRENGTH, redstoneSignalStrength.getId());
+        tag.setInteger(NBT_REDSTONE_POWER, redstonePower.getId());
+        tag.setInteger(NBT_REDSTONE_STRENGTH, redstoneStrength);
     }
 
     public void readFromNBT(NBTTagCompound tag) {
         monitorLogic.readFromNBT(tag);
-        redstoneSignalStrength = tag.hasKey(NBT_REDSTONE_SIGNAL_STRENGTH)
-            ? EmitterRedstoneStrength.fromId(tag.getInteger(NBT_REDSTONE_SIGNAL_STRENGTH))
-            : EmitterRedstoneStrength.WEAK;
+        redstonePower = tag.hasKey(NBT_REDSTONE_POWER)
+            ? EmitterRedstonePower.fromId(tag.getInteger(NBT_REDSTONE_POWER))
+            : EmitterRedstonePower.WEAK;
+        redstoneStrength = tag.hasKey(NBT_REDSTONE_STRENGTH)
+            ? clampRedstoneStrength(tag.getInteger(NBT_REDSTONE_STRENGTH))
+            : IEmitterRedstoneHost.DEFAULT_REDSTONE_STRENGTH;
+    }
+
+    public void writeToStream(ByteBuf data) {
+        data.writeBoolean(emitting);
+    }
+
+    public boolean readFromStream(ByteBuf data) {
+        boolean newEmitting = data.readBoolean();
+        if (emitting == newEmitting) return false;
+
+        emitting = newEmitting;
+        return true;
+    }
+
+    public static int clampRedstoneStrength(int redstoneStrength) {
+        if (redstoneStrength < IEmitterRedstoneHost.MIN_REDSTONE_STRENGTH) {
+            return IEmitterRedstoneHost.MIN_REDSTONE_STRENGTH;
+        }
+
+        if (redstoneStrength > IEmitterRedstoneHost.MAX_REDSTONE_STRENGTH) {
+            return IEmitterRedstoneHost.MAX_REDSTONE_STRENGTH;
+        }
+
+        return redstoneStrength;
     }
 }

@@ -21,6 +21,9 @@ import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
 import com.ae2powertools.features.monitor.display.BlockStorageDisplay;
 import com.ae2powertools.features.monitor.display.ItemBlockStorageDisplay;
 import com.ae2powertools.features.monitor.display.TileStorageDisplay;
+import com.ae2powertools.features.monitor.alarm.BlockLevelMonitorAlarm;
+import com.ae2powertools.features.monitor.alarm.ItemBlockLevelMonitorAlarm;
+import com.ae2powertools.features.monitor.alarm.TileLevelMonitorAlarm;
 import com.ae2powertools.features.monitor.emitter.BlockStorageLevelEmitter;
 import com.ae2powertools.features.monitor.emitter.ItemBlockStorageLevelEmitter;
 import com.ae2powertools.features.monitor.emitter.TileStorageLevelEmitter;
@@ -36,12 +39,14 @@ public class BlockRegistry {
     public static BlockAutoCrafter AUTO_CRAFTER;
     public static BlockStorageLevelEmitter STORAGE_LEVEL_EMITTER;
     public static BlockStorageDisplay STORAGE_DISPLAY;
+    public static BlockLevelMonitorAlarm LEVEL_MONITOR_ALARM;
 
     public static void init() {
         BETTER_LEVEL_MAINTAINER = new BlockBetterLevelMaintainer();
         AUTO_CRAFTER = new BlockAutoCrafter();
         STORAGE_LEVEL_EMITTER = new BlockStorageLevelEmitter();
         STORAGE_DISPLAY = new BlockStorageDisplay();
+        LEVEL_MONITOR_ALARM = new BlockLevelMonitorAlarm();
 
         // Register tile entities
         GameRegistry.registerTileEntity(TileBetterLevelMaintainer.class,
@@ -52,6 +57,8 @@ public class BlockRegistry {
                 new ResourceLocation(Tags.MODID, "storage_level_emitter"));
         GameRegistry.registerTileEntity(TileStorageDisplay.class,
                 new ResourceLocation(Tags.MODID, "storage_display"));
+        GameRegistry.registerTileEntity(TileLevelMonitorAlarm.class,
+            new ResourceLocation(Tags.MODID, "level_monitor_alarm"));
     }
 
     @SubscribeEvent
@@ -60,7 +67,8 @@ public class BlockRegistry {
                 BETTER_LEVEL_MAINTAINER,
                 AUTO_CRAFTER,
                 STORAGE_LEVEL_EMITTER,
-                STORAGE_DISPLAY
+                STORAGE_DISPLAY,
+                LEVEL_MONITOR_ALARM
         );
     }
 
@@ -70,7 +78,8 @@ public class BlockRegistry {
                 createItemBlock(BETTER_LEVEL_MAINTAINER),
                 createItemBlock(AUTO_CRAFTER),
                 createCustomItemBlock(new ItemBlockStorageLevelEmitter(STORAGE_LEVEL_EMITTER)),
-                createCustomItemBlock(new ItemBlockStorageDisplay(STORAGE_DISPLAY))
+                createCustomItemBlock(new ItemBlockStorageDisplay(STORAGE_DISPLAY)),
+                createCustomItemBlock(new ItemBlockLevelMonitorAlarm(LEVEL_MONITOR_ALARM))
         );
     }
 
@@ -81,6 +90,7 @@ public class BlockRegistry {
         registerBlockModel(AUTO_CRAFTER);
         registerBlockModel(STORAGE_LEVEL_EMITTER);
         registerBlockModel(STORAGE_DISPLAY);
+        registerBlockModel(LEVEL_MONITOR_ALARM);
     }
 
     private static ItemBlock createItemBlock(Block block) {

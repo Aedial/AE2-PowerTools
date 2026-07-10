@@ -8,6 +8,42 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.5] - 2026-07-15
+### Added
+- Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
+
+
+## [1.6.4] - 2026-07-05
+### Fixed
+- Fix crash on server load due to client-only code not being properly annotated as client-only.
+
+
+## [1.6.3] - 2026-07-05
+### Fixed
+- Fix large GUI-synced numeric values being truncated above 32k in the AutoCrafter and Storage Monitor screens by syncing susceptible counters as long instead of int.
+
+### Added
+- Add configurable 1-15 redstone strength controls to the Storage Level Emitter GUI.
+- Add Remote Storage Monitor, a bauble/held item that shows the quantity variation of configured content in the network as an overlay on the screen, over a set period of time.
+- Add client config for the Remote Storage Monitor overlay visuals.
+- Add Storage Level Alarm, a block that tracks the quantity of a configured content in the network and send a continuous warning to any player that registered to it when any content goes below the configured threshold.
+- Add Memory Card support for all member of the Storage Monitor family (Emitter, Display, Alarm), allowing to import settings from each others, or AE2 AutoCrafter/Better Level Maintainer patterns for the same content.
+- Add a Patterns tab to the Network Health Scanner that reports invalid crafting patterns, conflicting outputs, and nested input/output recipes, including PackagedAuto-aware nested detection.
+
+
+## [1.6.2] - 2026-06-18
+### Fixed
+- Fix Better Level Maintainer being mistaken for a RandomComplement missing-craft request when `enableMissCraft` is enabled, which could force impossible crafts instead of reporting the failure normally.
+- Fix Pattern/Inventory item rendering eating on the AutoCrafter overview's item renders when the overview is open, by short-circuiting the recipe/inventory rendering when it is open.
+- Fix Storage Monitor rendering leaking (just like the Maintainer's) when the selector is open.
+
+### Added
+- Add textures for the Storage Level Emitter and Storage Display.
+- Add subnet support to the Network Health Scanner.
+- Add Subnet Proxy support for anything with subnet support (NACL, NHS).
+- Add smaller and smallerer part variants for the Storage Display.
+
+
 ## [1.6.1-alpha2] - 2026-06-02
 ### Added
 - Improve the Network Health Scanner's unloaded chunk detection so it can detect adjacent chunks that are not chunkloaded, nor loaded by any player. Unloaded Quantum Network Bridges are still not detected, as the grid has no way to know about their existence until they are loaded.

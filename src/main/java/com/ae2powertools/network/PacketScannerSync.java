@@ -23,6 +23,7 @@ import com.ae2powertools.features.scanner.FatalNetworkError;
 import com.ae2powertools.features.scanner.IssueLocation;
 import com.ae2powertools.features.scanner.MissingChannelDevice;
 import com.ae2powertools.features.scanner.NetworkScanner;
+import com.ae2powertools.features.scanner.PatternIssue;
 import com.ae2powertools.features.scanner.ScanSessionManager;
 import com.ae2powertools.features.scanner.ScannerClientState;
 import com.ae2powertools.features.scanner.ScannerTextHelper;
@@ -41,6 +42,7 @@ public class PacketScannerSync implements IMessage {
     private long deviceId;
     private boolean hasSession;
     private boolean isComplete;
+    private boolean subnetScanEnabled;
     // Serialized JSON of the status message component.
     // It will be deserialized and translated on the client.
     private String statusMessage;
@@ -49,6 +51,7 @@ public class PacketScannerSync implements IMessage {
     private List<MissingDeviceData> missingDevices;
     private List<ChokeLocationData> chokeLocations;
     private List<FatalErrorData> fatalErrors;
+    private List<PatternIssueData> patternIssues;
 
     /**
      * Data structure for transmitting loop locations.
@@ -192,15 +195,40 @@ public class PacketScannerSync implements IMessage {
         }
     }
 
+    /**
+     * Data structure for transmitting pattern issues.
+     */
+    private static class PatternIssueData {
+        int categoryOrdinal;
+        BlockPos pos;
+        int dimension;
+        String dimensionName;
+        String description;
+        String summary;
+
+        PatternIssueData() {
+        }
+
+        PatternIssueData(PatternIssue issue) {
+            this.categoryOrdinal = issue.getCategory().ordinal();
+            this.pos = issue.getPos();
+            this.dimension = issue.getDimension();
+            this.dimensionName = issue.getDimensionName();
+            this.description = issue.getDescription();
+            this.summary = issue.getSummary();
+        }
+    }
+
     public PacketScannerSync() {
         this.loopLocations = new ArrayList<>();
         this.chunkLocations = new ArrayList<>();
         this.missingDevices = new ArrayList<>();
         this.chokeLocations = new ArrayList<>();
         this.fatalErrors = new ArrayList<>();
+        this.patternIssues = new ArrayList<>();
     }
 
-    public PacketScannerSync(ScanSessionManager.ScanSession session, long deviceId) {
+    public PacketScannerSync(ScanSessionManager.ScanSession session, long deviceId, boolean subnetScanEnabled) {
         this.deviceId = deviceId;
         this.hasSession = true;
         this.loopLocations = new ArrayList<>();
@@ -208,10 +236,12 @@ public class PacketScannerSync implements IMessage {
         this.missingDevices = new ArrayList<>();
         this.chokeLocations = new ArrayList<>();
         this.fatalErrors = new ArrayList<>();
+        this.patternIssues = new ArrayList<>();
 
         if (session != null) {
             NetworkScanner scanner = session.getScanner();
             this.isComplete = scanner.isComplete();
+            this.subnetScanEnabled = subnetScanEnabled;
             this.statusMessage = ITextComponent.Serializer.componentToJson(scanner.getStatusMessage());
 
             // Add loop locations
@@ -280,8 +310,13 @@ public class PacketScannerSync implements IMessage {
             for (FatalNetworkError error : scanner.getFatalErrors()) {
                 fatalErrors.add(new FatalErrorData(error));
             }
+
+            for (PatternIssue issue : scanner.getPatternIssues()) {
+                patternIssues.add(new PatternIssueData(issue));
+            }
         } else {
             this.isComplete = true;
+            this.subnetScanEnabled = false;
             this.statusMessage = "";
         }
     }
@@ -289,11 +324,12 @@ public class PacketScannerSync implements IMessage {
     /**
      * Create a packet indicating no session.
      */
-    public static PacketScannerSync noSession(long deviceId) {
+    public static PacketScannerSync noSession(long deviceId, boolean subnetScanEnabled) {
         PacketScannerSync packet = new PacketScannerSync();
         packet.deviceId = deviceId;
         packet.hasSession = false;
         packet.isComplete = true;
+        packet.subnetScanEnabled = subnetScanEnabled;
         packet.statusMessage = "";
 
         return packet;
@@ -304,6 +340,7 @@ public class PacketScannerSync implements IMessage {
         deviceId = buf.readLong();
         hasSession = buf.readBoolean();
         isComplete = buf.readBoolean();
+        subnetScanEnabled = buf.readBoolean();
         statusMessage = ByteBufUtils.readUTF8String(buf);
 
         // Read loop locations
@@ -389,6 +426,19 @@ public class PacketScannerSync implements IMessage {
             }
             fatalErrors.add(data);
         }
+
+        int patternCount = buf.readInt();
+        patternIssues = new ArrayList<>(patternCount);
+        for (int i = 0; i < patternCount; i++) {
+            PatternIssueData data = new PatternIssueData();
+            data.categoryOrdinal = buf.readInt();
+            data.pos = new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
+            data.dimension = buf.readInt();
+            data.dimensionName = ByteBufUtils.readUTF8String(buf);
+            data.description = ByteBufUtils.readUTF8String(buf);
+            data.summary = ByteBufUtils.readUTF8String(buf);
+            patternIssues.add(data);
+        }
     }
 
     @Override
@@ -396,6 +446,7 @@ public class PacketScannerSync implements IMessage {
         buf.writeLong(deviceId);
         buf.writeBoolean(hasSession);
         buf.writeBoolean(isComplete);
+        buf.writeBoolean(subnetScanEnabled);
         ByteBufUtils.writeUTF8String(buf, statusMessage != null ? statusMessage : "");
 
         // Write loop locations
@@ -475,6 +526,18 @@ public class PacketScannerSync implements IMessage {
                 buf.writeInt(data.sourcePos.getZ());
             }
         }
+
+        buf.writeInt(patternIssues.size());
+        for (PatternIssueData data : patternIssues) {
+            buf.writeInt(data.categoryOrdinal);
+            buf.writeInt(data.pos.getX());
+            buf.writeInt(data.pos.getY());
+            buf.writeInt(data.pos.getZ());
+            buf.writeInt(data.dimension);
+            ByteBufUtils.writeUTF8String(buf, data.dimensionName);
+            ByteBufUtils.writeUTF8String(buf, data.description);
+            ByteBufUtils.writeUTF8String(buf, data.summary);
+        }
     }
 
     public static class Handler implements IMessageHandler<PacketScannerSync, IMessage> {
@@ -487,6 +550,7 @@ public class PacketScannerSync implements IMessage {
 
                 ScannerClientState.setActiveSession(deviceId, message.hasSession);
                 ScannerClientState.setScanComplete(deviceId, message.isComplete);
+                ScannerClientState.setSubnetScanEnabled(deviceId, message.subnetScanEnabled);
                 ITextComponent statusComponent = ScannerTextHelper.deserializeComponent(message.statusMessage);
                 ScannerClientState.setStatusMessage(deviceId, statusComponent);
 
@@ -570,6 +634,20 @@ public class PacketScannerSync implements IMessage {
                     ));
                 }
                 ScannerClientState.setFatalErrors(deviceId, clientFatal);
+
+                List<PatternIssue> clientPatternIssues = new ArrayList<>();
+                for (PatternIssueData data : message.patternIssues) {
+                    PatternIssue.Category category = PatternIssue.Category.values()[data.categoryOrdinal];
+                    clientPatternIssues.add(new PatternIssue(
+                        category,
+                        data.pos,
+                        data.dimension,
+                        data.dimensionName,
+                        ScannerTextHelper.resolveForDisplay(data.description),
+                        ScannerTextHelper.resolveForDisplay(data.summary)
+                    ));
+                }
+                ScannerClientState.setPatternIssues(deviceId, clientPatternIssues);
             });
 
             return null;

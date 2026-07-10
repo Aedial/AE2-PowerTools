@@ -39,7 +39,8 @@ public class ScannerClientState {
         UNLOADED_CHUNKS,
         CHOKEPOINTS,
         MISSING_CHANNELS,
-        FATAL_ERRORS
+        FATAL_ERRORS,
+        PATTERNS
     }
 
     /**
@@ -58,6 +59,7 @@ public class ScannerClientState {
     public static class DeviceScanState {
         private ITextComponent statusMessage = new TextComponentString("");
         private boolean isScanComplete = false;
+        private boolean subnetScanEnabled = false;
         private Tab currentTab = Tab.LOOPS;
 
         // Loop locations synced from server
@@ -85,6 +87,11 @@ public class ScannerClientState {
         private final Set<Integer> selectedFatalIndices = new HashSet<>();
         private List<FatalNetworkError> sortedFatalErrors = null;
 
+        // Pattern issues synced from server
+        private final List<PatternIssue> patternIssues = new ArrayList<>();
+        private final Set<Integer> selectedPatternIndices = new HashSet<>();
+        private List<PatternIssue> sortedPatternIssues = null;
+
         public void clearData() {
             loopLocations.clear();
             selectedLoopIndices.clear();
@@ -101,6 +108,9 @@ public class ScannerClientState {
             fatalErrors.clear();
             selectedFatalIndices.clear();
             sortedFatalErrors = null;
+            patternIssues.clear();
+            selectedPatternIndices.clear();
+            sortedPatternIssues = null;
             isScanComplete = false;
             currentTab = Tab.LOOPS;
         }
@@ -111,6 +121,7 @@ public class ScannerClientState {
             sortedMissingDevices = null;
             sortedChokeLocations = null;
             sortedFatalErrors = null;
+            sortedPatternIssues = null;
         }
     }
 
@@ -123,9 +134,7 @@ public class ScannerClientState {
     /**
      * Client-side loop location data.
      */
-    public static class LoopLocationClient {
-        public final BlockPos pos;
-        public final int dimension;
+    public static class LoopLocationClient extends AbstractLocation {
         public final String dimensionName;
         public final String blockName;
         public final String description;
@@ -133,20 +142,12 @@ public class ScannerClientState {
 
         public LoopLocationClient(BlockPos pos, int dimension, String dimensionName,
                 String blockName, String description, boolean isLoaded) {
-            this.pos = pos;
-            this.dimension = dimension;
+            super(pos, dimension);
+
             this.dimensionName = dimensionName;
             this.blockName = blockName;
             this.description = description;
             this.isLoaded = isLoaded;
-        }
-
-        public double getDistanceFrom(BlockPos from) {
-            double dx = pos.getX() - from.getX();
-            double dy = pos.getY() - from.getY();
-            double dz = pos.getZ() - from.getZ();
-
-            return Math.sqrt(dx * dx + dy * dy + dz * dz);
         }
     }
 
@@ -189,28 +190,18 @@ public class ScannerClientState {
     /**
      * Client-side missing channel device data.
      */
-    public static class MissingDeviceClient {
-        public final BlockPos pos;
-        public final int dimension;
+    public static class MissingDeviceClient extends AbstractLocation {
         public final String dimensionName;
         public final ItemStack itemStack;
         public final String description;
 
         public MissingDeviceClient(BlockPos pos, int dimension, String dimensionName,
                 ItemStack itemStack, String description) {
-            this.pos = pos;
-            this.dimension = dimension;
+            super(pos, dimension);
+
             this.dimensionName = dimensionName;
             this.itemStack = itemStack != null ? itemStack.copy() : ItemStack.EMPTY;
             this.description = description;
-        }
-
-        public double getDistanceFrom(BlockPos from) {
-            double dx = pos.getX() - from.getX();
-            double dy = pos.getY() - from.getY();
-            double dz = pos.getZ() - from.getZ();
-
-            return Math.sqrt(dx * dx + dy * dy + dz * dz);
         }
 
         /**
@@ -226,9 +217,7 @@ public class ScannerClientState {
     /**
      * Client-side channel chokepoint location data.
      */
-    public static class ChokeLocationClient {
-        public final BlockPos pos;
-        public final int dimension;
+    public static class ChokeLocationClient extends AbstractLocation {
         public final String dimensionName;
         public final String blockName;
         public final String description;
@@ -240,8 +229,8 @@ public class ScannerClientState {
         public ChokeLocationClient(BlockPos pos, int dimension, String dimensionName,
                 String blockName, String description, int usedChannels, int demandedChannels,
                 int capacity, List<ConnectionFlowClient> connectionFlows) {
-            this.pos = pos;
-            this.dimension = dimension;
+            super(pos, dimension);
+
             this.dimensionName = dimensionName;
             this.blockName = blockName;
             this.description = description;
@@ -249,14 +238,6 @@ public class ScannerClientState {
             this.demandedChannels = demandedChannels;
             this.capacity = capacity;
             this.connectionFlows = connectionFlows;
-        }
-
-        public double getDistanceFrom(BlockPos from) {
-            double dx = pos.getX() - from.getX();
-            double dy = pos.getY() - from.getY();
-            double dz = pos.getZ() - from.getZ();
-
-            return Math.sqrt(dx * dx + dy * dy + dz * dz);
         }
 
         /**
@@ -383,6 +364,13 @@ public class ScannerClientState {
             state -> state.sortedFatalErrors,
             (state, sortedEntries) -> state.sortedFatalErrors = sortedEntries);
 
+    private static final TabData<PatternIssue> PATTERN_TAB_DATA = new TabData<PatternIssue>(
+            Tab.PATTERNS,
+            state -> state.patternIssues,
+            state -> state.selectedPatternIndices,
+            state -> state.sortedPatternIssues,
+            (state, sortedEntries) -> state.sortedPatternIssues = sortedEntries);
+
     private static TabData<?> getTabData(Tab tab) {
         switch (tab) {
             case LOOPS:
@@ -394,8 +382,11 @@ public class ScannerClientState {
             case MISSING_CHANNELS:
                 return MISSING_TAB_DATA;
             case FATAL_ERRORS:
-            default:
                 return FATAL_TAB_DATA;
+            case PATTERNS:
+                return PATTERN_TAB_DATA;
+            default:
+                return LOOP_TAB_DATA;
         }
     }
 
@@ -678,6 +669,22 @@ public class ScannerClientState {
         state.isScanComplete = complete;
     }
 
+    public static boolean isSubnetScanEnabled() {
+        DeviceScanState state = getActiveState();
+
+        return state != null && state.subnetScanEnabled;
+    }
+
+    public static void setSubnetScanEnabled(long deviceId, boolean enabled) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.subnetScanEnabled = enabled;
+    }
+
+    public static void initSubnetState(long deviceId, boolean subnetScanEnabled) {
+        DeviceScanState state = getOrCreateState(deviceId);
+        state.subnetScanEnabled = subnetScanEnabled;
+    }
+
     // ========== Data Management ==========
 
     public static void clearData(long deviceId) {
@@ -753,6 +760,20 @@ public class ScannerClientState {
 
     public static int getFatalCount() {
         return getEntryCount(FATAL_TAB_DATA);
+    }
+
+    // ========== Pattern Issue Management ==========
+
+    public static void setPatternIssues(long deviceId, List<PatternIssue> issues) {
+        replaceEntries(deviceId, issues, PATTERN_TAB_DATA);
+    }
+
+    public static List<PatternIssue> getPatternIssues() {
+        return getEntries(PATTERN_TAB_DATA);
+    }
+
+    public static int getPatternCount() {
+        return getEntryCount(PATTERN_TAB_DATA);
     }
 
     // ========== Loop Selection Management ==========
@@ -909,6 +930,44 @@ public class ScannerClientState {
         return I18n.format(error.getCategory().getEntryKey(), error.getDescription());
     }
 
+    // ========== Pattern Issue Selection Management ==========
+
+    public static void togglePatternSelection(int index) {
+        toggleTabSelection(PATTERN_TAB_DATA, index);
+    }
+
+    public static void selectOnlyPattern(int index) {
+        selectOnlyTabEntry(PATTERN_TAB_DATA, index);
+    }
+
+    public static void selectAllPatterns() {
+        selectAllTabEntries(PATTERN_TAB_DATA);
+    }
+
+    public static void deselectAllPatterns() {
+        clearTabSelection(PATTERN_TAB_DATA);
+    }
+
+    public static boolean isPatternSelected(int index) {
+        return isTabEntrySelected(PATTERN_TAB_DATA, index);
+    }
+
+    public static Set<Integer> getSelectedPatternIndices() {
+        return getTabSelectedIndices(PATTERN_TAB_DATA);
+    }
+
+    public static List<PatternIssue> getSelectedPatternIssues() {
+        return getSelectedEntries(PATTERN_TAB_DATA);
+    }
+
+    public static String getPatternIssueDisplayText(PatternIssue issue) {
+        return issue.getDescription();
+    }
+
+    public static String getPatternIssueTooltipText(PatternIssue issue) {
+        return issue.getSummary();
+    }
+
     // ========== Generic Selection for Current Tab ==========
 
     public static void selectAll() {
@@ -1056,6 +1115,37 @@ public class ScannerClientState {
 
             String aName = stripFormatting(getFatalErrorDisplayText(a));
             String bName = stripFormatting(getFatalErrorDisplayText(b));
+
+            if (sortContext.sortMode == SortMode.NAME) {
+                int nameCompare = aName.compareToIgnoreCase(bName);
+                if (nameCompare != 0) return nameCompare;
+
+                return Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+            }
+
+            int distanceCompare = Double.compare(a.getDistanceFrom(sortContext.playerPos), b.getDistanceFrom(sortContext.playerPos));
+            if (distanceCompare != 0) return distanceCompare;
+
+            return aName.compareToIgnoreCase(bName);
+        });
+    }
+
+    /**
+     * Get pattern issues sorted by category first, then by dimension and current sort mode.
+     */
+    public static List<PatternIssue> getSortedPatternIssues() {
+        return getSortedEntries(PATTERN_TAB_DATA, sortContext -> (a, b) -> {
+            int categoryCompare = Integer.compare(a.getCategory().ordinal(), b.getCategory().ordinal());
+            if (categoryCompare != 0) return categoryCompare;
+
+            int dimensionCompare = compareDimensionPriority(
+                    a.getDimension(),
+                    b.getDimension(),
+                    sortContext.playerDimension);
+            if (dimensionCompare != 0) return dimensionCompare;
+
+            String aName = stripFormatting(getPatternIssueDisplayText(a));
+            String bName = stripFormatting(getPatternIssueDisplayText(b));
 
             if (sortContext.sortMode == SortMode.NAME) {
                 int nameCompare = aName.compareToIgnoreCase(bName);

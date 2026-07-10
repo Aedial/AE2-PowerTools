@@ -54,6 +54,7 @@ public class PacketSetMatchMode implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 IStorageMonitorHost host = StorageMonitorHostResolver.resolve(player.world, message.pos, message.side);
                 if (host == null) return;
+                if (!host.supportsMatchMode()) return;
 
                 host.setMatchMode(MatchMode.fromId(message.matchModeId));
             });

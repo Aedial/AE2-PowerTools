@@ -1,7 +1,6 @@
 package com.ae2powertools.features.crafter;
 
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.tileentity.TileEntity;
 
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
@@ -16,7 +15,7 @@ public class ContainerCrafterBatch extends AEBaseContainer {
     private final TileAutoCrafter tile;
 
     @GuiSync(0)
-    public int batchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
+    public long batchSize = TileAutoCrafter.DEFAULT_BATCH_SIZE;
 
     public ContainerCrafterBatch(InventoryPlayer playerInv, TileAutoCrafter tile) {
         super(playerInv, tile, null);

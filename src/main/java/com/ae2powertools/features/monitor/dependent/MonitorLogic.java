@@ -82,6 +82,13 @@ public class MonitorLogic {
     /** Whether the overall condition (AND/OR across all entries) is currently met */
     private boolean conditionMet;
 
+    /**
+     * Forces one host-side condition callback after the next successful refresh.
+     * Needed when config mutations keep the same boolean condition but still change the
+     * host's derived state, such as alarm latching when entries are disabled or retuned.
+     */
+    private boolean conditionDirty;
+
     public MonitorLogic(IMonitorLogicHost host) {
         this.host = host;
     }
@@ -94,9 +101,9 @@ public class MonitorLogic {
      *
      * Called directly from IGridTickable hosts, the grid tick manager controls the rate.
      */
-    public void refresh() {
+    public boolean refresh() {
         AENetworkProxy proxy = host.getProxy();
-        if (proxy == null || !proxy.isReady() || !proxy.isActive()) return;
+        if (proxy == null || !proxy.isReady() || !proxy.isActive()) return false;
 
         boolean newCondition;
 
@@ -107,13 +114,18 @@ public class MonitorLogic {
             newCondition = evaluateCondition(storage);
         } catch (GridAccessException e) {
             // Network not available, keep last known state
-            return;
+            return false;
         }
 
         boolean old = conditionMet;
         conditionMet = newCondition;
 
-        if (old != conditionMet) host.onConditionChanged(old, conditionMet);
+        if (old == conditionMet && !conditionDirty) return true;
+
+        conditionDirty = false;
+        host.onConditionChanged(old, conditionMet);
+
+        return true;
     }
 
     /**
@@ -390,7 +402,7 @@ public class MonitorLogic {
      */
     public void setEntries(List<MonitoredEntry> entries) {
         this.entries = normaliseToGrid(entries);
-        this.conditionMet = false;
+        this.conditionDirty = true;
         this.entriesVersion++;
         host.markDirtyAndSave();
     }
@@ -418,7 +430,7 @@ public class MonitorLogic {
         }
 
         entries.set(index, entry);
-        conditionMet = false;
+        conditionDirty = true;
         entriesVersion++;
         host.markDirtyAndSave();
     }
@@ -458,6 +470,7 @@ public class MonitorLogic {
 
     public void setMatchMode(MatchMode mode) {
         this.matchMode = mode;
+        this.conditionDirty = true;
         host.markDirtyAndSave();
     }
 
@@ -467,6 +480,7 @@ public class MonitorLogic {
 
     public void setHysteresisEnabled(boolean hysteresisEnabled) {
         this.hysteresisEnabled = hysteresisEnabled;
+        this.conditionDirty = true;
         host.markDirtyAndSave();
     }
 
@@ -528,5 +542,6 @@ public class MonitorLogic {
 
         // Reset volatile state
         conditionMet = false;
+        conditionDirty = true;
     }
 }

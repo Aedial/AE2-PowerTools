@@ -8,7 +8,7 @@ import net.minecraft.util.math.BlockPos;
 /**
  * Fatal network issue tied to a specific block position that the player can inspect.
  */
-public class FatalNetworkError {
+public class FatalNetworkError extends AbstractLocation {
 
     public enum Category {
         DUPLICATE_STORAGE_TARGET("duplicate_storage_target"),
@@ -34,17 +34,15 @@ public class FatalNetworkError {
     }
 
     private final Category category;
-    private final BlockPos pos;
-    private final int dimension;
     private final String dimensionName;
     private final String description;
     private final BlockPos sourcePos;
 
     public FatalNetworkError(Category category, BlockPos pos, int dimension, String dimensionName,
             String description, BlockPos sourcePos) {
+        super(pos, dimension);
+
         this.category = category;
-        this.pos = pos;
-        this.dimension = dimension;
         this.dimensionName = dimensionName;
         this.description = description;
         this.sourcePos = sourcePos;
@@ -72,14 +70,6 @@ public class FatalNetworkError {
 
     public BlockPos getSourcePos() {
         return sourcePos;
-    }
-
-    public double getDistanceFrom(BlockPos from) {
-        double dx = pos.getX() - from.getX();
-        double dy = pos.getY() - from.getY();
-        double dz = pos.getZ() - from.getZ();
-
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     @Override

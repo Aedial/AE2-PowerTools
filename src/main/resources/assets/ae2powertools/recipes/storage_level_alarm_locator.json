@@ -1,0 +1,28 @@
+{
+    "conditions": [
+        {
+            "type": "minecraft:item_exists",
+            "item": "ae2powertools:level_monitor_alarm"
+        },
+        {
+            "type": "minecraft:item_exists",
+            "item": "appliedenergistics2:smooth_sky_stone_block"
+        }
+    ],
+    "result": {
+        "item": "ae2powertools:level_monitor_alarm_locator"
+    },
+    "type": "ae2powertools:shapeless_reusable",
+    "ingredients": [
+        {
+            "item": "ae2powertools:level_monitor_alarm",
+            "non_consume": true
+        },
+        {
+            "item": "minecraft:compass"
+        },
+        {
+            "item": "appliedenergistics2:smooth_sky_stone_block"
+        }
+    ]
+}

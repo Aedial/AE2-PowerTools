@@ -30,6 +30,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.util.ReadableNumberConverter;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.client.gui.VanillaButtonRenderer;
 import com.ae2powertools.features.crafter.pmt.PMTManager;
 import com.ae2powertools.features.crafter.pmt.PMTRenderer;
 import com.ae2powertools.features.crafter.pmt.PMTSlot;
@@ -41,8 +42,8 @@ import com.ae2powertools.util.FormatUtil;
  * GUI for the AE2 AutoCrafter.
  * Recipe view (per-entry) with Overview modal overlay.
  * 
- * Modal system: Overview is drawn on top of the recipe view when overviewMode=true.
- * Upgrade slots and Batch/Speed buttons remain accessible in both modes.
+ * Modal system: Overview replaces the covered recipe/inventory area when
+ * overviewMode=true while keeping the PMT panel visible to the left.
  * 
  * When NAE2 is installed and the player has a Pattern Multi-Tool, displays the PMT
  * panel to the left of the main GUI for convenient pattern storage access.
@@ -362,6 +363,10 @@ public class GuiAutoCrafter extends GuiContainer {
         // Draw upgrade slot icons (for empty slots)
         drawUpgradeSlotIcons();
 
+        // Short circuit to skip drawing recipe/inventory if overview is open.
+        // This avoids content underneath leaking GL state to the overview (eating item renders, etc).
+        if (overviewMode) return;
+
         // Draw pattern slot icon (for empty slot)
         drawPatternSlotIcon();
 
@@ -434,20 +439,23 @@ public class GuiAutoCrafter extends GuiContainer {
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
+        PMTManager pmtManager = container.getPMTManager();
+        if (overviewMode) {
+            PMTRenderer.drawSlotOverlays(this, pmtManager);
+            return;
+        }
+
         // Draw title (shifted right to make room for overview/back button on the left)
         String title = I18n.format("gui.ae2powertools.crafter.title");
         fontRenderer.drawString(title, OVERVIEW_BTN_X + PAGE_BTN_SIZE + 4, 7, 0x404040);
 
-        // Draw page indicator in recipe mode (not in overview)
-        if (!overviewMode) {
-            String pageText = I18n.format("gui.ae2powertools.crafter.page", getCurrentPage() + 1, TileAutoCrafter.ENTRY_COUNT);
-            int pageWidth = fontRenderer.getStringWidth(pageText);
-            int centerX = (PAGE_LEFT_X + 12 + PAGE_RIGHT_X) / 2 - pageWidth / 2;
-            fontRenderer.drawString(pageText, centerX, PAGE_LEFT_Y + 2, 0x404040);
-        }
+        // Draw page indicator in recipe mode
+        String pageText = I18n.format("gui.ae2powertools.crafter.page", getCurrentPage() + 1, TileAutoCrafter.ENTRY_COUNT);
+        int pageWidth = fontRenderer.getStringWidth(pageText);
+        int centerX = (PAGE_LEFT_X + 12 + PAGE_RIGHT_X) / 2 - pageWidth / 2;
+        fontRenderer.drawString(pageText, centerX, PAGE_LEFT_Y + 2, 0x404040);
 
         // Draw PMT slot count overlays (AE2 handles item rendering via getStack()/getDisplayStack())
-        PMTManager pmtManager = container.getPMTManager();
         PMTRenderer.drawSlotOverlays(this, pmtManager);
     }
 
@@ -462,6 +470,9 @@ public class GuiAutoCrafter extends GuiContainer {
      */
     @Override
     public void drawSlot(Slot slotIn) {
+        // Refuse to render inventory slots when overview modal is open
+        if (overviewMode && isUnderOverview(slotIn.xPos, slotIn.yPos, 16, 16)) return;
+
         if (!(slotIn instanceof PMTSlot)) {
             super.drawSlot(slotIn);
             return;
@@ -597,42 +608,7 @@ public class GuiAutoCrafter extends GuiContainer {
      * Uses darker colors matching vanilla Minecraft button style.
      */
     private void drawSquareButton(int x, int y, int size, String text, boolean enabled, boolean hovered) {
-        // Vanilla-style button colors (darker, more muted)
-        int bgColor;
-        if (!enabled) {
-            bgColor = 0xFF606060; // Disabled: dark gray
-        } else if (hovered) {
-            bgColor = 0xFF7090B0; // Hovered: slightly brighter blue-gray
-        } else {
-            bgColor = 0xFF808080; // Normal: medium gray (vanilla button base)
-        }
-
-        // Draw button background
-        drawRect(x + 1, y + 1, x + size - 1, y + size - 1, bgColor);
-
-        // Draw beveled border (vanilla 3D style)
-        int borderLight = enabled ? 0xFFAAAAAA : 0xFF808080;  // Top/left highlight
-        int borderDark = enabled ? 0xFF404040 : 0xFF505050;   // Bottom/right shadow
-        int borderOuter = 0xFF000000;  // Outer edge
-
-        // Outer black border
-        drawHorizontalLine(x, x + size - 1, y, borderOuter);
-        drawHorizontalLine(x, x + size - 1, y + size - 1, borderOuter);
-        drawVerticalLine(x, y, y + size - 1, borderOuter);
-        drawVerticalLine(x + size - 1, y, y + size - 1, borderOuter);
-
-        // Inner beveled edges (light top/left, dark bottom/right)
-        drawHorizontalLine(x + 1, x + size - 2, y + 1, borderLight);
-        drawVerticalLine(x + 1, y + 1, y + size - 2, borderLight);
-        drawHorizontalLine(x + 1, x + size - 2, y + size - 2, borderDark);
-        drawVerticalLine(x + size - 2, y + 1, y + size - 2, borderDark);
-
-        // Draw text centered with vanilla colors and shadow
-        int textColor = enabled ? (hovered ? 0xFFFFFFA0 : 0xFFE0E0E0) : 0xFFA0A0A0;
-        int textWidth = fontRenderer.getStringWidth(text);
-        int textX = x + (size - textWidth) / 2 + 1;
-        int textY = y + (size - fontRenderer.FONT_HEIGHT) / 2 + 1;
-        fontRenderer.drawStringWithShadow(text, textX, textY, textColor);
+        VanillaButtonRenderer.drawBeveledButton(fontRenderer, x, y, size, size, text, enabled, hovered);
     }
 
     /**
@@ -811,11 +787,11 @@ public class GuiAutoCrafter extends GuiContainer {
         if (output == null) return;
 
         // Calculate throughput using @GuiSync values from container
-        int speedTicks = container.syncSpeedTicks;
-        int batchSize = container.syncBatchSize;
+        long speedTicks = container.syncSpeedTicks;
+        long batchSize = container.syncBatchSize;
         long outputCount = output.getStackSize();
 
-        long itemsPerCraft = (long) container.syncEffectiveBatchSize * outputCount;
+        long itemsPerCraft = container.syncEffectiveBatchSize * outputCount;
         String itemsPerCraftStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(itemsPerCraft);
         String timePerOperation = FormatUtil.formatTimeTicks(speedTicks * batchSize);
         String throughput = I18n.format("gui.ae2powertools.crafter.crafts_per_operation",
@@ -1250,6 +1226,23 @@ public class GuiAutoCrafter extends GuiContainer {
     }
 
     // ==================== HELPERS ====================
+
+    /**
+     * Returns whether a GUI-relative rectangle is covered by the overview modal.
+     * Covered elements are skipped instead of fighting the modal's item rendering.
+     */
+    private boolean isUnderOverview(int x, int y, int width, int height) {
+        return x < OVERVIEW_MODAL_WIDTH && x + width > 0
+                && y < OVERVIEW_MODAL_HEIGHT && y + height > 0;
+    }
+
+    @Override
+    protected boolean isPointInRegion(int rectX, int rectY, int rectWidth, int rectHeight, int pointX, int pointY) {
+        // Refuse all inventory slots interactions when overview modal is open, to prevent rendering
+        if (overviewMode && isUnderOverview(rectX, rectY, rectWidth, rectHeight)) return false;
+
+        return super.isPointInRegion(rectX, rectY, rectWidth, rectHeight, pointX, pointY);
+    }
 
     private void drawItemStack(ItemStack stack, int x, int y) {
         GlStateManager.pushMatrix();

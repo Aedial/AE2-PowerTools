@@ -7,13 +7,17 @@ import java.util.List;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.IModRegistry;
+import mezz.jei.api.IJeiHelpers;
 import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.gui.IAdvancedGuiHandler;
+import mezz.jei.api.gui.ICraftingGridHelper;
 import mezz.jei.api.ingredients.IIngredientRegistry;
+import mezz.jei.api.recipe.VanillaRecipeCategoryUid;
 
 import com.ae2powertools.features.crafter.GuiAutoCrafter;
 import com.ae2powertools.features.maintainer.GuiBetterLevelMaintainer;
 import com.ae2powertools.features.monitor.dependent.GuiStorageMonitor;
+import com.ae2powertools.recipes.ShapelessReusableIngredientRecipe;
 
 
 /**
@@ -25,6 +29,9 @@ public class PowerToolsJEIPlugin implements IModPlugin {
 
     @Override
     public void register(IModRegistry registry) {
+        IJeiHelpers jeiHelpers = registry.getJeiHelpers();
+        ICraftingGridHelper craftingGridHelper = jeiHelpers.getGuiHelper().createCraftingGridHelper(1, 0);
+
         // Register advanced GUI handler for maintainer GUI
         registry.addAdvancedGuiHandlers(new MaintainerGuiHandler());
         // AutoCrafter: the Pattern Multi-Tool panel extends outside the base GUI.
@@ -32,6 +39,11 @@ public class PowerToolsJEIPlugin implements IModPlugin {
         // Storage Emitter / Display: the AND/OR side button sits outside guiLeft
         // and would otherwise be hidden under JEI's overlay panel.
         registry.addAdvancedGuiHandlers(new StorageMonitorGuiHandler());
+        registry.handleRecipes(
+            ShapelessReusableIngredientRecipe.class,
+            recipe -> new ReusableCraftingRecipeWrapper(craftingGridHelper, recipe),
+            VanillaRecipeCategoryUid.CRAFTING
+        );
 
         // Cache the ingredient registry now (it's only available off IModRegistry, NOT IJeiRuntime
         // in JEI 4.8). The storage-emitter GUI uses this later to delegate non-item tooltip

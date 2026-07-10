@@ -10,41 +10,40 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import com.ae2powertools.features.monitor.dependent.IStorageMonitorHost;
 import com.ae2powertools.features.monitor.dependent.StorageMonitorHostResolver;
-import com.ae2powertools.features.monitor.emitter.EmitterRedstoneStrength;
-import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneStrengthHost;
+import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 
 
 /**
- * Client -> server packet to toggle an emitter host between weak-only and
- * strong redstone output.
+ * Client -> server packet to update an emitter host's configurable redstone
+ * strength value.
  */
 public class PacketSetEmitterRedstoneStrength implements IMessage {
 
     private BlockPos pos;
     /** -1 for block-tile hosts, AEPartLocation ordinal for cable parts. */
     private byte side;
-    private int signalStrengthId;
+    private int strength;
 
     public PacketSetEmitterRedstoneStrength() {}
 
-    public PacketSetEmitterRedstoneStrength(IStorageMonitorHost host, EmitterRedstoneStrength signalStrength) {
+    public PacketSetEmitterRedstoneStrength(IStorageMonitorHost host, int strength) {
         this.pos = host.getHostPos();
         this.side = StorageMonitorHostResolver.encodeSide(host.getHostSide());
-        this.signalStrengthId = signalStrength.getId();
+        this.strength = strength;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         pos = BlockPos.fromLong(buf.readLong());
         side = buf.readByte();
-        signalStrengthId = buf.readInt();
+        strength = buf.readInt();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeLong(pos.toLong());
         buf.writeByte(side);
-        buf.writeInt(signalStrengthId);
+        buf.writeInt(strength);
     }
 
     public static class Handler implements IMessageHandler<PacketSetEmitterRedstoneStrength, IMessage> {
@@ -55,10 +54,9 @@ public class PacketSetEmitterRedstoneStrength implements IMessage {
 
             player.getServerWorld().addScheduledTask(() -> {
                 IStorageMonitorHost host = StorageMonitorHostResolver.resolve(player.world, message.pos, message.side);
-                if (!(host instanceof IEmitterRedstoneStrengthHost)) return;
+                if (!(host instanceof IEmitterRedstoneHost)) return;
 
-                ((IEmitterRedstoneStrengthHost) host).setRedstoneSignalStrength(
-                    EmitterRedstoneStrength.fromId(message.signalStrengthId));
+                ((IEmitterRedstoneHost) host).setRedstoneStrength(message.strength);
             });
 
             return null;

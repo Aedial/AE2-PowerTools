@@ -1,5 +1,7 @@
 {
     "variants": {
-        "normal": { "model": "ae2powertools:storage_level_emitter" }
+        "inventory": { "model": "ae2powertools:storage_level_emitter" },
+        "state=false": { "model": "ae2powertools:storage_level_emitter" },
+        "state=true": { "model": "ae2powertools:storage_level_emitter_on" }
     }
 }

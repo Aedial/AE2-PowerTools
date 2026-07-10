@@ -1,5 +1,9 @@
 package com.ae2powertools.features.monitor.emitter;
 
+import java.io.IOException;
+
+import io.netty.buffer.ByteBuf;
+
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 
@@ -16,7 +20,7 @@ import com.ae2powertools.features.monitor.dependent.TileStorageMonitorBase;
  * Tile entity for the ME Storage Level Emitter block.
  * Emits redstone when the monitored entries' overall condition is met.
  */
-public class TileStorageLevelEmitter extends TileStorageMonitorBase implements IEmitterRedstoneStrengthHost {
+public class TileStorageLevelEmitter extends TileStorageMonitorBase implements IEmitterRedstoneHost {
 
     private final LevelEmitterLogic emitterLogic;
 
@@ -43,30 +47,49 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
      * keeps working in both modes.
      */
     public int getWeakRedstoneSignal() {
-        // TODO: Make strength configurable (default 15, but should allow 1-15)
-        //       Main issue is the UX of configuring that in the GUI
-        return emitterLogic.isEmitting() ? 15 : 0;
+        return emitterLogic.isEmitting() ? emitterLogic.getRedstoneStrength() : 0;
     }
 
     /**
      * Strong power is only exposed in strong-output mode.
      */
     public int getStrongRedstoneSignal() {
-        return emitterLogic.isEmitting() && emitterLogic.emitsStrongSignal() ? 15 : 0;
+        return emitterLogic.isEmitting() && emitterLogic.emitsStrongSignal()
+            ? emitterLogic.getRedstoneStrength()
+            : 0;
     }
 
     @Override
-    public EmitterRedstoneStrength getRedstoneSignalStrength() {
-        return emitterLogic.getRedstoneSignalStrength();
+    public EmitterRedstonePower getRedstonePower() {
+        return emitterLogic.getRedstonePower();
     }
 
     @Override
-    public void setRedstoneSignalStrength(EmitterRedstoneStrength signalStrength) {
-        if (emitterLogic.getRedstoneSignalStrength() == signalStrength) return;
+    public void setRedstonePower(EmitterRedstonePower signalStrength) {
+        if (emitterLogic.getRedstonePower() == signalStrength) return;
 
-        emitterLogic.setRedstoneSignalStrength(signalStrength);
+        emitterLogic.setRedstonePower(signalStrength);
         markDirtyAndSave();
         notifyOutputChanged(true);
+    }
+
+    @Override
+    public int getRedstoneStrength() {
+        return emitterLogic.getRedstoneStrength();
+    }
+
+    @Override
+    public void setRedstoneStrength(int strength) {
+        int clampedStrength = LevelEmitterLogic.clampRedstoneStrength(strength);
+        if (emitterLogic.getRedstoneStrength() == clampedStrength) return;
+
+        emitterLogic.setRedstoneStrength(clampedStrength);
+        markDirtyAndSave();
+        notifyOutputChanged(emitterLogic.emitsStrongSignal());
+    }
+
+    public boolean isOn() {
+        return emitterLogic.isEmitting();
     }
 
     // --- IMonitorLogicHost ---
@@ -96,6 +119,18 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
         return tag;
     }
 
+    @Override
+    protected void writeToStream(ByteBuf data) throws IOException {
+        super.writeToStream(data);
+        emitterLogic.writeToStream(data);
+    }
+
+    @Override
+    protected boolean readFromStream(ByteBuf data) throws IOException {
+        boolean changed = super.readFromStream(data);
+        return emitterLogic.readFromStream(data) || changed;
+    }
+
     private void notifyOutputChanged() {
         notifyOutputChanged(emitterLogic.emitsStrongSignal());
     }
@@ -103,6 +138,9 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     private void notifyOutputChanged(boolean includeStrongPropagation) {
         if (world == null) return;
 
+        markForUpdate();  // re-render block for redstone state visuals
+
+        // Propagate redstone updates to neighbors so they can react to the new signal strength
         Platform.notifyBlocksOfNeighbors(world, pos);
 
         if (!includeStrongPropagation) return;
