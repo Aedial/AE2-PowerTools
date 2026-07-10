@@ -1,3 +1,5 @@
+# Translate by MrKoteo
+
 # Creative tab
 itemGroup.ae2powertools=AE2 PowerTools
 
@@ -427,6 +429,8 @@ gui.ae2powertools.storage_emitter.controls.title=Управление
 gui.ae2powertools.storage_emitter.controls.scroll=Shift + прокрутка: удвоить/уменьшить вдвое цель
 gui.ae2powertools.storage_emitter.controls.toggle=ПКМ: Включить/выключить
 
+
+
 # мне лень искать куда это
 gui.ae2powertools.scanner.tab_fatal=Критические ошибки (%d)
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.title=Повторяющиеся цели шин хранения
@@ -436,3 +440,75 @@ gui.ae2powertools.scanner.fatal.same_network_interface_link.title=Основна
 gui.ae2powertools.scanner.fatal.same_network_interface_link.tooltip=Шина хранения указывает на интерфейс, который принадлежит той же сети. Это замыкает основную сеть на саму себя и может приводить к неверному отображению количеств.
 gui.ae2powertools.scanner.fatal.same_network_interface_link.entry=%1$s -> интерфейс той же сети
 ae2powertools.scanner.complete.summary.line5=- Обнаружено %d критических ошибок
+gui.ae2powertools.scanner.tab_patterns=Шаблоны (%d)
+gui.ae2powertools.scanner.pattern.invalid.title=Недействительные рецепты крафта
+gui.ae2powertools.scanner.pattern.invalid.tooltip=Шаблоны крафта, которые больше не соответствуют действительному рецепту. Обычно это происходит после изменения рецептов или модов.
+gui.ae2powertools.scanner.pattern.conflicting_outputs.title=Конфликтующие результаты
+gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=Разные шаблоны, выдающие одинаковые результаты. AE2 может выбирать между ними во время построения дерева, что приводит к нестабильным или непреднамеренным путям крафта.
+gui.ae2powertools.scanner.pattern.nested_input_output.title=Вложенные вход/выход
+gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=Шаблоны, в которых один и тот же предмет присутствует и во входах, и в выходах. Такие самовложенные рецепты приведут к ошибке при построении дерева крафта AE2.
+gui.ae2powertools.scanner.pattern.unknown_output=Неизвестный результат
+gui.ae2powertools.scanner.pattern.more_outputs=+%d ещё
+gui.ae2powertools.scanner.subnet.title=Сканирование подсетей
+gui.ae2powertools.scanner.subnet.enabled=Включено (включая подсети)
+gui.ae2powertools.scanner.subnet.disabled=Отключено (только сканируемая сеть)
+gui.ae2powertools.scanner.subnet.click_toggle=Нажмите, чтобы переключить
+gui.ae2powertools.scanner.subnet.hint=Повторно сканируйте сеть для применения
+ae2powertools.scanner.complete.summary.line6=- Найдено %d проблем с шаблонами
+
+tile.ae2powertools.better_level_maintainer.memory_card.tooltip=Цели обслуживания
+item.ae2powertools.remote_storage_monitor.name=Удалённый монитор хранилища
+item.ae2powertools.remote_storage_monitor.tip1=ПКМ, чтобы открыть удалённый монитор
+item.ae2powertools.remote_storage_monitor.tip2=Держите в руке или наденьте, чтобы отображать изменения количества в виде наложения
+gui.ae2powertools.remote_monitor.title=Удалённый монитор хранилища
+gui.ae2powertools.remote_monitor.empty_slot=Пустой слот
+gui.ae2powertools.remote_monitor.slot_left_click=ЛКМ, чтобы выбрать содержимое
+gui.ae2powertools.remote_monitor.slot_right_click=ПКМ, чтобы очистить
+gui.ae2powertools.remote_monitor.polling_rate.title=Частота опроса
+gui.ae2powertools.remote_monitor.polling_rate.tooltip=Сравнивать с последними %s
+gui.ae2powertools.remote_monitor.polling_rate.description=Установите временной интервал для измерения изменений количества
+gui.ae2powertools.remote_monitor.selector.title=Выбор содержимого
+
+ae2powertools.config.client.remoteMonitor=Удалённый монитор
+ae2powertools.config.client.remoteMonitor.tooltip=Настройки наложения удалённого монитора хранилища
+ae2powertools.config.client.remoteMonitor.x=Положение по X наложения
+ae2powertools.config.client.remoteMonitor.x.tooltip=Горизонтальное положение наложения удалённого монитора на экране
+ae2powertools.config.client.remoteMonitor.y=Положение по Y наложения
+ae2powertools.config.client.remoteMonitor.y.tooltip=Вертикальное положение наложения удалённого монитора на экране
+ae2powertools.config.client.remoteMonitor.paddingInternal=Внутренний отступ
+ae2powertools.config.client.remoteMonitor.paddingInternal.tooltip=Отступ между краем наложения и его значком/текстом
+ae2powertools.config.client.remoteMonitor.lineSpacing=Межстрочный интервал
+ae2powertools.config.client.remoteMonitor.lineSpacing.tooltip=Вертикальное расстояние между записями удалённого монитора
+ae2powertools.config.client.remoteMonitor.iconSize=Размер иконки
+ae2powertools.config.client.remoteMonitor.iconSize.tooltip=Отображаемый размер иконок отслеживаемых ресурсов. Держите его кратным степени двойки (8, 16, 32 и т.д.), чтобы избежать размытых иконок.
+ae2powertools.config.client.remoteMonitor.iconTextGap=Промежуток между иконкой и текстом
+ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=Горизонтальное расстояние между иконкой и текстом изменения
+ae2powertools.config.client.remoteMonitor.textScalePercent=Размер текста
+ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=Масштаб в процентах для текста изменений удалённого монитора относительно обычного размера шрифта HUD
+ae2powertools.config.client.remoteMonitor.gainColor=Цвет увеличения
+ae2powertools.config.client.remoteMonitor.gainColor.tooltip=Цвет текста (шестнадцатеричный) для положительных изменений количества
+ae2powertools.config.client.remoteMonitor.lossColor=Цвет уменьшения
+ae2powertools.config.client.remoteMonitor.lossColor.tooltip=Цвет текста (шестнадцатеричный) для отрицательных изменений количества
+jei.ae2powertools.reusable=Многоразовый
+
+tile.ae2powertools.storage_level_emitter.memory_card.tooltip=Фильтры монитора хранилища
+tile.ae2powertools.level_monitor_alarm.name=Сигнализация контроля уровня
+tile.ae2powertools.level_monitor_alarm.tooltip=Предупреждает зарегистрированных игроков, когда срабатывает любая настроенная сигнализация.
+tile.ae2powertools.level_monitor_alarm.tooltip2=Принимает фильтры из любого Better Level Maintainer, AE2 AutoCrafter, Storage Level Emitter или Storage Display через карту памяти.
+tile.ae2powertools.level_monitor_alarm.memory_card.tooltip=Фильтры сигнализации
+tile.ae2powertools.storage_display.memory_card.tooltip=Фильтры монитора хранилища
+item.ae2powertools.storage_display_part_smaller.name=ME дисплей хранилища (меньше)
+item.ae2powertools.storage_display_part_smallerer.name=ME дисплей хранилища (ещё меньше)
+item.ae2powertools.level_monitor_alarm_locator.name=Локатор сигнализации контроля уровня
+item.ae2powertools.level_monitor_alarm_locator.tip1=Держите в любой руке, чтобы отображать стрелки к активным сигнализациям.
+gui.ae2powertools.level_monitor_alarm.title=Сигнализация контроля уровня
+gui.ae2powertools.storage_emitter.strength=Сила
+gui.ae2powertools.storage_emitter.strength.tooltip=Сила красного камня
+gui.ae2powertools.storage_emitter.strength.description=Сила красного камня — это начальная сила, которую получает непосредственно соседний блок. Затем сигнал ослабевает на 1 за каждый блок красной пыли, через который проходит.
+gui.ae2powertools.level_monitor_alarm.registration.registered=Получение предупреждений от этой сигнализации
+gui.ae2powertools.level_monitor_alarm.registration.unregistered=Не получать предупреждения от этой сигнализации
+gui.ae2powertools.level_monitor_alarm.registration.click_register=Нажмите, чтобы зарегистрироваться для получения предупреждений
+gui.ae2powertools.level_monitor_alarm.registration.click_unregister=Нажмите, чтобы перестать получать предупреждения
+gui.ae2powertools.level_monitor_alarm.overlay.single=Сигнализация в %s
+gui.ae2powertools.level_monitor_alarm.overlay.multiple=Сигнализации в %s
+
