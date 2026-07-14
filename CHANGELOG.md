@@ -8,9 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.6.5] - 2026-07-15
+## [1.6.9] - ???
 ### Added
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
+
+
+## [1.6.5] - 2026-07-15
+### Fixed
+- Fix the Remote Storage Monitor selector crashing when typing in the search field after receiving selector entries without a cached display name.
 
 
 ## [1.6.4] - 2026-07-05
