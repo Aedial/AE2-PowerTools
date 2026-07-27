@@ -1,11 +1,16 @@
 package com.ae2powertools.features.crafter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
+
+import net.minecraft.util.text.ITextComponent;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
@@ -20,6 +25,7 @@ import appeng.util.item.AEItemStack;
  * - enabled (whether the entry is processing)
  * - hasDisplayData (whether output/recipe info is available)
  * - output item (icon and name)
+ * - error details (extended overview tooltip diagnostics)
  * - metrics (occupancy/error rate calculations)
  * <p>
  * Serialization is plain ByteBuf reads/writes (no NBT compression). Packets are
@@ -33,6 +39,7 @@ public final class CrafterOverviewSnapshot {
     private final boolean hasDisplayData;
     @Nullable
     private final IAEItemStack output;
+    private final List<ITextComponent> errorDetails;
     private final long metricsTotal;
     private final long metricsError;
     private final long metricsTotalActualCrafted;
@@ -40,12 +47,14 @@ public final class CrafterOverviewSnapshot {
 
     public CrafterOverviewSnapshot(int stateOrdinal, boolean enabled, boolean hasDisplayData,
                                    @Nullable IAEItemStack output,
+                                   List<ITextComponent> errorDetails,
                                    long metricsTotal, long metricsError,
                                    long metricsTotalActualCrafted, long metricsTotalMaxPossible) {
         this.stateOrdinal = stateOrdinal;
         this.enabled = enabled;
         this.hasDisplayData = hasDisplayData;
         this.output = output;
+        this.errorDetails = errorDetails;
         this.metricsTotal = metricsTotal;
         this.metricsError = metricsError;
         this.metricsTotalActualCrafted = metricsTotalActualCrafted;
@@ -65,11 +74,16 @@ public final class CrafterOverviewSnapshot {
             entry.isEnabled(),
             hasDisplay,
             outCopy,
+            copyComponents(entry.getErrorDetails()),
             entry.getMetricsTotal(),
             entry.getMetricsError(),
             entry.getMetricsTotalActualCrafted(),
             entry.getMetricsTotalMaxPossible()
         );
+    }
+
+    private static List<ITextComponent> copyComponents(List<ITextComponent> source) {
+        return source.isEmpty() ? Collections.emptyList() : new ArrayList<>(source);
     }
 
     public void writeToBuf(ByteBuf buf) throws IOException {
@@ -78,6 +92,10 @@ public final class CrafterOverviewSnapshot {
         buf.writeBoolean(hasDisplayData);
         buf.writeBoolean(output != null);
         if (output != null) output.writeToPacket(buf);
+        buf.writeShort(errorDetails.size());
+        for (ITextComponent comp : errorDetails) {
+            writeString(buf, ITextComponent.Serializer.componentToJson(comp));
+        }
         buf.writeLong(metricsTotal);
         buf.writeLong(metricsError);
         buf.writeLong(metricsTotalActualCrafted);
@@ -89,18 +107,38 @@ public final class CrafterOverviewSnapshot {
         boolean enabled = buf.readBoolean();
         boolean hasDisplayData = buf.readBoolean();
         IAEItemStack output = buf.readBoolean() ? AEItemStack.fromPacket(buf) : null;
+        int errorCount = buf.readShort() & 0xFFFF;
+        List<ITextComponent> errorDetails = new ArrayList<>(errorCount);
+        for (int i = 0; i < errorCount; i++) {
+            errorDetails.add(ITextComponent.Serializer.jsonToComponent(readString(buf)));
+        }
         long metricsTotal = buf.readLong();
         long metricsError = buf.readLong();
         long metricsTotalActualCrafted = buf.readLong();
         long metricsTotalMaxPossible = buf.readLong();
         return new CrafterOverviewSnapshot(stateOrdinal, enabled, hasDisplayData, output,
+            errorDetails,
             metricsTotal, metricsError, metricsTotalActualCrafted, metricsTotalMaxPossible);
+    }
+
+    private static void writeString(ByteBuf buf, String s) {
+        byte[] bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        buf.writeShort(bytes.length);
+        buf.writeBytes(bytes);
+    }
+
+    private static String readString(ByteBuf buf) {
+        int len = buf.readShort() & 0xFFFF;
+        byte[] bytes = new byte[len];
+        buf.readBytes(bytes);
+        return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     public int getStateOrdinal() { return stateOrdinal; }
     public boolean isEnabled() { return enabled; }
     public boolean hasDisplayData() { return hasDisplayData; }
     @Nullable public IAEItemStack getOutput() { return output; }
+    public List<ITextComponent> getErrorDetails() { return errorDetails; }
     public long getMetricsTotal() { return metricsTotal; }
     public long getMetricsError() { return metricsError; }
     public long getMetricsTotalActualCrafted() { return metricsTotalActualCrafted; }
@@ -120,6 +158,7 @@ public final class CrafterOverviewSnapshot {
         if (stateOrdinal != that.stateOrdinal) return false;
         if (enabled != that.enabled) return false;
         if (hasDisplayData != that.hasDisplayData) return false;
+        if (!errorDetails.equals(that.errorDetails)) return false;
         if (metricsTotal != that.metricsTotal) return false;
         if (metricsError != that.metricsError) return false;
         if (metricsTotalActualCrafted != that.metricsTotalActualCrafted) return false;
@@ -133,6 +172,7 @@ public final class CrafterOverviewSnapshot {
         return Objects.hash(stateOrdinal, enabled, hasDisplayData,
             output == null ? 0 : output.getItem(),
             output == null ? 0L : output.getStackSize(),
+            errorDetails,
             metricsTotal, metricsError, metricsTotalActualCrafted, metricsTotalMaxPossible);
     }
 

@@ -128,7 +128,7 @@ ae2powertools.scanner.channel.to_controller=(→Controller)
 
 # Scan Completion Messages
 ae2powertools.scanner.complete.summary.top=Scanned %d nodes:
-ae2powertools.scanner.complete.summary.line1=- Found %d loop(s)
+ae2powertools.scanner.complete.summary.line1=- Found %d loop(s) - loops are usually not a problem
 ae2powertools.scanner.complete.summary.line2=- Found %d non-chunkloaded chunk(s)
 ae2powertools.scanner.complete.summary.line3=- Found %d chokepoint(s)
 ae2powertools.scanner.complete.summary.line4=- Found %d device(s) without channels
@@ -387,6 +387,10 @@ gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
 gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d: %s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
+gui.ae2powertools.crafter.error.pending_output=Could not insert %d x %s into the network
+gui.ae2powertools.crafter.error.inputs_changed=Required inputs disappeared from the network before extraction (you may have ghost items in your network)
+gui.ae2powertools.crafter.error.catalyst_recipe_mismatch=Current catalyst items no longer match the encoded recipe
+gui.ae2powertools.crafter.error.output_mismatch=Current catalyst items produce a different output than the encoded pattern
 jei.ae2powertools.reusable=Reusable
 
 # =====================================================

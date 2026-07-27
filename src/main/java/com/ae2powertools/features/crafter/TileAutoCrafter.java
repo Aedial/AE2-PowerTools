@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -208,7 +209,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             }
 
             if (pendingList.isEmpty()) {
+                entry.clearErrorDetails();
                 entry.setState(CrafterState.IDLE);
+            } else {
+                refreshPendingOutputDetails(entry);
+                entry.setState(CrafterState.HOLDING_OUTPUT);
             }
         }
     }
@@ -235,18 +240,21 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Skip empty entries (no pattern) - distinct from disabled
             if (entry.isEmpty()) {
+                entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.NO_PATTERN);
                 continue;
             }
 
             // Skip disabled entries
             if (!entry.isEnabled()) {
+                entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.DISABLED);
                 continue;
             }
 
             // Skip entries with pending outputs
             if (entry.hasPendingOutputs()) {
+                refreshPendingOutputDetails(entry);
                 updateEntryState(entry, CrafterState.HOLDING_OUTPUT);
                 continue;
             }
@@ -263,6 +271,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 IAEItemStack output = info.getOutputs().get(0);
                 long currentQty = getNetworkQuantity(output);
                 if (currentQty >= entry.getTargetQuantity()) {
+                    entry.clearErrorDetails();
                     updateEntryState(entry, CrafterState.IDLE);
                     continue;
                 }
@@ -305,7 +314,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             if (extractInputs(sim.entry, sim.info, sim.crafts)) {
                 successfulExtractions.add(sim);
             } else {
-                // Extraction failed (race condition - should never happen since we allocated based on a shared pool, but just in case)
+                // Extraction failed (ghost items?)
+                replaceErrorDetail(sim.entry, "gui.ae2powertools.crafter.error.inputs_changed");
                 updateEntryState(sim.entry, CrafterState.MISSING_INPUT);
             }
         }
@@ -335,6 +345,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             result.entry.setLastCraftTick(world.getTotalWorldTime());
 
             if (anyPending) {
+                refreshPendingOutputDetails(result.entry);
                 updateEntryState(result.entry, CrafterState.HOLDING_OUTPUT);
             } else {
                 updateEntryState(result.entry, CrafterState.IDLE);
@@ -368,16 +379,19 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Skip disabled or empty entries
             if (entry.isEmpty()) {
+                entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.NO_PATTERN);
                 continue;
             }
             if (!entry.isEnabled()) {
+                entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.DISABLED);
                 continue;
             }
 
             // Skip entries with pending outputs
             if (entry.hasPendingOutputs()) {
+                refreshPendingOutputDetails(entry);
                 updateEntryState(entry, CrafterState.HOLDING_OUTPUT);
                 continue;
             }
@@ -394,6 +408,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 IAEItemStack output = info.getOutputs().get(0);
                 long currentQty = getNetworkQuantity(output);
                 if (currentQty >= entry.getTargetQuantity()) {
+                    entry.clearErrorDetails();
                     updateEntryState(entry, CrafterState.IDLE);
                     continue;
                 }
@@ -425,7 +440,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Check each candidate for input availability
         for (CraftCandidate candidate : candidates) {
             boolean hasAllInputs = true;
-            List<ITextComponent> missingInputs = new ArrayList<>();
+            Map<ItemStackKey, long[]> missingInputs = new LinkedHashMap<>();
+            Map<ItemStackKey, ItemStack> missingStacks = new HashMap<>();
 
             for (CrafterRecipeInfo.IngredientInfo ingredient : candidate.info.getConsumedItems()) {
                 IAEItemStack item = ingredient.getItem();
@@ -437,19 +453,30 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
                 if (available < needed) {
                     hasAllInputs = false;
-                    ItemStack stack = item.createItemStack();
-                    // Build a TextComponentTranslation so the receiving client renders the
-                    // message in its own locale; server-side I18n would lock everyone to
-                    // English (and fail entirely on dedicated servers without lang files).
-                    missingInputs.add(new TextComponentTranslation("gui.ae2powertools.crafter.error.need_have",
-                            stack.getDisplayName(), needed, available));
+
+                    // accumulate missing counts for this item (multiple slots may require the same item)
+                    long[] counts = missingInputs.computeIfAbsent(key, ignored -> new long[]{0L, available});
+                    counts[0] += needed;
+                    counts[1] = Math.min(counts[1], available);
+                    missingStacks.putIfAbsent(key, item.createItemStack());
                 }
             }
 
             if (hasAllInputs) {
                 updateEntryState(candidate.entry, CrafterState.IDLE);
             } else {
-                for (ITextComponent error : missingInputs) candidate.entry.addErrorDetail(error);
+                for (Map.Entry<ItemStackKey, long[]> error : missingInputs.entrySet()) {
+                    ItemStack stack = missingStacks.get(error.getKey());
+                    long[] counts = error.getValue();
+                    if (stack == null) continue;
+
+                    // Build a TextComponentTranslation so the receiving client renders the
+                    // message in its own locale; server-side I18n would lock everyone to
+                    // English (and fail entirely on dedicated servers without lang files).
+                    candidate.entry.addErrorDetail(new TextComponentTranslation(
+                            "gui.ae2powertools.crafter.error.need_have",
+                            stack.getDisplayName(), counts[0], counts[1]));
+                }
                 updateEntryState(candidate.entry, CrafterState.MISSING_INPUT);
             }
         }
@@ -597,7 +624,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         for (CraftCandidate candidate : candidates) {
             long finalCrafts = effectiveMaxBatchSize;
-            List<ITextComponent> limitingFactors = new ArrayList<>();
+            Map<ItemStackKey, long[]> limitingFactors = new LinkedHashMap<>();
+            Map<ItemStackKey, ItemStack> limitingStacks = new HashMap<>();
 
             for (CrafterRecipeInfo.IngredientInfo ingredient : candidate.info.getConsumedItems()) {
                 IAEItemStack item = ingredient.getItem();
@@ -616,8 +644,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (craftsFromAllocation < finalCrafts) {
                     long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
                     if (allocated < needed) {
-                        limitingFactors.add(new TextComponentTranslation("gui.ae2powertools.crafter.error.limited_by",
-                                item.createItemStack().getDisplayName(), allocated, needed));
+                        long allocatedCount = allocated;
+                        long[] counts = limitingFactors.computeIfAbsent(key, ignored -> new long[]{allocatedCount, 0L});
+                        counts[0] = Math.min(counts[0], allocatedCount);
+                        counts[1] += needed;
+                        limitingStacks.putIfAbsent(key, item.createItemStack());
                     }
                 }
                 finalCrafts = Math.min(finalCrafts, craftsFromAllocation);
@@ -633,11 +664,27 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
                 // If crafts were reduced, add info about why
                 if (finalCrafts < effectiveMaxBatchSize && !limitingFactors.isEmpty()) {
-                    for (ITextComponent factor : limitingFactors) candidate.entry.addErrorDetail(factor);
+                    for (Map.Entry<ItemStackKey, long[]> factor : limitingFactors.entrySet()) {
+                        ItemStack stack = limitingStacks.get(factor.getKey());
+                        long[] counts = factor.getValue();
+                        if (stack == null) continue;
+
+                        candidate.entry.addErrorDetail(new TextComponentTranslation(
+                                "gui.ae2powertools.crafter.error.limited_by",
+                                stack.getDisplayName(), counts[0], counts[1]));
+                    }
                 }
             } else {
                 // No crafts possible - add all limiting factors as errors
-                for (ITextComponent factor : limitingFactors) candidate.entry.addErrorDetail(factor);
+                for (Map.Entry<ItemStackKey, long[]> factor : limitingFactors.entrySet()) {
+                    ItemStack stack = limitingStacks.get(factor.getKey());
+                    long[] counts = factor.getValue();
+                    if (stack == null) continue;
+
+                    candidate.entry.addErrorDetail(new TextComponentTranslation(
+                            "gui.ae2powertools.crafter.error.limited_by",
+                            stack.getDisplayName(), counts[0], counts[1]));
+                }
                 if (limitingFactors.isEmpty()) candidate.entry.addErrorDetail(new TextComponentTranslation("gui.ae2powertools.crafter.error.no_items_in_network"));
                 updateEntryState(candidate.entry, CrafterState.MISSING_INPUT);
                 // Record as error (no crafts possible)
@@ -724,6 +771,27 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     private void updateEntryState(CrafterEntry entry, CrafterState newState) {
         if (entry.getState() != newState) {
             entry.setState(newState);
+        }
+    }
+
+    private void replaceErrorDetail(CrafterEntry entry, String translationKey, Object... args) {
+        entry.clearErrorDetails();
+
+        if (translationKey != null && !translationKey.isEmpty()) {
+            entry.addErrorDetail(new TextComponentTranslation(translationKey, args));
+        }
+    }
+
+    private void refreshPendingOutputDetails(CrafterEntry entry) {
+        entry.clearErrorDetails();
+
+        for (IAEItemStack pending : entry.getPendingOutputs()) {
+            if (pending == null || pending.getStackSize() <= 0) continue;
+
+            ItemStack stack = pending.createItemStack();
+            entry.addErrorDetail(new TextComponentTranslation(
+                    "gui.ae2powertools.crafter.error.pending_output",
+                    pending.getStackSize(), stack.getDisplayName()));
         }
     }
 
@@ -1182,6 +1250,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         CrafterEntry entry = entries.get(entryIndex);
         entry.setPatternStack(patternStack);
+        entry.clearErrorDetails();
 
         if (patternStack == null || patternStack.isEmpty()) {
             entry.setRecipeInfo(null);
@@ -1192,6 +1261,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Get pattern details
         if (!(patternStack.getItem() instanceof ICraftingPatternItem)) {
             entry.setRecipeInfo(new CrafterRecipeInfo("gui.ae2powertools.crafter.error.not_pattern"));
+            replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.not_pattern");
             entry.setState(CrafterState.SIMULATION_FAILED);
             return;
         }
@@ -1201,6 +1271,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         if (details == null) {
             entry.setRecipeInfo(new CrafterRecipeInfo("gui.ae2powertools.crafter.error.invalid_pattern"));
+            replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.invalid_pattern");
             entry.setState(CrafterState.SIMULATION_FAILED);
             return;
         }
@@ -1208,6 +1279,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Only crafting patterns are allowed
         if (!details.isCraftable()) {
             entry.setRecipeInfo(new CrafterRecipeInfo("gui.ae2powertools.crafter.error.processing_pattern"));
+            replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.processing_pattern");
             entry.setState(CrafterState.SIMULATION_FAILED);
             return;
         }
@@ -1217,6 +1289,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         entry.setRecipeInfo(info);
 
         if (!info.isValid()) {
+            replaceErrorDetail(entry, info.getErrorKey());
             entry.setState(CrafterState.SIMULATION_FAILED);
         } else if (resetState) {
             // Only reset to IDLE when inserting a new pattern, not on world load
@@ -1549,6 +1622,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         CrafterEntry entry = entries.get(index);
         entry.setEnabled(!entry.isEnabled());
+        if (!entry.isEnabled()) entry.clearErrorDetails();
         markDirty();
     }
 
@@ -1563,6 +1637,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         entry.setRecipeInfo(null);
         entry.setEnabled(true);
         entry.setState(CrafterState.NO_PATTERN);
+        entry.clearErrorDetails();
         entry.clearPendingOutputs();
 
         for (int i = 0; i < CrafterEntry.CATALYST_SLOTS; i++) entry.setCatalystStack(i, ItemStack.EMPTY);
@@ -1596,17 +1671,24 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         ICraftingPatternDetails details = patternItem.getPatternForItem(patternStack, world);
         if (details == null || !details.isCraftable()) return;
 
+        entry.clearErrorDetails();
+
         // Build crafting matrix with actual catalyst items substituted
         InventoryCrafting craftMatrix = buildCraftingMatrix(details, entry, info);
         if (craftMatrix == null) {
             // Missing catalyst - recipe cannot work
+            List<ITextComponent> catalystErrors = new ArrayList<>();
+            hasSufficientCatalysts(entry, info, catalystErrors);
+            for (ITextComponent error : catalystErrors) entry.addErrorDetail(error);
             entry.setState(CrafterState.MISSING_CATALYST);
+            markDirty();
             return;
         }
 
         // Check if recipe still matches with the actual catalysts
         IRecipe recipe = CraftingManager.findMatchingRecipe(craftMatrix, world);
         if (recipe == null) {
+            replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.catalyst_recipe_mismatch");
             entry.setState(CrafterState.SIMULATION_FAILED);
             markDirty();
             return;
@@ -1617,6 +1699,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         IAEItemStack expectedOutput = info.getOutputs().isEmpty() ? null : info.getOutputs().get(0);
         
         if (expectedOutput == null || newOutput.isEmpty()) {
+            replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.output_mismatch");
             entry.setState(CrafterState.SIMULATION_FAILED);
             markDirty();
             return;
@@ -1625,6 +1708,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         ItemStack expectedStack = expectedOutput.createItemStack();
         if (expectedStack.getItem() != newOutput.getItem() 
             || expectedStack.getMetadata() != newOutput.getMetadata()) {
+            replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.output_mismatch");
             entry.setState(CrafterState.SIMULATION_FAILED);
             markDirty();
             return;

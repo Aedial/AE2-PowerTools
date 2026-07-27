@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 
 
+## [1.6.6] - 2026-07-30
+### Added
+- Add detailed AutoCrafter status hover tooltips in the recipe view so error states explain which catalyst or input is missing, or which outputs could not be reinserted into the network.
+
+
 ## [1.6.5] - 2026-07-15
 ### Fixed
 - Fix the Remote Storage Monitor selector crashing when typing in the search field after receiving selector entries without a cached display name.
