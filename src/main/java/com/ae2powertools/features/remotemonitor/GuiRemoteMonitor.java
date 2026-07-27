@@ -88,6 +88,8 @@ public class GuiRemoteMonitor extends GuiScreen {
     private int selectorTargetIndex = -1;
     private int selectorScrollOffset;
     private int selectorHoveredSlot = -1;
+    // Preserve the last filter term so switching slots does not reset the selector search.
+    private String selectorSearchText = "";
     private GuiTextField selectorSearchField;
     private List<MonitoredResource> selectorResources = new ArrayList<>();
     private List<MonitoredResource> filteredResources = new ArrayList<>();
@@ -278,7 +280,7 @@ public class GuiRemoteMonitor extends GuiScreen {
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
         if (this.selectorOpen) {
             if (keyCode == Keyboard.KEY_ESCAPE) {
-                this.selectorOpen = false;
+                closeSelector();
                 return;
             }
 
@@ -323,6 +325,7 @@ public class GuiRemoteMonitor extends GuiScreen {
         this.selectorSearchField.setMaxStringLength(50);
         this.selectorSearchField.setEnableBackgroundDrawing(true);
         this.selectorSearchField.setTextColor(0xFFFFFF);
+        this.selectorSearchField.setText(this.selectorSearchText);
         this.selectorSearchField.setFocused(true);
 
         filterSelectorResources();
@@ -330,7 +333,10 @@ public class GuiRemoteMonitor extends GuiScreen {
     }
 
     private void filterSelectorResources() {
-        String search = this.selectorSearchField != null ? this.selectorSearchField.getText().toLowerCase().trim() : "";
+        String search = this.selectorSearchField != null ? this.selectorSearchField.getText() : this.selectorSearchText;
+        this.selectorSearchText = search;
+        search = search.toLowerCase().trim();
+
         if (search.isEmpty()) {
             this.filteredResources = new ArrayList<>(this.selectorResources);
         } else {
@@ -433,14 +439,52 @@ public class GuiRemoteMonitor extends GuiScreen {
         return JeiTooltipBridge.buildTooltip(resource);
     }
 
+    private void closeSelector() {
+        if (this.selectorSearchField != null) {
+            this.selectorSearchText = this.selectorSearchField.getText();
+            this.selectorSearchField.setFocused(false);
+            this.selectorSearchField = null;
+        }
+
+        this.selectorOpen = false;
+        this.selectorHoveredSlot = -1;
+    }
+
+    private boolean isMouseOverSelectorSearchField(int mouseX, int mouseY) {
+        int searchLeft = this.selectorLeft + SELECTOR_SEARCH_X;
+        int searchTop = this.selectorTop + SELECTOR_SEARCH_Y;
+
+        return mouseX >= searchLeft && mouseX < searchLeft + SELECTOR_SEARCH_W
+            && mouseY >= searchTop && mouseY < searchTop + SELECTOR_SEARCH_H;
+    }
+
+    private boolean handleSelectorSearchFieldClick(int mouseX, int mouseY, int mouseButton) {
+        if (this.selectorSearchField == null) return false;
+
+        if (!isMouseOverSelectorSearchField(mouseX, mouseY)) {
+            this.selectorSearchField.mouseClicked(mouseX, mouseY, mouseButton);
+            return false;
+        }
+
+        if (mouseButton == 1) {
+            this.selectorSearchField.setText("");
+            this.selectorSearchField.setFocused(true);
+            filterSelectorResources();
+            return true;
+        }
+
+        this.selectorSearchField.mouseClicked(mouseX, mouseY, mouseButton);
+        return true;
+    }
+
     private void handleSelectorClick(int mouseX, int mouseY, int mouseButton) {
         if (mouseX < this.selectorLeft || mouseX >= this.selectorLeft + SELECTOR_WIDTH
                 || mouseY < this.selectorTop || mouseY >= this.selectorTop + SELECTOR_HEIGHT) {
-            this.selectorOpen = false;
+            closeSelector();
             return;
         }
 
-        if (this.selectorSearchField != null) this.selectorSearchField.mouseClicked(mouseX, mouseY, mouseButton);
+        if (handleSelectorSearchFieldClick(mouseX, mouseY, mouseButton)) return;
         if (mouseButton != 0 || this.selectorHoveredSlot < 0) return;
 
         int row = this.selectorHoveredSlot / SELECTOR_COLS;
@@ -452,6 +496,6 @@ public class GuiRemoteMonitor extends GuiScreen {
             this.deviceId,
             this.selectorTargetIndex,
             this.filteredResources.get(index)));
-        this.selectorOpen = false;
+        closeSelector();
     }
 }
