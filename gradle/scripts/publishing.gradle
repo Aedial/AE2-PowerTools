@@ -39,58 +39,70 @@ if (propertyBool('publish_to_maven')) {
     }
 }
 
-// Documentation here: https://github.com/matthewprenger/CurseGradle/wiki/
+// Documentation here: https://github.com/Darkhax/CurseForgeGradle
 if (propertyBool('publish_to_curseforge')) {
-    apply plugin: 'com.matthewprenger.cursegradle'
     assertProperty('curseforge_project_id')
     assertProperty('release_type')
     setDefaultProperty('curseforge_debug', false, false)
-    curseforge {
-        apiKey = System.getenv('CURSEFORGE_TOKEN') == null ? "" : System.getenv('CURSEFORGE_TOKEN')
-        // noinspection GroovyAssignabilityCheck
-        project {
-            id = propertyString('curseforge_project_id')
-            addGameVersion 'Java 8'
-            addGameVersion 'Forge'
-            addGameVersion '1.12.2'
-            releaseType = propertyString('release_type')
+    setDefaultProperty('client_side', false, true)
+    setDefaultProperty('server_side', false, true)
 
-            // Use CI-provided changelog if set, otherwise extract from CHANGELOG.md
-            def clOverride = propertyString('curseforge_changelog')
-            if (!clOverride.isEmpty()) {
-                changelog = clOverride
-                changelogType = 'markdown'
-            } else if (propertyBool('publish_with_changelog')) {
-                changelog = parserChangelog()
-                changelogType = 'markdown'
-            }
+    if (!propertyBool('client_side') && !propertyBool('server_side')) {
+        throw new GradleException('At least one of client_side and server_side must be true!')
+    }
 
-            // Use CI-provided display name if set, otherwise default to "Mod Name mod_version"
-            def dnOverride = propertyString('curseforge_display_name')
-            def displayName = !dnOverride.isEmpty() ? dnOverride : "${propertyString('mod_name')} ${propertyString('mod_version')}"
+    tasks.named('curseforge') {
+        debugMode = propertyBool('curseforge_debug')
+        apiToken = System.getenv('CURSEFORGE_TOKEN') == null ? '' : System.getenv('CURSEFORGE_TOKEN')
+        dependsOn(tasks.reobfJar)
 
-            mainArtifact(tasks.reobfJar.archiveFile) {
-                it.displayName = displayName
+        def mainFile = upload(propertyString('curseforge_project_id'), tasks.reobfJar)
 
-                relations {
-                    // Required: AE2-UEL
-                    requiredDependency 'ae2-extended-life'
-                    // Optional: JEI
-                    optionalDependency 'jei'
-                    // Optional: NAE2
-                    optionalDependency 'nae2'
-
-                    // Optional: Thaumic Energistics
-                    optionalDependency 'thaumic-energistics'
-
-                    // Optional: Meknism Energistics
-                    optionalDependency 'mekanism-energistics'
-                }
-            }
-            options {
-                debug = propertyBool('curseforge_debug')
-            }
+        // Use CI-provided changelog if set, otherwise extract from CHANGELOG.md
+        def clOverride = propertyString('curseforge_changelog')
+        def changelogRaw = ''
+        if (!clOverride.isEmpty()) {
+            changelogRaw = clOverride
+        } else if (propertyBool('publish_with_changelog')) {
+            changelogRaw = parserChangelog()
         }
+
+        // Use CI-provided display name if set, otherwise default to "Mod Name mod_version"
+        def dnOverride = propertyString('curseforge_display_name')
+        def displayName = !dnOverride.isEmpty() ? dnOverride : "${propertyString('mod_name')} ${propertyString('mod_version')}"
+
+        mainFile.displayName = displayName
+        mainFile.releaseType = propertyString('release_type')
+        if (!changelogRaw.isEmpty()) {
+            mainFile.changelog = changelogRaw
+            mainFile.changelogType = 'markdown'
+        }
+
+        mainFile.addJavaVersion('Java 8')
+        mainFile.addModLoader('Forge')
+        mainFile.addGameVersion('1.12.2')
+
+        if (propertyBool('client_side')) mainFile.addEnvironment('Client')
+        if (propertyBool('server_side')) mainFile.addEnvironment('Server')
+
+        if (propertyBool('use_asset_mover')) {
+            mainFile.addRelation('assetmover', 'requiredDependency')
+        }
+        if (propertyBool('use_mixins')) {
+            mainFile.addRelation('mixin-booter', 'optionalDependency')
+        }
+
+        // Required: AE2-UEL
+        mainFile.addRelation('ae2-extended-life', 'requiredDependency')
+
+        // Optional: JEI
+        mainFile.addRelation('jei', 'optionalDependency')
+        // Optional: NAE2
+        mainFile.addRelation('nae2', 'optionalDependency')
+        // Optional: Thaumic Energistics
+        mainFile.addRelation('thaumic-energistics', 'optionalDependency')
+        // Optional: Mekanism Energistics
+        mainFile.addRelation('mekanism-energistics', 'optionalDependency')
     }
 }
 
@@ -109,6 +121,16 @@ if (propertyBool('publish_to_modrinth')) {
         gameVersions = ['1.12.2']
         loaders = ['forge']
         debugMode = propertyBool('modrinth_debug')
+        if (propertyBool('use_mixins') || propertyBool('use_asset_mover')) {
+            dependencies {
+                if (propertyBool('use_mixins')) {
+                    required.project 'mixinbooter'
+                }
+                if (propertyBool('use_asset_mover')) {
+                    required.project 'assetmover'
+                }
+            }
+        }
         if (propertyBool('publish_with_changelog')) {
             changelog = parserChangelog()
         }

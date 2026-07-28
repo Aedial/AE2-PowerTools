@@ -20,6 +20,9 @@ public class PowerToolsServerConfig {
     @Config.LangKey("ae2powertools.config.server.crafter")
     public static final Crafter crafter = new Crafter();
 
+    @Config.LangKey("ae2powertools.config.server.interfaceTerminal")
+    public static final InterfaceTerminal interfaceTerminal = new InterfaceTerminal();
+
     @Config.LangKey("ae2powertools.config.server.maintainer")
     public static final Maintainer maintainer = new Maintainer();
 
@@ -51,6 +54,21 @@ public class PowerToolsServerConfig {
 
             baseCraftsPerOperation = Math.max(1, Math.min(1000, value));
             ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
+        }
+    }
+
+    public static class InterfaceTerminal {
+
+        @Config.LangKey("ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows")
+        @Config.Comment({
+            "Expose AE2 AutoCrafters in the Interface Terminal as editable pattern rows.",
+            "Requires mixinbooter to be installed. Requires a full game restart after change.",
+        })
+        @Config.RequiresMcRestart
+        public boolean enableAutoCrafterPatternRows = true;
+
+        public boolean isAutoCrafterPatternRowsEnabled() {
+            return enableAutoCrafterPatternRows;
         }
     }
 

@@ -343,7 +343,14 @@ public class CrafterEntry {
      * @param detail The error detail (typically a {@link net.minecraft.util.text.TextComponentTranslation})
      */
     public void addErrorDetail(ITextComponent detail) {
-        if (detail != null) errorDetails.add(detail);
+        if (detail == null) return;
+
+        String detailJson = ITextComponent.Serializer.componentToJson(detail);
+        for (ITextComponent existing : errorDetails) {
+            if (detailJson.equals(ITextComponent.Serializer.componentToJson(existing))) return;
+        }
+
+        errorDetails.add(detail);
     }
 
     /**

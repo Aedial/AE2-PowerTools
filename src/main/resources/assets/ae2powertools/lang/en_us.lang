@@ -7,10 +7,13 @@ ae2powertools.common.unknown=Unknown
 # Config GUI and keys for the config factory
 ae2powertools.config.title=AE2 PowerTools Configuration
 ae2powertools.config.client=Client
+ae2powertools.config.client.tooltip=Client-side config
 
 # Server config
 ae2powertools.config.server=Server
+ae2powertools.config.server.tooltip=Server-side config
 ae2powertools.config.server.crafter=AutoCrafter
+ae2powertools.config.server.interfaceTerminal=Interface Terminal
 
 # =====================================================
 # Priority Tuner
@@ -128,7 +131,7 @@ ae2powertools.scanner.channel.to_controller=(→Controller)
 
 # Scan Completion Messages
 ae2powertools.scanner.complete.summary.top=Scanned %d nodes:
-ae2powertools.scanner.complete.summary.line1=- Found %d loop(s)
+ae2powertools.scanner.complete.summary.line1=- Found %d loop(s) - loops are usually not a problem
 ae2powertools.scanner.complete.summary.line2=- Found %d non-chunkloaded chunk(s)
 ae2powertools.scanner.complete.summary.line3=- Found %d chokepoint(s)
 ae2powertools.scanner.complete.summary.line4=- Found %d device(s) without channels
@@ -262,6 +265,7 @@ item.ae2powertools.cards_distributor.pulled_from_ae2=Pulled %d cards from AE2 ne
 item.ae2powertools.remote_storage_monitor.name=Remote Storage Monitor
 item.ae2powertools.remote_storage_monitor.tip1=Right-click to open the remote monitor
 item.ae2powertools.remote_storage_monitor.tip2=Hold or wear it to display quantity changes as an overlay
+item.ae2powertools.remote_storage_monitor.tip3=Refreshes every §a%s§7, compares quantities over the last §a%s§7
 
 # GUI
 gui.ae2powertools.remote_monitor.title=Remote Storage Monitor
@@ -271,6 +275,12 @@ gui.ae2powertools.remote_monitor.slot_right_click=Right-click to clear
 gui.ae2powertools.remote_monitor.polling_rate.title=Polling Rate
 gui.ae2powertools.remote_monitor.polling_rate.tooltip=Compare against the last %s
 gui.ae2powertools.remote_monitor.polling_rate.description=Set the time span used to measure quantity changes
+gui.ae2powertools.remote_monitor.refresh_interval.title=Refresh Interval
+gui.ae2powertools.remote_monitor.refresh_interval.tooltip=Refresh the sampled quantities every %s
+gui.ae2powertools.remote_monitor.refresh_interval.description=Set how often the remote monitor polls the network
+gui.ae2powertools.remote_monitor.sliding_window.title=Sliding Window
+gui.ae2powertools.remote_monitor.sliding_window.tooltip=Compare against the last %s
+gui.ae2powertools.remote_monitor.sliding_window.description=Set the time span used to measure quantity changes
 gui.ae2powertools.remote_monitor.selector.title=Select Content
 
 # Config
@@ -290,6 +300,10 @@ ae2powertools.config.client.remoteMonitor.iconTextGap=Icon/text gap
 ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=Horizontal space between the icon and delta text
 ae2powertools.config.client.remoteMonitor.textScalePercent=Text size
 ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=Percentage scale for remote monitor delta text relative to the normal HUD font size
+ae2powertools.config.client.remoteMonitor.showTotalQuantity=Show total quantity
+ae2powertools.config.client.remoteMonitor.showTotalQuantity.tooltip=Render the post-poll network total after each delta as <delta> / <total>
+ae2powertools.config.client.remoteMonitor.shortenNumbers=Shorten numbers
+ae2powertools.config.client.remoteMonitor.shortenNumbers.tooltip=Use abbreviated values like 10K for the delta and total instead of full grouped numbers
 ae2powertools.config.client.remoteMonitor.gainColor=Gain color
 ae2powertools.config.client.remoteMonitor.gainColor.tooltip=Text color (hex) used for positive quantity deltas
 ae2powertools.config.client.remoteMonitor.lossColor=Loss color
@@ -323,6 +337,9 @@ item.ae2powertools.crafter_speed_upgrade.tooltip=x%d batch size multiplier. Plac
 ae2powertools.config.server.crafter.tooltip=AutoCrafter balance settings
 ae2powertools.config.server.crafter.baseCraftsPerOperation=Base crafts per operation
 ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=Base number of crafts performed per operation cycle (flat multiplier on all batch sizes)
+ae2powertools.config.server.interfaceTerminal.tooltip=Interface Terminal integration settings
+ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows=Show AutoCrafters in the Interface Terminal
+ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows.tooltip=Expose AE2 AutoCrafters as editable pattern groups in the Interface Terminal. Requires mixinbooter and a full restart.
 
 ae2powertools.config.server.maintainer=Better Level Maintainer
 ae2powertools.config.server.maintainer.tooltip=Better Level Maintainer performance settings
@@ -387,6 +404,10 @@ gui.ae2powertools.crafter.error.limited_by=Limited by %s (allocated %d, need %d)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
 gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d: %s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d: expected %s, got %s
+gui.ae2powertools.crafter.error.pending_output=Could not insert %d x %s into the network
+gui.ae2powertools.crafter.error.inputs_changed=Required inputs disappeared from the network before extraction (you may have ghost items in your network)
+gui.ae2powertools.crafter.error.catalyst_recipe_mismatch=Current catalyst items no longer match the encoded recipe
+gui.ae2powertools.crafter.error.output_mismatch=Current catalyst items produce a different output than the encoded pattern
 jei.ae2powertools.reusable=Reusable
 
 # =====================================================

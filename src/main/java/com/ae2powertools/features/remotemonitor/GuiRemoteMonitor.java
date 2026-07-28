@@ -54,7 +54,10 @@ public class GuiRemoteMonitor extends GuiScreen {
     private static final int SLOT_SIZE = 18;
     private static final int GRID_X = 8;
     private static final int GRID_Y = 18;
-    private static final int POLLING_RATE_ICON = 2 + 5 * 16;
+    private static final int REFRESH_INTERVAL_ICON = 5 * 16 + 2;
+    private static final int SLIDING_WINDOW_ICON = 4 * 16 + 2;
+    private static final int TIMING_TAB_X = GUI_WIDTH - 22 - 1;
+    private static final int TIMING_TAB_SPACING = 22 + 1;
 
     private static final int SELECTOR_WIDTH = 195;
     private static final int SELECTOR_HEIGHT = 186;
@@ -82,12 +85,15 @@ public class GuiRemoteMonitor extends GuiScreen {
     private int selectorLeft;
     private int selectorTop;
 
-    private GuiTabButton pollingRateBtn;
+    private GuiTabButton refreshIntervalBtn;
+    private GuiTabButton slidingWindowBtn;
 
     private boolean selectorOpen;
     private int selectorTargetIndex = -1;
     private int selectorScrollOffset;
     private int selectorHoveredSlot = -1;
+    // Preserve the last filter term so switching slots does not reset the selector search.
+    private String selectorSearchText = "";
     private GuiTextField selectorSearchField;
     private List<MonitoredResource> selectorResources = new ArrayList<>();
     private List<MonitoredResource> filteredResources = new ArrayList<>();
@@ -119,11 +125,17 @@ public class GuiRemoteMonitor extends GuiScreen {
         this.selectorTop = (this.height - SELECTOR_HEIGHT) / 2;
 
         this.buttonList.clear();
-        this.buttonList.add(this.pollingRateBtn = new GuiTabButton(
-            this.guiLeft + GUI_WIDTH - 3 - 20,
+        this.buttonList.add(this.refreshIntervalBtn = new GuiTabButton(
+            this.guiLeft + TIMING_TAB_X,
             this.guiTop,
-            POLLING_RATE_ICON,
-            I18n.format("gui.ae2powertools.remote_monitor.polling_rate.title"),
+            REFRESH_INTERVAL_ICON,
+            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.title"),
+            this.itemRender));
+        this.buttonList.add(this.slidingWindowBtn = new GuiTabButton(
+            this.guiLeft + TIMING_TAB_X - TIMING_TAB_SPACING,
+            this.guiTop,
+            SLIDING_WINDOW_ICON,
+            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.title"),
             this.itemRender));
     }
 
@@ -144,8 +156,13 @@ public class GuiRemoteMonitor extends GuiScreen {
     protected void actionPerformed(GuiButton button) throws IOException {
         super.actionPerformed(button);
 
-        if (button == this.pollingRateBtn) {
+        if (button == this.refreshIntervalBtn) {
             this.mc.displayGuiScreen(new GuiRemoteMonitorPollingRate(this.deviceId));
+            return;
+        }
+
+        if (button == this.slidingWindowBtn) {
+            this.mc.displayGuiScreen(new GuiRemoteMonitorSlidingWindow(this.deviceId));
         }
     }
 
@@ -170,7 +187,8 @@ public class GuiRemoteMonitor extends GuiScreen {
         }
 
         drawSlotTooltip(mouseX, mouseY);
-        drawPollingRateTooltip(mouseX, mouseY);
+        drawRefreshIntervalTooltip(mouseX, mouseY);
+        drawSlidingWindowTooltip(mouseX, mouseY);
     }
 
     private void drawSlots(int mouseX, int mouseY) {
@@ -225,15 +243,34 @@ public class GuiRemoteMonitor extends GuiScreen {
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, this.width, this.height, -1, this.fontRenderer);
     }
 
-    private void drawPollingRateTooltip(int mouseX, int mouseY) {
-        if (this.pollingRateBtn == null || !this.pollingRateBtn.visible) return;
-        if (mouseX < this.pollingRateBtn.x || mouseX >= this.pollingRateBtn.x + this.pollingRateBtn.width) return;
-        if (mouseY < this.pollingRateBtn.y || mouseY >= this.pollingRateBtn.y + this.pollingRateBtn.height) return;
-
+    private void drawRefreshIntervalTooltip(int mouseX, int mouseY) {
         String interval = PollingRateUtils.format(RemoteMonitorClientState.getOrCreateState(this.deviceId).getRefreshRate());
+        drawTimingTooltip(
+            this.refreshIntervalBtn,
+            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.tooltip", interval),
+            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.description"),
+            mouseX,
+            mouseY);
+    }
+
+    private void drawSlidingWindowTooltip(int mouseX, int mouseY) {
+        String interval = PollingRateUtils.format(RemoteMonitorClientState.getOrCreateState(this.deviceId).getSlidingWindow());
+        drawTimingTooltip(
+            this.slidingWindowBtn,
+            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.tooltip", interval),
+            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.description"),
+            mouseX,
+            mouseY);
+    }
+
+    private void drawTimingTooltip(GuiTabButton button, String title, String description, int mouseX, int mouseY) {
+        if (button == null || !button.visible) return;
+        if (mouseX < button.x || mouseX >= button.x + button.width) return;
+        if (mouseY < button.y || mouseY >= button.y + button.height) return;
+
         List<String> tooltip = new ArrayList<>();
-        tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.remote_monitor.polling_rate.tooltip", interval));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.remote_monitor.polling_rate.description"));
+        tooltip.add(TextFormatting.AQUA + title);
+        tooltip.add(TextFormatting.GRAY + description);
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, this.width, this.height, -1, this.fontRenderer);
@@ -278,7 +315,7 @@ public class GuiRemoteMonitor extends GuiScreen {
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
         if (this.selectorOpen) {
             if (keyCode == Keyboard.KEY_ESCAPE) {
-                this.selectorOpen = false;
+                closeSelector();
                 return;
             }
 
@@ -323,6 +360,7 @@ public class GuiRemoteMonitor extends GuiScreen {
         this.selectorSearchField.setMaxStringLength(50);
         this.selectorSearchField.setEnableBackgroundDrawing(true);
         this.selectorSearchField.setTextColor(0xFFFFFF);
+        this.selectorSearchField.setText(this.selectorSearchText);
         this.selectorSearchField.setFocused(true);
 
         filterSelectorResources();
@@ -330,7 +368,10 @@ public class GuiRemoteMonitor extends GuiScreen {
     }
 
     private void filterSelectorResources() {
-        String search = this.selectorSearchField != null ? this.selectorSearchField.getText().toLowerCase().trim() : "";
+        String search = this.selectorSearchField != null ? this.selectorSearchField.getText() : this.selectorSearchText;
+        this.selectorSearchText = search;
+        search = search.toLowerCase().trim();
+
         if (search.isEmpty()) {
             this.filteredResources = new ArrayList<>(this.selectorResources);
         } else {
@@ -433,14 +474,52 @@ public class GuiRemoteMonitor extends GuiScreen {
         return JeiTooltipBridge.buildTooltip(resource);
     }
 
+    private void closeSelector() {
+        if (this.selectorSearchField != null) {
+            this.selectorSearchText = this.selectorSearchField.getText();
+            this.selectorSearchField.setFocused(false);
+            this.selectorSearchField = null;
+        }
+
+        this.selectorOpen = false;
+        this.selectorHoveredSlot = -1;
+    }
+
+    private boolean isMouseOverSelectorSearchField(int mouseX, int mouseY) {
+        int searchLeft = this.selectorLeft + SELECTOR_SEARCH_X;
+        int searchTop = this.selectorTop + SELECTOR_SEARCH_Y;
+
+        return mouseX >= searchLeft && mouseX < searchLeft + SELECTOR_SEARCH_W
+            && mouseY >= searchTop && mouseY < searchTop + SELECTOR_SEARCH_H;
+    }
+
+    private boolean handleSelectorSearchFieldClick(int mouseX, int mouseY, int mouseButton) {
+        if (this.selectorSearchField == null) return false;
+
+        if (!isMouseOverSelectorSearchField(mouseX, mouseY)) {
+            this.selectorSearchField.mouseClicked(mouseX, mouseY, mouseButton);
+            return false;
+        }
+
+        if (mouseButton == 1) {
+            this.selectorSearchField.setText("");
+            this.selectorSearchField.setFocused(true);
+            filterSelectorResources();
+            return true;
+        }
+
+        this.selectorSearchField.mouseClicked(mouseX, mouseY, mouseButton);
+        return true;
+    }
+
     private void handleSelectorClick(int mouseX, int mouseY, int mouseButton) {
         if (mouseX < this.selectorLeft || mouseX >= this.selectorLeft + SELECTOR_WIDTH
                 || mouseY < this.selectorTop || mouseY >= this.selectorTop + SELECTOR_HEIGHT) {
-            this.selectorOpen = false;
+            closeSelector();
             return;
         }
 
-        if (this.selectorSearchField != null) this.selectorSearchField.mouseClicked(mouseX, mouseY, mouseButton);
+        if (handleSelectorSearchFieldClick(mouseX, mouseY, mouseButton)) return;
         if (mouseButton != 0 || this.selectorHoveredSlot < 0) return;
 
         int row = this.selectorHoveredSlot / SELECTOR_COLS;
@@ -452,6 +531,6 @@ public class GuiRemoteMonitor extends GuiScreen {
             this.deviceId,
             this.selectorTargetIndex,
             this.filteredResources.get(index)));
-        this.selectorOpen = false;
+        closeSelector();
     }
 }

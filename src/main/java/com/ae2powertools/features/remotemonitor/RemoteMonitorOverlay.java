@@ -71,7 +71,7 @@ public class RemoteMonitorOverlay {
             if (resource == null || delta == 0) continue;
 
             resources.add(resource);
-            lines.add(formatDelta(delta, currentQuantities[slotIndex]));
+            lines.add(formatEntry(delta, currentQuantities[slotIndex], config));
             colors.add(delta > 0 ? config.getGainColor() : config.getLossColor());
         }
 
@@ -106,22 +106,33 @@ public class RemoteMonitorOverlay {
         return lastOverlayHeight;
     }
 
-    private String formatDelta(long delta, long currentQuantity) {
-        String deltaText = formatDelta(delta);
+    private String formatEntry(long delta, long currentQuantity, PowerToolsClientConfig.RemoteMonitor config) {
+        String deltaText = formatSignedQuantity(delta, config);
+        String totalText = config.showRemoteMonitorTotalQuantity()
+            ? " / " + formatQuantity(currentQuantity, config)
+            : "";
 
         // The sync carries the post-poll quantity, so subtract the signed delta to recover the prior total.
         double previousQuantity = currentQuantity - (double) delta;
-        if (previousQuantity <= 0.0D) previousQuantity = delta;  // 100% change if previous = 0
+        if (previousQuantity <= 0.0D) previousQuantity = Math.abs((double) delta);  // 100% change if previous = 0
 
         double percent = Math.abs((double) delta) * 100.0D / previousQuantity;
-        if (!Double.isFinite(percent) || percent <= 0.1D) return deltaText;
+        if (!Double.isFinite(percent) || percent <= 0.1D) return deltaText + totalText;
 
-        return deltaText + " (" + formatPercent(percent) + "%)";
+        return deltaText + totalText + " (" + formatPercent(percent) + "%)";
     }
 
-    private String formatDelta(long delta) {
+    private String formatSignedQuantity(long delta, PowerToolsClientConfig.RemoteMonitor config) {
         String prefix = delta > 0 ? "+" : "-";
-        return prefix + ReadableNumberConverter.INSTANCE.toWideReadableForm(Math.abs(delta));
+        return prefix + formatQuantity(Math.abs(delta), config);
+    }
+
+    private String formatQuantity(long quantity, PowerToolsClientConfig.RemoteMonitor config) {
+        if (config.showRemoteMonitorShortenedNumbers()) {
+            return ReadableNumberConverter.INSTANCE.toWideReadableForm(quantity);
+        }
+
+        return String.format(Locale.US, "%,d", quantity);
     }
 
     private String formatPercent(double percent) {

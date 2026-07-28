@@ -87,5 +87,6 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketRemoteMonitorRequestSync.Handler.class, PacketRemoteMonitorRequestSync.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketRemoteMonitorSelectSlot.Handler.class, PacketRemoteMonitorSelectSlot.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketRemoteMonitorSetRefreshRate.Handler.class, PacketRemoteMonitorSetRefreshRate.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRemoteMonitorSetSlidingWindow.Handler.class, PacketRemoteMonitorSetSlidingWindow.class, packetId++, Side.SERVER);
     }
 }

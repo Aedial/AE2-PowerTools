@@ -47,7 +47,8 @@ A powerful automation block that automatically crafts items using patterns from 
 
 **Features:**
 - **12 Recipe Slots**: Configure up to 12 different recipes.
-- **Pattern Support**: Insert any AE2 crafting pattern to define the recipe (does not work with PROCESSING patterns, for obvious reasons). You can insert patterns from the outside by right-clicking the block with them, or from the inside by placing them in the pattern slot of each recipe entry.
+- **Pattern Support**: Insert any AE2 crafting pattern to define the recipe (does not work with PROCESSING patterns, for obvious reasons). You can insert patterns from the outside by right-clicking the block with them, from the inside by placing them in the pattern slot of each recipe entry, or via the Interface Terminal. In either case, you will still need to access the AutoCrafter GUI to configure the batch size/speed for the machine, and catalyst inventory for each recipe.
+- **Memory Card Support**: Copy paste batch size, speed, and any recipe you inserted into the AutoCrafter via a Memory Card, to easily replicate the configuration across multiple AutoCrafters. The recipes will only be applied if you have blank patterns in your inventory, and up to the available number of free slots in the AutoCrafter, without overwriting any existing recipes. The batch size and speed will be applied regardless.
 - **Pattern Multi-Tool support**: If you have the Pattern Multi-Tool in your inventory/baubles, you can access its patterns directly from the AutoCrafter GUI. The x2/x3/+1 buttons do not work as they make no sense for CRAFTING patterns (converting the patterns into PROCESSING patterns when used).
 - **Recipe Preview**: Visual 3x3 input grid showing required ingredients and output.
 - **Catalyst Inventory**: Local 9-slot internal inventory per recipe for reusable/duplication items, or intermediary tools with durability (if the last recipe didn't completely consume them). AE2 is notoriously bad at handling reusable or nested items in crafting recipes, so this is a necessary workaround to be able to use them in automation.
@@ -150,7 +151,7 @@ An advanced tool for finding and navigating to specific components in your AE2 n
 
 ### Storage Level Emitter & Display
 A full-block/part variant of the Level Emitter and Storage Monitor, with a configured polling type and item/fluid/gas/essentia support.
-- **Polling Interval**: Set how often to check the quantity in the network (from 1 second to days). This keeps the process efficient by avoiding constant checks and updates, while still providing timely information.
+- **Polling Interval**: Set how often to check the quantity in the network (from 1 second to days). This keeps the process efficient by avoiding constant checks and updates, while still providing timely information. As the polled quantity uses the network's cache, the retrieval is very TPS-friendly and does not cause any noticeable lag, even with very short polling intervals.
 - **Multiple resources**: You can set up to 24 resources in a single block, which will decide on the state. Using the AND/OR logic, you can create complex conditions to trigger redstone signals based on multiple resource levels. For example, you could set it to emit a signal if "Iron Ingots <= 100 OR Redstone > 50", or "Water > 500 AND Buckets > 500".
 - **Colored corners**: The Storage Display block has colored corners that visually indicate the state of the matching logic, telling you at a glance if the conditions are met or not.
 
@@ -162,7 +163,7 @@ A bauble/held item that shows the quantity variation of configured content in th
 - **Reduced Screen Clutter**: Only the resources that changed within the last time window are shown, so you can easily track active resources without being overwhelmed by the full 81 slots of the Storage Monitor GUI.
 
 **Usage:**
-1. Configure the monitor by right-clicking it in air, and selecting the content to track and the time window
+1. Configure the monitor by right-clicking it in air, selecting the time window and the content to track (from what is available in the network at the moment)
 2. Hold the monitor in your main/off-hand or baubles to see the overlay on screen
 3. Once you do not need it anymore, you can simply put it in your inventory or a chest, and the overlay will disappear
 
@@ -190,4 +191,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Textures
 Priority Tuner, Network Health Scanner: SangreBK
-Storage Level Emitter block, Storage Display block: @NerdySpider
+Storage Level Emitter block, Storage Display block, Remote Storage Monitor item, Storage Level Alarm block, Storage Level Alarm Locator item: @NerdySpider

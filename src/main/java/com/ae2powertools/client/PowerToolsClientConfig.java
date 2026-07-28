@@ -150,6 +150,12 @@ public class PowerToolsClientConfig {
         @Config.RangeInt(min = 10, max = 1000)
         public int textScalePercent = 100;
 
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.showTotalQuantity")
+        public boolean showTotalQuantity = true;
+
+        @Config.LangKey("ae2powertools.config.client.remoteMonitor.shortenNumbers")
+        public boolean shortenNumbers = true;
+
         @Config.LangKey("ae2powertools.config.client.remoteMonitor.gainColor")
         @Config.Comment("Text color (hex) for positive deltas. Accepts RRGGBB or AARRGGBB.")
         public String gainColor = "66FF66";
@@ -187,6 +193,14 @@ public class PowerToolsClientConfig {
 
         public float getTextScale() {
             return textScalePercent / 100.0f;
+        }
+
+        public boolean showRemoteMonitorTotalQuantity() {
+            return showTotalQuantity;
+        }
+
+        public boolean showRemoteMonitorShortenedNumbers() {
+            return shortenNumbers;
         }
 
         public int getGainColor() {

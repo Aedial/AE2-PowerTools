@@ -8,13 +8,41 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.6.3] - 2026-06-30
+## [1.6.9] - ???
+### Added
+- Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
+
+
+## [1.6.6] - 2026-07-30
+### Added
+- Add detailed AutoCrafter status hover tooltips in the recipe view so error states explain which catalyst or input is missing, or which outputs could not be reinserted into the network.
+- Add Remote Storage Monitor overlay configs to show the post-poll total beside each delta and to switch between shortened and full numeric formatting.
+- Keep the Remote Storage Monitor selector search text when reopening the selector and allow right-clicking the selector search box to clear it.
+- Add optional Interface Terminal integration for the AE2 AutoCrafter, exposing its 12 pattern slots as two editable rows with the last six filler slots disabled, and a startup config toggle for the mixin.
+
+### Fixed
+- Fix the Remote Storage Monitor resetting its baseline when refreshing while the overlay is covered or client FPS throttling delay sync requests.
+
+### Changed
+- Split the Remote Storage Monitor timing controls into separate refresh interval and sliding window settings, so that the refresh interval (responsivity) can be set independently of the sliding window duration (sampling period).
+
+
+## [1.6.5] - 2026-07-15
+### Fixed
+- Fix the Remote Storage Monitor selector crashing when typing in the search field after receiving selector entries without a cached display name.
+
+
+## [1.6.4] - 2026-07-05
+### Fixed
+- Fix crash on server load due to client-only code not being properly annotated as client-only.
+
+
+## [1.6.3] - 2026-07-05
 ### Fixed
 - Fix large GUI-synced numeric values being truncated above 32k in the AutoCrafter and Storage Monitor screens by syncing susceptible counters as long instead of int.
 
 ### Added
 - Add configurable 1-15 redstone strength controls to the Storage Level Emitter GUI.
-- Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 - Add Remote Storage Monitor, a bauble/held item that shows the quantity variation of configured content in the network as an overlay on the screen, over a set period of time.
 - Add client config for the Remote Storage Monitor overlay visuals.
 - Add Storage Level Alarm, a block that tracks the quantity of a configured content in the network and send a continuous warning to any player that registered to it when any content goes below the configured threshold.

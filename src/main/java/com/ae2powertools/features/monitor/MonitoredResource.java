@@ -102,7 +102,9 @@ public class MonitoredResource {
     }
 
     public String getDisplayName() {
-        return displayName;
+        if (displayName != null) return displayName;
+
+        return resolveDisplayName(type, stack);
     }
 
     /**
@@ -370,6 +372,58 @@ public class MonitoredResource {
         if (rightTag == null) return false;
 
         return leftTag.equals(rightTag);
+    }
+
+    private static String resolveDisplayName(ResourceType type, @Nullable IAEStack<?> stack) {
+        if (stack == null) return "";
+
+        switch (type) {
+            case ITEM:
+                if (stack instanceof IAEItemStack) {
+                    ItemStack itemStack = ((IAEItemStack) stack).getDefinition();
+                    if (!itemStack.isEmpty()) return itemStack.getDisplayName();
+                }
+                return "";
+
+            case FLUID:
+                if (stack instanceof IAEFluidStack) {
+                    FluidStack fluidStack = ((IAEFluidStack) stack).getFluidStack();
+                    if (fluidStack != null) return fluidStack.getLocalizedName();
+                }
+                return "";
+
+            case GAS:
+                if (!Loader.isModLoaded("mekeng")) return "";
+                return resolveGasDisplayName(stack);
+
+            case ESSENTIA:
+                if (!Loader.isModLoaded("thaumicenergistics")) return "";
+                return resolveEssentiaDisplayName(stack);
+
+            default:
+                return "";
+        }
+    }
+
+    @Optional.Method(modid = "mekeng")
+    private static String resolveGasDisplayName(IAEStack<?> stack) {
+        if (!(stack instanceof com.mekeng.github.common.me.data.IAEGasStack)) return "";
+
+        mekanism.api.gas.GasStack gasStack = ((com.mekeng.github.common.me.data.IAEGasStack) stack).getGasStack();
+        if (gasStack == null || gasStack.getGas() == null) return "";
+
+        return gasStack.getGas().getLocalizedName();
+    }
+
+    @Optional.Method(modid = "thaumicenergistics")
+    private static String resolveEssentiaDisplayName(IAEStack<?> stack) {
+        if (!(stack instanceof thaumicenergistics.api.storage.IAEEssentiaStack)) return "";
+
+        thaumicenergistics.api.EssentiaStack essentiaStack =
+            ((thaumicenergistics.api.storage.IAEEssentiaStack) stack).getStack();
+        if (essentiaStack == null || essentiaStack.getAspect() == null) return "";
+
+        return essentiaStack.getAspect().getName();
     }
 
 

@@ -15,36 +15,36 @@ import com.ae2powertools.items.ItemRemoteStorageMonitor;
 
 
 /**
- * Client-to-server packet that updates the refresh interval for a device.
+ * Client-to-server packet that updates the sliding window for a device.
  */
-public class PacketRemoteMonitorSetRefreshRate implements IMessage {
+public class PacketRemoteMonitorSetSlidingWindow implements IMessage {
 
     private long deviceId;
-    private int refreshRate;
+    private int slidingWindow;
 
-    public PacketRemoteMonitorSetRefreshRate() {}
+    public PacketRemoteMonitorSetSlidingWindow() {}
 
-    public PacketRemoteMonitorSetRefreshRate(long deviceId, int refreshRate) {
+    public PacketRemoteMonitorSetSlidingWindow(long deviceId, int slidingWindow) {
         this.deviceId = deviceId;
-        this.refreshRate = refreshRate;
+        this.slidingWindow = slidingWindow;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         this.deviceId = buf.readLong();
-        this.refreshRate = buf.readInt();
+        this.slidingWindow = buf.readInt();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeLong(this.deviceId);
-        buf.writeInt(this.refreshRate);
+        buf.writeInt(this.slidingWindow);
     }
 
-    public static class Handler implements IMessageHandler<PacketRemoteMonitorSetRefreshRate, IMessage> {
+    public static class Handler implements IMessageHandler<PacketRemoteMonitorSetSlidingWindow, IMessage> {
 
         @Override
-        public IMessage onMessage(PacketRemoteMonitorSetRefreshRate message, MessageContext ctx) {
+        public IMessage onMessage(PacketRemoteMonitorSetSlidingWindow message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
                 ItemStack stack = ItemRemoteStorageMonitor.findMonitorByDeviceId(player, message.deviceId);
@@ -55,7 +55,7 @@ public class PacketRemoteMonitorSetRefreshRate implements IMessage {
                     player,
                     stack,
                     message.deviceId);
-                session.setRefreshRate((IWirelessTermHandler) stack.getItem(), player, stack, message.refreshRate);
+                session.setSlidingWindow((IWirelessTermHandler) stack.getItem(), player, stack, message.slidingWindow);
                 ItemRemoteStorageMonitor.syncToClient(player, message.deviceId);
             });
             return null;
