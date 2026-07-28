@@ -40,14 +40,15 @@ public class RemoteMonitorTickHandler {
                 continue;
             }
 
+            // TODO: Add some leeway so we do not kill the session with an accidental click.
+            //       Maybe a configurable grace period of 30s?
             ItemStack stack = ItemRemoteStorageMonitor.findMonitorByDeviceId(player, key.getDeviceId());
             if (stack.isEmpty() || !(stack.getItem() instanceof IWirelessTermHandler)) {
                 staleSessions.add(key);
                 continue;
             }
 
-            boolean changed = entry.getValue().tick((IWirelessTermHandler) stack.getItem(), player, stack);
-            if (changed) ItemRemoteStorageMonitor.syncToClient(player, key.getDeviceId());
+            entry.getValue().tick((IWirelessTermHandler) stack.getItem(), player, stack);
         }
 
         for (RemoteMonitorSessionManager.SessionKey key : staleSessions) {

@@ -54,7 +54,10 @@ public class GuiRemoteMonitor extends GuiScreen {
     private static final int SLOT_SIZE = 18;
     private static final int GRID_X = 8;
     private static final int GRID_Y = 18;
-    private static final int POLLING_RATE_ICON = 2 + 5 * 16;
+    private static final int REFRESH_INTERVAL_ICON = 5 * 16 + 2;
+    private static final int SLIDING_WINDOW_ICON = 4 * 16 + 2;
+    private static final int TIMING_TAB_X = GUI_WIDTH - 22 - 1;
+    private static final int TIMING_TAB_SPACING = 22 + 1;
 
     private static final int SELECTOR_WIDTH = 195;
     private static final int SELECTOR_HEIGHT = 186;
@@ -82,7 +85,8 @@ public class GuiRemoteMonitor extends GuiScreen {
     private int selectorLeft;
     private int selectorTop;
 
-    private GuiTabButton pollingRateBtn;
+    private GuiTabButton refreshIntervalBtn;
+    private GuiTabButton slidingWindowBtn;
 
     private boolean selectorOpen;
     private int selectorTargetIndex = -1;
@@ -121,11 +125,17 @@ public class GuiRemoteMonitor extends GuiScreen {
         this.selectorTop = (this.height - SELECTOR_HEIGHT) / 2;
 
         this.buttonList.clear();
-        this.buttonList.add(this.pollingRateBtn = new GuiTabButton(
-            this.guiLeft + GUI_WIDTH - 3 - 20,
+        this.buttonList.add(this.refreshIntervalBtn = new GuiTabButton(
+            this.guiLeft + TIMING_TAB_X,
             this.guiTop,
-            POLLING_RATE_ICON,
-            I18n.format("gui.ae2powertools.remote_monitor.polling_rate.title"),
+            REFRESH_INTERVAL_ICON,
+            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.title"),
+            this.itemRender));
+        this.buttonList.add(this.slidingWindowBtn = new GuiTabButton(
+            this.guiLeft + TIMING_TAB_X - TIMING_TAB_SPACING,
+            this.guiTop,
+            SLIDING_WINDOW_ICON,
+            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.title"),
             this.itemRender));
     }
 
@@ -146,8 +156,13 @@ public class GuiRemoteMonitor extends GuiScreen {
     protected void actionPerformed(GuiButton button) throws IOException {
         super.actionPerformed(button);
 
-        if (button == this.pollingRateBtn) {
+        if (button == this.refreshIntervalBtn) {
             this.mc.displayGuiScreen(new GuiRemoteMonitorPollingRate(this.deviceId));
+            return;
+        }
+
+        if (button == this.slidingWindowBtn) {
+            this.mc.displayGuiScreen(new GuiRemoteMonitorSlidingWindow(this.deviceId));
         }
     }
 
@@ -172,7 +187,8 @@ public class GuiRemoteMonitor extends GuiScreen {
         }
 
         drawSlotTooltip(mouseX, mouseY);
-        drawPollingRateTooltip(mouseX, mouseY);
+        drawRefreshIntervalTooltip(mouseX, mouseY);
+        drawSlidingWindowTooltip(mouseX, mouseY);
     }
 
     private void drawSlots(int mouseX, int mouseY) {
@@ -227,15 +243,34 @@ public class GuiRemoteMonitor extends GuiScreen {
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, this.width, this.height, -1, this.fontRenderer);
     }
 
-    private void drawPollingRateTooltip(int mouseX, int mouseY) {
-        if (this.pollingRateBtn == null || !this.pollingRateBtn.visible) return;
-        if (mouseX < this.pollingRateBtn.x || mouseX >= this.pollingRateBtn.x + this.pollingRateBtn.width) return;
-        if (mouseY < this.pollingRateBtn.y || mouseY >= this.pollingRateBtn.y + this.pollingRateBtn.height) return;
-
+    private void drawRefreshIntervalTooltip(int mouseX, int mouseY) {
         String interval = PollingRateUtils.format(RemoteMonitorClientState.getOrCreateState(this.deviceId).getRefreshRate());
+        drawTimingTooltip(
+            this.refreshIntervalBtn,
+            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.tooltip", interval),
+            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.description"),
+            mouseX,
+            mouseY);
+    }
+
+    private void drawSlidingWindowTooltip(int mouseX, int mouseY) {
+        String interval = PollingRateUtils.format(RemoteMonitorClientState.getOrCreateState(this.deviceId).getSlidingWindow());
+        drawTimingTooltip(
+            this.slidingWindowBtn,
+            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.tooltip", interval),
+            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.description"),
+            mouseX,
+            mouseY);
+    }
+
+    private void drawTimingTooltip(GuiTabButton button, String title, String description, int mouseX, int mouseY) {
+        if (button == null || !button.visible) return;
+        if (mouseX < button.x || mouseX >= button.x + button.width) return;
+        if (mouseY < button.y || mouseY >= button.y + button.height) return;
+
         List<String> tooltip = new ArrayList<>();
-        tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.remote_monitor.polling_rate.tooltip", interval));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.remote_monitor.polling_rate.description"));
+        tooltip.add(TextFormatting.AQUA + title);
+        tooltip.add(TextFormatting.GRAY + description);
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, this.width, this.height, -1, this.fontRenderer);

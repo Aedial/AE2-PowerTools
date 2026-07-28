@@ -20,6 +20,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep the Remote Storage Monitor selector search text when reopening the selector and allow right-clicking the selector search box to clear it.
 - Add optional Interface Terminal integration for the AE2 AutoCrafter, exposing its 12 pattern slots as two editable rows with the last six filler slots disabled, and a startup config toggle for the mixin.
 
+### Fixed
+- Fix the Remote Storage Monitor resetting its baseline when refreshing while the overlay is covered or client FPS throttling delay sync requests.
+
+### Changed
+- Split the Remote Storage Monitor timing controls into separate refresh interval and sliding window settings, so that the refresh interval (responsivity) can be set independently of the sliding window duration (sampling period).
+
 
 ## [1.6.5] - 2026-07-15
 ### Fixed

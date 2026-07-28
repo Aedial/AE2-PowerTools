@@ -265,6 +265,7 @@ item.ae2powertools.cards_distributor.pulled_from_ae2=Pulled %d cards from AE2 ne
 item.ae2powertools.remote_storage_monitor.name=Remote Storage Monitor
 item.ae2powertools.remote_storage_monitor.tip1=Right-click to open the remote monitor
 item.ae2powertools.remote_storage_monitor.tip2=Hold or wear it to display quantity changes as an overlay
+item.ae2powertools.remote_storage_monitor.tip3=Refreshes every §a%s§7, compares quantities over the last §a%s§7
 
 # GUI
 gui.ae2powertools.remote_monitor.title=Remote Storage Monitor
@@ -274,6 +275,12 @@ gui.ae2powertools.remote_monitor.slot_right_click=Right-click to clear
 gui.ae2powertools.remote_monitor.polling_rate.title=Polling Rate
 gui.ae2powertools.remote_monitor.polling_rate.tooltip=Compare against the last %s
 gui.ae2powertools.remote_monitor.polling_rate.description=Set the time span used to measure quantity changes
+gui.ae2powertools.remote_monitor.refresh_interval.title=Refresh Interval
+gui.ae2powertools.remote_monitor.refresh_interval.tooltip=Refresh the sampled quantities every %s
+gui.ae2powertools.remote_monitor.refresh_interval.description=Set how often the remote monitor polls the network
+gui.ae2powertools.remote_monitor.sliding_window.title=Sliding Window
+gui.ae2powertools.remote_monitor.sliding_window.tooltip=Compare against the last %s
+gui.ae2powertools.remote_monitor.sliding_window.description=Set the time span used to measure quantity changes
 gui.ae2powertools.remote_monitor.selector.title=Select Content
 
 # Config

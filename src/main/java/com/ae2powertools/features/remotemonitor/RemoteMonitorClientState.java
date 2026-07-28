@@ -17,8 +17,8 @@ import com.ae2powertools.network.PowerToolsNetwork;
 
 /**
  * Client-side RAM mirror of Remote Storage Monitor sessions.
- * Stores the latest synced slot selections, polling rate, overlay deltas,
- * current slot quantities, and the current selector contents per device ID.
+ * Stores the latest synced slot selections, refresh interval, sliding window,
+ * overlay deltas, current slot quantities, and the current selector contents per device ID.
  */
 @SideOnly(Side.CLIENT)
 public final class RemoteMonitorClientState {
@@ -26,6 +26,7 @@ public final class RemoteMonitorClientState {
     public static final class DeviceState {
 
         private int refreshRate = RemoteMonitorSessionManager.DEFAULT_REFRESH_RATE;
+        private int slidingWindow = RemoteMonitorSessionManager.DEFAULT_SLIDING_WINDOW;
         private MonitoredResource[] resources = new MonitoredResource[RemoteMonitorSessionManager.SLOT_COUNT];
         private long[] deltas = new long[RemoteMonitorSessionManager.SLOT_COUNT];
         private long[] currentQuantities = new long[RemoteMonitorSessionManager.SLOT_COUNT];
@@ -34,6 +35,10 @@ public final class RemoteMonitorClientState {
 
         public int getRefreshRate() {
             return this.refreshRate;
+        }
+
+        public int getSlidingWindow() {
+            return this.slidingWindow;
         }
 
         public MonitoredResource[] getResources() {
@@ -52,8 +57,10 @@ public final class RemoteMonitorClientState {
             return this.selectorResources;
         }
 
-        private void syncState(int refreshRate, MonitoredResource[] resources, long[] deltas, long[] currentQuantities) {
+        private void syncState(int refreshRate, int slidingWindow, MonitoredResource[] resources, long[] deltas,
+                long[] currentQuantities) {
             this.refreshRate = refreshRate;
+            this.slidingWindow = slidingWindow;
             this.resources = Arrays.copyOf(resources, resources.length);
             this.deltas = Arrays.copyOf(deltas, deltas.length);
             this.currentQuantities = Arrays.copyOf(currentQuantities, currentQuantities.length);
@@ -101,9 +108,9 @@ public final class RemoteMonitorClientState {
         return DEVICE_STATES.containsKey(deviceId);
     }
 
-    public static void syncState(long deviceId, int refreshRate, MonitoredResource[] resources, long[] deltas,
-            long[] currentQuantities) {
-        getOrCreateState(deviceId).syncState(refreshRate, resources, deltas, currentQuantities);
+    public static void syncState(long deviceId, int refreshRate, int slidingWindow, MonitoredResource[] resources,
+            long[] deltas, long[] currentQuantities) {
+        getOrCreateState(deviceId).syncState(refreshRate, slidingWindow, resources, deltas, currentQuantities);
     }
 
     public static void requestSyncIfNeeded(long deviceId, boolean forceSync) {

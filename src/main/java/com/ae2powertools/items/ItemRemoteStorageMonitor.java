@@ -59,6 +59,7 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
 
     private static final String NBT_DEVICE_ID = "DeviceId";
     private static final String NBT_REFRESH_RATE = "RefreshRate";
+    private static final String NBT_SLIDING_WINDOW = "SlidingWindow";
     private static final String NBT_RESOURCES = "Resources";
 
     private static final Map<NBTTagCompound, Long> DEVICE_ID_CACHE = new IdentityHashMap<>();
@@ -93,6 +94,8 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
 
     public static ItemStack findMonitorByDeviceId(EntityPlayer player, long deviceId) {
         if (deviceId == 0L) return ItemStack.EMPTY;
+
+        // TODO: Consider caching the deviceId -> last known position to avoid a full inventory scan each tick.
 
         for (ItemStack stack : player.inventory.mainInventory) {
             if (isMatchingMonitor(stack, deviceId)) return stack;
@@ -133,6 +136,7 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
             new PacketRemoteMonitorSync(
                 deviceId,
                 session.getRefreshRate(),
+                session.getSlidingWindow(),
                 session.copyResources(),
                 session.copyDeltas(),
                 session.copyCurrentQuantities()),
@@ -156,6 +160,25 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
         Platform.openNbtData(stack).setInteger(
             NBT_REFRESH_RATE,
             Math.max(RemoteMonitorSessionManager.MIN_REFRESH_RATE, refreshRate));
+    }
+
+    public static int getStoredSlidingWindow(ItemStack stack) {
+        if (stack.isEmpty()) return RemoteMonitorSessionManager.DEFAULT_SLIDING_WINDOW;
+
+        NBTTagCompound tag = Platform.openNbtData(stack);
+        int slidingWindow = tag.hasKey(NBT_SLIDING_WINDOW)
+            ? tag.getInteger(NBT_SLIDING_WINDOW)
+            : getStoredRefreshRate(stack);
+
+        return Math.max(RemoteMonitorSessionManager.MIN_REFRESH_RATE, slidingWindow);
+    }
+
+    public static void setStoredSlidingWindow(ItemStack stack, int slidingWindow) {
+        if (stack.isEmpty()) return;
+
+        Platform.openNbtData(stack).setInteger(
+            NBT_SLIDING_WINDOW,
+            Math.max(RemoteMonitorSessionManager.MIN_REFRESH_RATE, slidingWindow));
     }
 
     public static MonitoredResource[] getStoredResources(ItemStack stack) {
@@ -229,7 +252,6 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
             (EntityPlayerMP) player,
             stack,
             deviceId);
-        session.noteSyncRequest(this, player, stack);
         syncToClient((EntityPlayerMP) player, deviceId);
         PowerToolsNetwork.INSTANCE.sendTo(new PacketRemoteMonitorOpenGui(deviceId), (EntityPlayerMP) player);
 
@@ -342,8 +364,10 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
 
         tooltip.add("");
         tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.remote_storage_monitor.tip1"));
+        tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2powertools.remote_storage_monitor.tip2"));
         tooltip.add(TextFormatting.GRAY + I18n.format(
-            "item.ae2powertools.remote_storage_monitor.tip2",
-            PollingRateUtils.format(getStoredRefreshRate(stack))));
+            "item.ae2powertools.remote_storage_monitor.tip3",
+            PollingRateUtils.format(getStoredRefreshRate(stack)),
+            PollingRateUtils.format(getStoredSlidingWindow(stack))));
     }
 }

@@ -15,23 +15,25 @@ import com.ae2powertools.features.remotemonitor.RemoteMonitorClientState;
 
 /**
  * Full state sync for a Remote Storage Monitor session.
- * Carries the selected resources, current polling rate, latest per-slot deltas,
- * and the current per-slot quantities used to render percent-of-total changes.
+ * Carries the selected resources, refresh interval, sliding window,
+ * latest per-slot deltas, and the current per-slot quantities.
  */
 public class PacketRemoteMonitorSync implements IMessage {
 
     private long deviceId;
     private int refreshRate;
+    private int slidingWindow;
     private MonitoredResource[] resources;
     private long[] deltas;
     private long[] currentQuantities;
 
     public PacketRemoteMonitorSync() {}
 
-    public PacketRemoteMonitorSync(long deviceId, int refreshRate, MonitoredResource[] resources, long[] deltas,
-            long[] currentQuantities) {
+    public PacketRemoteMonitorSync(long deviceId, int refreshRate, int slidingWindow, MonitoredResource[] resources,
+            long[] deltas, long[] currentQuantities) {
         this.deviceId = deviceId;
         this.refreshRate = refreshRate;
+        this.slidingWindow = slidingWindow;
         this.resources = resources;
         this.deltas = deltas;
         this.currentQuantities = currentQuantities;
@@ -41,6 +43,7 @@ public class PacketRemoteMonitorSync implements IMessage {
     public void fromBytes(ByteBuf buf) {
         this.deviceId = buf.readLong();
         this.refreshRate = buf.readInt();
+        this.slidingWindow = buf.readInt();
 
         int slotCount = buf.readInt();
         this.resources = new MonitoredResource[slotCount];
@@ -57,6 +60,7 @@ public class PacketRemoteMonitorSync implements IMessage {
     public void toBytes(ByteBuf buf) {
         buf.writeLong(this.deviceId);
         buf.writeInt(this.refreshRate);
+        buf.writeInt(this.slidingWindow);
         buf.writeInt(this.resources.length);
 
         for (int i = 0; i < this.resources.length; i++) {
@@ -83,6 +87,7 @@ public class PacketRemoteMonitorSync implements IMessage {
             RemoteMonitorClientState.syncState(
                 message.deviceId,
                 message.refreshRate,
+                message.slidingWindow,
                 message.resources,
                 message.deltas,
                 message.currentQuantities);

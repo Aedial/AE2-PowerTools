@@ -15,8 +15,8 @@ import com.ae2powertools.items.ItemRemoteStorageMonitor;
 
 
 /**
- * Client-to-server heartbeat requesting remote monitor deltas.
- * Keeps polling active only while a client has asked for sync recently.
+ * Client-to-server request for the latest Remote Storage Monitor snapshot.
+ * Visible client surfaces pull the current server-tracked deltas on demand.
  */
 public class PacketRemoteMonitorRequestSync implements IMessage {
 
@@ -58,10 +58,7 @@ public class PacketRemoteMonitorRequestSync implements IMessage {
                     stack,
                     message.deviceId);
 
-                boolean restarted = session.noteSyncRequest(handler, player, stack);
-                if (message.forceSync || restarted) {
-                    ItemRemoteStorageMonitor.syncToClient(player, message.deviceId);
-                }
+                ItemRemoteStorageMonitor.syncToClient(player, session.getDeviceId());
             });
             return null;
         }

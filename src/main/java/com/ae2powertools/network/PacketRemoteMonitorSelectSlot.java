@@ -64,7 +64,6 @@ public class PacketRemoteMonitorSelectSlot implements IMessage {
                     player,
                     stack,
                     message.deviceId);
-                session.noteSyncRequest((IWirelessTermHandler) stack.getItem(), player, stack);
                 session.setResource((IWirelessTermHandler) stack.getItem(), player, stack, message.slotIndex,
                     message.hasResource ? message.resource : null);
                 ItemRemoteStorageMonitor.syncToClient(player, message.deviceId);
