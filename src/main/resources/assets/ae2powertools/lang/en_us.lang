@@ -7,10 +7,13 @@ ae2powertools.common.unknown=Unknown
 # Config GUI and keys for the config factory
 ae2powertools.config.title=AE2 PowerTools Configuration
 ae2powertools.config.client=Client
+ae2powertools.config.client.tooltip=Client-side config
 
 # Server config
 ae2powertools.config.server=Server
+ae2powertools.config.server.tooltip=Server-side config
 ae2powertools.config.server.crafter=AutoCrafter
+ae2powertools.config.server.interfaceTerminal=Interface Terminal
 
 # =====================================================
 # Priority Tuner
@@ -327,6 +330,9 @@ item.ae2powertools.crafter_speed_upgrade.tooltip=x%d batch size multiplier. Plac
 ae2powertools.config.server.crafter.tooltip=AutoCrafter balance settings
 ae2powertools.config.server.crafter.baseCraftsPerOperation=Base crafts per operation
 ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=Base number of crafts performed per operation cycle (flat multiplier on all batch sizes)
+ae2powertools.config.server.interfaceTerminal.tooltip=Interface Terminal integration settings
+ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows=Show AutoCrafters in the Interface Terminal
+ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows.tooltip=Expose AE2 AutoCrafters as editable pattern groups in the Interface Terminal. Requires mixinbooter and a full restart.
 
 ae2powertools.config.server.maintainer=Better Level Maintainer
 ae2powertools.config.server.maintainer.tooltip=Better Level Maintainer performance settings

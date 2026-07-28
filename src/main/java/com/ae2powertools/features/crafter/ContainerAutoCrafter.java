@@ -20,8 +20,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
-import appeng.api.implementations.ICraftingPatternItem;
-import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
 import appeng.container.slot.AppEngSlot;
@@ -29,6 +27,7 @@ import appeng.util.Platform;
 
 import com.ae2powertools.features.crafter.pmt.PMTManager;
 import com.ae2powertools.features.crafter.pmt.PMTSlot;
+import com.ae2powertools.features.crafter.terminal.AutoCrafterPatternActions;
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
 import com.ae2powertools.network.PowerToolsNetwork;
 
@@ -503,20 +502,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
      * leftover catalysts would otherwise persist as orphan items the recipe no longer accepts.
      */
     private void ejectCatalystsToPlayer(int entryIndex, EntityPlayer player) {
-        CrafterEntry entry = tile.getEntry(entryIndex);
-        if (entry == null) return;
-
-        for (int i = 0; i < CrafterEntry.CATALYST_SLOTS; i++) {
-            ItemStack stack = entry.getCatalystStack(i);
-            if (stack.isEmpty()) continue;
-
-            ItemStack toEject = stack.copy();
-            entry.setCatalystStack(i, ItemStack.EMPTY);
-
-            if (!player.inventory.addItemStackToInventory(toEject)) player.dropItem(toEject, false);
-        }
-
-        tile.validateCatalysts(entryIndex);
+        AutoCrafterPatternActions.ejectCatalystsToPlayer(tile, entryIndex, player);
     }
 
     /**
@@ -832,14 +818,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     }
 
     private boolean isValidPattern(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        if (!(stack.getItem() instanceof ICraftingPatternItem)) return false;
-
-        ICraftingPatternItem patternItem = (ICraftingPatternItem) stack.getItem();
-        ICraftingPatternDetails details = patternItem.getPatternForItem(stack, tile.getWorld());
-
-        // Only crafting patterns, not processing patterns
-        return details != null && details.isCraftable();
+        return AutoCrafterPatternActions.isValidPattern(tile, stack);
     }
 
     /**

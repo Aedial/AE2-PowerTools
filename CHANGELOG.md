@@ -18,6 +18,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add detailed AutoCrafter status hover tooltips in the recipe view so error states explain which catalyst or input is missing, or which outputs could not be reinserted into the network.
 - Add Remote Storage Monitor overlay configs to show the post-poll total beside each delta and to switch between shortened and full numeric formatting.
 - Keep the Remote Storage Monitor selector search text when reopening the selector and allow right-clicking the selector search box to clear it.
+- Add optional Interface Terminal integration for the AE2 AutoCrafter, exposing its 12 pattern slots as two editable rows with the last six filler slots disabled, and a startup config toggle for the mixin.
 
 
 ## [1.6.5] - 2026-07-15

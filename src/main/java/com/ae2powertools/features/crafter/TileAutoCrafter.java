@@ -1245,7 +1245,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * @param resetState If true, set state to IDLE on success. If false, preserve existing state
      *                   (used on world load to keep persisted MISSING_INPUT etc.)
      */
-    public void simulatePattern(int entryIndex, ItemStack patternStack, boolean resetState) {
+    public void simulatePattern(int entryIndex, @Nullable ItemStack patternStack, boolean resetState) {
         if (entryIndex < 0 || entryIndex >= entries.size()) return;
 
         CrafterEntry entry = entries.get(entryIndex);

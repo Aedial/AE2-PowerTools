@@ -1,0 +1,10 @@
+{
+    "package": "${mixin_package}.interfaceterminal",
+    "refmap": "${mixin_refmap}",
+    "target": "@env(DEFAULT)",
+    "minVersion": "0.8",
+    "compatibilityLevel": "JAVA_8",
+    "mixins": ["MixinAEBaseContainerAccessor", "MixinContainerInterfaceTerminal"],
+    "server": [],
+    "client": ["MixinGuiInterfaceTerminal"]
+}
