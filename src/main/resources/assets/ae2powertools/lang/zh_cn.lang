@@ -7,10 +7,13 @@ ae2powertools.common.unknown=未知
 # Config GUI and keys for the config factory
 ae2powertools.config.title=AE2 PowerTools设置
 ae2powertools.config.client=客户端
+ae2powertools.config.client.tooltip=客户端设置
 
 # Server config
 ae2powertools.config.server=服务端
+ae2powertools.config.server.tooltip=服务端设置
 ae2powertools.config.server.crafter=自动合成器
+ae2powertools.config.server.interfaceTerminal=接口终端
 
 # =====================================================
 # Priority Tuner
@@ -78,7 +81,7 @@ gui.ae2powertools.scanner.tab_fatal=致命错误（%d）
 gui.ae2powertools.scanner.tab_patterns=样板（%d）
 gui.ae2powertools.scanner.chunk_entry=区块 [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d 频道
-gui.ae2powertools.scanner.loops_info=注意：除非网络行为异常且已排除其他原因，否则环路不一定是问题。尽管如此，还是要尽量避免造成环路。
+gui.ae2powertools.scanner.loops_info=注意：除非网络行为异常且已排除其他原因，否则环路不一定会造成问题。尽管如此，还是要尽量避免造成环路。
 gui.ae2powertools.scanner.pattern.invalid.title=无效的合成样板
 gui.ae2powertools.scanner.pattern.invalid.tooltip=合成样板不再能解析为有效的合成配方。通常发生在配方或模组变更之后。
 gui.ae2powertools.scanner.pattern.conflicting_outputs.title=输出冲突
@@ -128,7 +131,7 @@ ae2powertools.scanner.channel.to_controller=（→控制器）
 
 # Scan Completion Messages
 ae2powertools.scanner.complete.summary.top=扫描了%d个节点：
-ae2powertools.scanner.complete.summary.line1=- 找到了%d个环路
+ae2powertools.scanner.complete.summary.line1=- 找到了%d个环路 - 环路通常不会造成问题
 ae2powertools.scanner.complete.summary.line2=- 找到了%d个未常加载区块
 ae2powertools.scanner.complete.summary.line3=- 找到了%d个阻塞点
 ae2powertools.scanner.complete.summary.line4=- 找到了%d台缺失频道的设备
@@ -262,6 +265,7 @@ item.ae2powertools.cards_distributor.pulled_from_ae2=从AE2网络存储中取出
 item.ae2powertools.remote_storage_monitor.name=远程存储监控器
 item.ae2powertools.remote_storage_monitor.tip1=右击打开远程监控器
 item.ae2powertools.remote_storage_monitor.tip2=手持或装备时，以叠加层形式显示数量变化
+item.ae2powertools.remote_storage_monitor.tip3=每§a%s§7刷新一次，比较最近§a%s§7内的数量变化
 
 # GUI
 gui.ae2powertools.remote_monitor.title=远程存储监控器
@@ -271,6 +275,12 @@ gui.ae2powertools.remote_monitor.slot_right_click=右键点击清除
 gui.ae2powertools.remote_monitor.polling_rate.title=轮询率
 gui.ae2powertools.remote_monitor.polling_rate.tooltip=与%s前状态进行对比
 gui.ae2powertools.remote_monitor.polling_rate.description=设置用于衡量数量变化的时间跨度
+gui.ae2powertools.remote_monitor.refresh_interval.title=刷新间隔
+gui.ae2powertools.remote_monitor.refresh_interval.tooltip=每隔%s刷新一次采样数量
+gui.ae2powertools.remote_monitor.refresh_interval.description=设置远程监控器轮询网络的频率
+gui.ae2powertools.remote_monitor.sliding_window.title=滑动窗口
+gui.ae2powertools.remote_monitor.sliding_window.tooltip=与最近%s进行对比
+gui.ae2powertools.remote_monitor.sliding_window.description=设置用于衡量数量变化的时间跨度
 gui.ae2powertools.remote_monitor.selector.title=选择内容
 
 # Config
@@ -290,6 +300,10 @@ ae2powertools.config.client.remoteMonitor.iconTextGap=图标/文本间距
 ae2powertools.config.client.remoteMonitor.iconTextGap.tooltip=图标与增量文本之间的水平间距
 ae2powertools.config.client.remoteMonitor.textScalePercent=文本大小
 ae2powertools.config.client.remoteMonitor.textScalePercent.tooltip=远程监控器增量文本相对于正常HUD字体大小的百分比缩放
+ae2powertools.config.client.remoteMonitor.showTotalQuantity=显示总数量
+ae2powertools.config.client.remoteMonitor.showTotalQuantity.tooltip=在每个变化量后渲染轮询后的网络总量，格式为 <变化量> / <总量>
+ae2powertools.config.client.remoteMonitor.shortenNumbers=缩短数字
+ae2powertools.config.client.remoteMonitor.shortenNumbers.tooltip=对变化量和总量使用缩写值，如10K，而不是完整的分组数字
 ae2powertools.config.client.remoteMonitor.gainColor=正向颜色
 ae2powertools.config.client.remoteMonitor.gainColor.tooltip=用于正数量增量的文本颜色（十六进制）
 ae2powertools.config.client.remoteMonitor.lossColor=负向颜色
@@ -323,6 +337,9 @@ item.ae2powertools.crafter_speed_upgrade.tooltip=批量大小x%d。放入自动�
 ae2powertools.config.server.crafter.tooltip=自动合成器平衡性设置
 ae2powertools.config.server.crafter.baseCraftsPerOperation=每次操作的基础合成数
 ae2powertools.config.server.crafter.baseCraftsPerOperation.tooltip=每个操作周期内执行的基础合成次数（对所有批量大小应用固定倍数）
+ae2powertools.config.server.interfaceTerminal.tooltip=接口终端集成设置
+ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows=在接口终端中显示自动合成器
+ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows.tooltip=在接口终端中将AE2自动合成器公开为可编辑的样板组。需要安装mixinbooter并完全重启。
 
 ae2powertools.config.server.maintainer=更好的缓存指令器
 ae2powertools.config.server.maintainer.tooltip=更好的缓存指令器的性能设置
@@ -387,6 +404,10 @@ gui.ae2powertools.crafter.error.limited_by=受限于%s（分配%d，需要%d）
 gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
 gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂：%s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误：应当是%s，实际为%s
+gui.ae2powertools.crafter.error.pending_output=无法将%d x %s插入网络
+gui.ae2powertools.crafter.error.inputs_changed=所需输入原料在提取前从网络中消失了（你的网络中可能存在幽灵物品）
+gui.ae2powertools.crafter.error.catalyst_recipe_mismatch=当前催化剂物品与编码样板不再匹配
+gui.ae2powertools.crafter.error.output_mismatch=当前催化剂物品导致的产物与编码样板不同
 jei.ae2powertools.reusable=可重复使用
 
 # =====================================================
@@ -475,6 +496,7 @@ ae2powertools.config.client.monitor.displayColorBelow.tooltip=物品数量低于
 
 # GUI
 gui.ae2powertools.storage_emitter.title=ME存储发信器
+gui.ae2powertools.level_monitor_alarm.title=发信警报器
 gui.ae2powertools.storage_display.title=ME存储显示器
 gui.ae2powertools.storage_emitter.match_mode=匹配：%s
 gui.ae2powertools.storage_emitter.refresh_rate=刷新：%s
