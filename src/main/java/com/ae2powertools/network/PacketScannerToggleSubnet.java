@@ -4,12 +4,10 @@ import io.netty.buffer.ByteBuf;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumHand;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.ae2powertools.ItemRegistry;
 import com.ae2powertools.items.ItemNetworkHealthScanner;
 
 
@@ -42,17 +40,10 @@ public class PacketScannerToggleSubnet implements IMessage {
         }
 
         private static void handleServer(EntityPlayerMP player) {
-            ItemStack mainHand = player.getHeldItem(EnumHand.MAIN_HAND);
-            if (!mainHand.isEmpty() && mainHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) {
-                ItemNetworkHealthScanner.toggleSubnetScan(mainHand);
+            ItemStack scanner = ItemNetworkHealthScanner.getHeldScanner(player);
+            if (scanner.isEmpty()) return;
 
-                return;
-            }
-
-            ItemStack offHand = player.getHeldItem(EnumHand.OFF_HAND);
-            if (!offHand.isEmpty() && offHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) {
-                ItemNetworkHealthScanner.toggleSubnetScan(offHand);
-            }
+            ItemNetworkHealthScanner.toggleSubnetScan(scanner);
         }
     }
 }

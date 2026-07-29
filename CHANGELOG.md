@@ -19,10 +19,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add Remote Storage Monitor overlay configs to show the post-poll total beside each delta and to switch between shortened and full numeric formatting.
 - Keep the Remote Storage Monitor selector search text when reopening the selector and allow right-clicking the selector search box to clear it.
 - Add optional Interface Terminal integration for the AE2 AutoCrafter, exposing its 12 pattern slots as two editable rows with the last six filler slots disabled, and a startup config toggle for the mixin.
+- Add more leeway to the Remote Storage Monitor so that the overlay does not reset its baseline when the device is removed from the player's inventory. The session will be kept for 30 seconds after the device disappears, allowing for temporary drops or swaps without losing the current state.
 
 ### Fixed
 - Fix the Remote Storage Monitor resetting its baseline when refreshing while the overlay is covered or client FPS throttling delay sync requests.
 - Fix the Network Health Scanner fatal error pass treating item and fluid storage buses on the same target as duplicate storage links.
+- Fix the scroll bar of the Remote Storage Monitor's content selection not being draggable (but still scrollable with the mouse wheel).
 
 ### Changed
 - Split the Remote Storage Monitor timing controls into separate refresh interval and sliding window settings, so that the refresh interval (responsivity) can be set independently of the sliding window duration (sampling period).

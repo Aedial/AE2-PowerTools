@@ -1,27 +1,20 @@
 package com.ae2powertools.features.remotemonitor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiChat;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.client.event.RenderGameOverlayEvent;
-import net.minecraftforge.fml.common.Loader;
-import net.minecraftforge.fml.common.Optional;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.util.ReadableNumberConverter;
 
-import baubles.api.BaublesApi;
-
+import com.ae2powertools.client.HudOverlayManager;
 import com.ae2powertools.client.PowerToolsClientConfig;
 import com.ae2powertools.features.monitor.MonitoredResource;
-import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
 import com.ae2powertools.items.ItemRemoteStorageMonitor;
 
 
@@ -30,36 +23,40 @@ import com.ae2powertools.items.ItemRemoteStorageMonitor;
  * Renders non-zero quantity deltas for the first held or worn monitor device.
  */
 @SideOnly(Side.CLIENT)
-public class RemoteMonitorOverlay {
+public class RemoteMonitorOverlay implements HudOverlayManager.HudOverlayProvider {
 
     private static int lastOverlayHeight;
 
-    @SubscribeEvent
-    public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
-        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
+    @Override
+    public boolean isActive(Minecraft mc) {
+        if (mc.player == null || mc.world == null) return false;
 
-        lastOverlayHeight = 0;
+        long deviceId = resolveDisplayedDeviceId(mc);
+        if (deviceId == 0L) return false;
 
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc.player == null || mc.world == null) return;
-        if (mc.gameSettings.showDebugInfo) return;
-        // TODO: Allow rendering on top of more screens.
-        if (mc.currentScreen != null && !(mc.currentScreen instanceof GuiChat)) return;
-
-        ItemStack monitor = findDisplayedMonitor(mc);
-        if (monitor.isEmpty()) return;
-
-        // on first render with a new device, register device (deltas will render next sync)
-        long deviceId = ItemRemoteStorageMonitor.getDeviceId(monitor);
         boolean hasState = RemoteMonitorClientState.hasState(deviceId);
         RemoteMonitorClientState.requestSyncIfNeeded(deviceId, !hasState);
-        if (!hasState) return;
+        return hasState;
+    }
+
+    @Override
+    public HudOverlayManager.OverlayAnchor getAnchor() {
+        return HudOverlayManager.OverlayAnchor.TOP_LEFT_STACK;
+    }
+
+    @Override
+    public HudOverlayManager.OverlayStyle getStyle() {
+        return HudOverlayManager.OverlayStyle.UNBOXED;
+    }
+
+    @Override
+    public List<HudOverlayManager.HudOverlayLine> getLines(Minecraft mc) {
+        long deviceId = RemoteMonitorClientState.getActiveDeviceId();
+        if (deviceId == 0L || !RemoteMonitorClientState.hasState(deviceId)) return Collections.emptyList();
 
         PowerToolsClientConfig.RemoteMonitor config = PowerToolsClientConfig.remoteMonitor;
         RemoteMonitorClientState.DeviceState state = RemoteMonitorClientState.getOrCreateState(deviceId);
-        List<MonitoredResource> resources = new ArrayList<>();
-        List<String> lines = new ArrayList<>();
-        List<Integer> colors = new ArrayList<>();
+        List<HudOverlayManager.HudOverlayLine> lines = new ArrayList<>();
 
         MonitoredResource[] configured = state.getResources();
         long[] deltas = state.getDeltas();
@@ -70,40 +67,47 @@ public class RemoteMonitorOverlay {
             long delta = deltas[slotIndex];
             if (resource == null || delta == 0) continue;
 
-            resources.add(resource);
-            lines.add(formatEntry(delta, currentQuantities[slotIndex], config));
-            colors.add(delta > 0 ? config.getGainColor() : config.getLossColor());
+            lines.add(HudOverlayManager.HudOverlayLine.iconText(
+                resource,
+                formatEntry(delta, currentQuantities[slotIndex], config),
+                delta > 0 ? config.getGainColor() : config.getLossColor()));
         }
 
-        if (lines.isEmpty()) return;
-
-        float textScale = config.getTextScale();
-        float scaledTextHeight = mc.fontRenderer.FONT_HEIGHT * textScale;
-        int lineHeight = Math.max((int) Math.ceil(scaledTextHeight), config.getIconSize());
-        int boxX = config.getX();
-        int boxY = config.getY();
-
-        int iconX = boxX + config.getPaddingInternal();
-        int textX = iconX + config.getIconSize() + config.getIconTextGap();
-        int lineY = boxY + config.getPaddingInternal();
-
-        for (int i = 0; i < lines.size(); i++) {
-            MonitoredResourceRenderer.renderIcon(resources.get(i), iconX, lineY, config.getIconSize());
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-
-            float textY = lineY + (lineHeight - scaledTextHeight) / 2.0F;
-            drawScaledText(mc, lines.get(i), textX, textY, colors.get(i), textScale);
-            lineY += lineHeight + config.getLineSpacing();
-        }
-
-        int boxHeight = config.getPaddingInternal() * 2
-            + lines.size() * lineHeight
-            + (lines.size() - 1) * config.getLineSpacing();
-        lastOverlayHeight = boxHeight + 2 + boxY;
+        return lines;
     }
 
     public static int getOverlayHeight() {
         return lastOverlayHeight;
+    }
+
+    @Override
+    public int getPriority() {
+        return 0;
+    }
+
+    @Override
+    public void onOverlayRendered(int renderedHeight) {
+        lastOverlayHeight = renderedHeight;
+    }
+
+    private long resolveDisplayedDeviceId(Minecraft mc) {
+        // deviceId of 0L is invalid (no client state yet or stale client state)
+        long deviceId = RemoteMonitorClientState.getActiveDeviceId();
+        if (deviceId != 0L) {
+            ItemStack cachedMonitor = ItemRemoteStorageMonitor.getHeldMonitor(mc.player, deviceId);
+            if (!cachedMonitor.isEmpty()) return deviceId;
+
+            RemoteMonitorClientState.invalidateActiveDeviceId();
+        }
+
+        if (!RemoteMonitorClientState.shouldRescanDisplayedMonitor(mc.world.getTotalWorldTime())) return 0L;
+
+        ItemStack monitor = ItemRemoteStorageMonitor.getHeldMonitor(mc.player);
+        if (monitor.isEmpty()) return 0L;
+
+        long resolvedDeviceId = ItemRemoteStorageMonitor.getDeviceId(monitor);
+        RemoteMonitorClientState.setActiveDeviceId(resolvedDeviceId);
+        return resolvedDeviceId;
     }
 
     private String formatEntry(long delta, long currentQuantity, PowerToolsClientConfig.RemoteMonitor config) {
@@ -112,11 +116,7 @@ public class RemoteMonitorOverlay {
             ? " / " + formatQuantity(currentQuantity, config)
             : "";
 
-        // The sync carries the post-poll quantity, so subtract the signed delta to recover the prior total.
-        double previousQuantity = currentQuantity - (double) delta;
-        if (previousQuantity <= 0.0D) previousQuantity = Math.abs((double) delta);  // 100% change if previous = 0
-
-        double percent = Math.abs((double) delta) * 100.0D / previousQuantity;
+        double percent = RemoteMonitorMath.calculateChangePercent(delta, currentQuantity);
         if (!Double.isFinite(percent) || percent <= 0.1D) return deltaText + totalText;
 
         return deltaText + totalText + " (" + formatPercent(percent) + "%)";
@@ -140,48 +140,5 @@ public class RemoteMonitorOverlay {
         if (formattedPercent.endsWith(".0")) return formattedPercent.substring(0, formattedPercent.length() - 2);
 
         return formattedPercent;
-    }
-
-    private void drawScaledText(Minecraft mc, String text, int x, float y, int color, float scale) {
-        if (scale == 1.0F) {
-            mc.fontRenderer.drawStringWithShadow(text, x, y, color);
-            return;
-        }
-
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(x, y, 0.0F);
-        GlStateManager.scale(scale, scale, 1.0F);
-        mc.fontRenderer.drawStringWithShadow(text, 0.0F, 0.0F, color);
-        GlStateManager.popMatrix();
-    }
-
-    private ItemStack findDisplayedMonitor(Minecraft mc) {
-        ItemStack mainHand = mc.player.getHeldItemMainhand();
-        if (isRemoteMonitor(mainHand)) return mainHand;
-
-        ItemStack offHand = mc.player.getHeldItemOffhand();
-        if (isRemoteMonitor(offHand)) return offHand;
-
-        if (Loader.isModLoaded("baubles")) {
-            ItemStack bauble = findDisplayedMonitorInBaubles(mc);
-            if (!bauble.isEmpty()) return bauble;
-        }
-
-        return ItemStack.EMPTY;
-    }
-
-    private boolean isRemoteMonitor(ItemStack stack) {
-        return !stack.isEmpty() && stack.getItem() instanceof ItemRemoteStorageMonitor;
-    }
-
-    @Optional.Method(modid = "baubles")
-    private ItemStack findDisplayedMonitorInBaubles(Minecraft mc) {
-        baubles.api.cap.IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(mc.player);
-        for (int slot = 0; slot < baubles.getSlots(); slot++) {
-            ItemStack stack = baubles.getStackInSlot(slot);
-            if (isRemoteMonitor(stack)) return stack;
-        }
-
-        return ItemStack.EMPTY;
     }
 }

@@ -47,7 +47,7 @@ public class PacketRemoteMonitorSetRefreshRate implements IMessage {
         public IMessage onMessage(PacketRemoteMonitorSetRefreshRate message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                ItemStack stack = ItemRemoteStorageMonitor.findMonitorByDeviceId(player, message.deviceId);
+                ItemStack stack = ItemRemoteStorageMonitor.getMonitorInInventory(player, message.deviceId);
                 if (stack.isEmpty() || !(stack.getItem() instanceof IWirelessTermHandler)) return;
 
                 RemoteMonitorSessionManager.RemoteMonitorSession session = RemoteMonitorSessionManager.getOrCreateSession(

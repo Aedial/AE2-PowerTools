@@ -34,21 +34,24 @@ public class RemoteMonitorTickHandler {
             : RemoteMonitorSessionManager.getSessionEntries()) {
 
             RemoteMonitorSessionManager.SessionKey key = entry.getKey();
+            RemoteMonitorSessionManager.RemoteMonitorSession session = entry.getValue();
             EntityPlayerMP player = findPlayer(server, key.getPlayerId());
             if (player == null) {
                 staleSessions.add(key);
                 continue;
             }
 
-            // TODO: Add some leeway so we do not kill the session with an accidental click.
-            //       Maybe a configurable grace period of 30s?
-            ItemStack stack = ItemRemoteStorageMonitor.findMonitorByDeviceId(player, key.getDeviceId());
+            ItemStack stack = ItemRemoteStorageMonitor.getMonitorInInventory(player, key.getDeviceId());
             if (stack.isEmpty() || !(stack.getItem() instanceof IWirelessTermHandler)) {
-                staleSessions.add(key);
+                if (session.shouldExpireMissingMonitor(player.world.getTotalWorldTime())) {
+                    staleSessions.add(key);
+                }
+
                 continue;
             }
 
-            entry.getValue().tick((IWirelessTermHandler) stack.getItem(), player, stack);
+            session.markMonitorPresent();
+            session.tick((IWirelessTermHandler) stack.getItem(), player, stack);
         }
 
         for (RemoteMonitorSessionManager.SessionKey key : staleSessions) {

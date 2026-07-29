@@ -39,6 +39,7 @@ import com.ae2powertools.features.locator.GuiComponentLocator;
 import com.ae2powertools.features.locator.LocatorClientState;
 import com.ae2powertools.features.locator.PacketLocatorSync;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.DeviceItemAccess;
 
 
 /**
@@ -52,15 +53,13 @@ import com.ae2powertools.network.PowerToolsNetwork;
  */
 public class ItemNetworkComponentLocator extends Item {
 
-    private static final String NBT_DEVICE_ID = "DeviceId";
     private static final String NBT_OVERLAY_ENABLED = "OverlayEnabled";
     private static final String NBT_SUBNET_SCAN = "SubnetScan";
 
-    // Cache device ID by NBT compound identity to avoid repeated lookups
-    private static final Map<NBTTagCompound, Long> deviceIdCache = new IdentityHashMap<>();
-
     // Cache overlay state by device ID
     private static final Map<Long, Boolean> overlayCache = new IdentityHashMap<>();
+
+    private static final DeviceItemAccess DEVICE_ACCESS = new DeviceItemAccess(ItemNetworkComponentLocator.class);
 
     public ItemNetworkComponentLocator() {
         this.setRegistryName(Tags.MODID, "network_component_locator");
@@ -75,29 +74,11 @@ public class ItemNetworkComponentLocator extends Item {
      * Values are cached to avoid repeated NBT lookups.
      */
     public static long getDeviceId(ItemStack stack) {
-        if (stack.isEmpty()) return 0L;
+        return DEVICE_ACCESS.getOrCreateDeviceId(stack);
+    }
 
-        NBTTagCompound nbt = stack.getTagCompound();
-
-        // Check cache first (using NBT compound identity)
-        if (nbt != null) {
-            Long cached = deviceIdCache.get(nbt);
-            if (cached != null) return cached;
-        }
-
-        // Create NBT if needed
-        if (nbt == null) {
-            nbt = new NBTTagCompound();
-            stack.setTagCompound(nbt);
-        }
-
-        // Generate new ID if not present
-        if (!nbt.hasKey(NBT_DEVICE_ID)) nbt.setLong(NBT_DEVICE_ID, System.nanoTime());
-
-        long deviceId = nbt.getLong(NBT_DEVICE_ID);
-        deviceIdCache.put(nbt, deviceId);
-
-        return deviceId;
+    public static ItemStack getHeldLocator(EntityPlayer player) {
+        return DEVICE_ACCESS.findHeldDevice(player);
     }
 
     /**

@@ -92,6 +92,7 @@ public class GuiRemoteMonitor extends GuiScreen {
     private int selectorTargetIndex = -1;
     private int selectorScrollOffset;
     private int selectorHoveredSlot = -1;
+    private boolean selectorDragging;
     // Preserve the last filter term so switching slots does not reset the selector search.
     private String selectorSearchText = "";
     private GuiTextField selectorSearchField;
@@ -343,11 +344,35 @@ public class GuiRemoteMonitor extends GuiScreen {
         clampSelectorScroll();
     }
 
+    @Override
+    protected void mouseReleased(int mouseX, int mouseY, int state) {
+        if (this.selectorOpen) {
+            this.selectorDragging = false;
+            return;
+        }
+
+        super.mouseReleased(mouseX, mouseY, state);
+    }
+
+    @Override
+    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
+        if (this.selectorOpen) {
+            if (this.selectorDragging && clickedMouseButton == 0) {
+                updateSelectorScrollFromMouse(mouseY);
+            }
+
+            return;
+        }
+
+        super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
+    }
+
     private void openSelector(int targetIndex) {
         this.selectorOpen = true;
         this.selectorTargetIndex = targetIndex;
         this.selectorScrollOffset = 0;
         this.selectorHoveredSlot = -1;
+        this.selectorDragging = false;
 
         this.selectorResources = new ArrayList<>(RemoteMonitorClientState.getOrCreateState(this.deviceId).getSelectorResources());
         this.filteredResources = new ArrayList<>();
@@ -385,9 +410,38 @@ public class GuiRemoteMonitor extends GuiScreen {
     }
 
     private void clampSelectorScroll() {
-        int totalRows = (this.filteredResources.size() + SELECTOR_COLS - 1) / SELECTOR_COLS;
-        int maxScroll = Math.max(0, totalRows - SELECTOR_ROWS);
+        int maxScroll = getSelectorMaxScroll();
         this.selectorScrollOffset = Math.max(0, Math.min(this.selectorScrollOffset, maxScroll));
+    }
+
+    private int getSelectorMaxScroll() {
+        int totalRows = (this.filteredResources.size() + SELECTOR_COLS - 1) / SELECTOR_COLS;
+        return Math.max(0, totalRows - SELECTOR_ROWS);
+    }
+
+    private boolean isMouseOverSelectorScrollbar(int mouseX, int mouseY) {
+        int scrollX = this.selectorLeft + SELECTOR_SCROLL_X;
+        int scrollY = this.selectorTop + SELECTOR_SCROLL_Y;
+
+        return mouseX >= scrollX && mouseX < scrollX + SELECTOR_SCROLL_THUMB_W
+            && mouseY >= scrollY && mouseY < scrollY + SELECTOR_SCROLL_TRACK_H;
+    }
+
+    private void updateSelectorScrollFromMouse(int mouseY) {
+        int maxScroll = getSelectorMaxScroll();
+        if (maxScroll <= 0) return;
+
+        int scrollY = this.selectorTop + SELECTOR_SCROLL_Y;
+        int thumbRange = SELECTOR_SCROLL_TRACK_H - SELECTOR_SCROLL_THUMB_H;
+        if (thumbRange <= 0) {
+            this.selectorScrollOffset = 0;
+            return;
+        }
+
+        // Map the cursor onto the visible track so clicks and drags both reposition the thumb.
+        float ratio = (float) (mouseY - scrollY - SELECTOR_SCROLL_THUMB_H / 2.0F) / thumbRange;
+        this.selectorScrollOffset = Math.round(ratio * maxScroll);
+        clampSelectorScroll();
     }
 
     private void drawSelectorModal(int mouseX, int mouseY) {
@@ -438,8 +492,7 @@ public class GuiRemoteMonitor extends GuiScreen {
         this.mc.getTextureManager().bindTexture(SCROLLBAR_TEXTURE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        int totalRows = (this.filteredResources.size() + SELECTOR_COLS - 1) / SELECTOR_COLS;
-        int maxScroll = Math.max(0, totalRows - SELECTOR_ROWS);
+        int maxScroll = getSelectorMaxScroll();
         if (maxScroll <= 0) {
             drawTexturedModalRect(scrollX, scrollY, 244, 0, SELECTOR_SCROLL_THUMB_W, SELECTOR_SCROLL_THUMB_H);
             return;
@@ -483,6 +536,7 @@ public class GuiRemoteMonitor extends GuiScreen {
 
         this.selectorOpen = false;
         this.selectorHoveredSlot = -1;
+        this.selectorDragging = false;
     }
 
     private boolean isMouseOverSelectorSearchField(int mouseX, int mouseY) {
@@ -520,6 +574,12 @@ public class GuiRemoteMonitor extends GuiScreen {
         }
 
         if (handleSelectorSearchFieldClick(mouseX, mouseY, mouseButton)) return;
+        if (mouseButton == 0 && isMouseOverSelectorScrollbar(mouseX, mouseY)) {
+            this.selectorDragging = true;
+            updateSelectorScrollFromMouse(mouseY);
+            return;
+        }
+
         if (mouseButton != 0 || this.selectorHoveredSlot < 0) return;
 
         int row = this.selectorHoveredSlot / SELECTOR_COLS;

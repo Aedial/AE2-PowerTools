@@ -12,6 +12,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import com.ae2powertools.client.BlockHighlightRenderer;
 import com.ae2powertools.client.DisplayBlockColor;
+import com.ae2powertools.client.HudOverlayManager;
 import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmArrowRenderer;
 import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmOverlay;
 import com.ae2powertools.features.monitor.display.DisplayRenderHelper;
@@ -38,12 +39,23 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
 
+        ScannerRenderer scannerRenderer = new ScannerRenderer();
+        LocatorRenderer locatorRenderer = new LocatorRenderer();
+        RemoteMonitorOverlay remoteMonitorOverlay = new RemoteMonitorOverlay();
+        LevelMonitorAlarmOverlay levelMonitorAlarmOverlay = new LevelMonitorAlarmOverlay();
+        LevelMonitorAlarmArrowRenderer levelMonitorAlarmArrowRenderer = new LevelMonitorAlarmArrowRenderer();
+
+        HudOverlayManager.register(scannerRenderer);
+        HudOverlayManager.register(locatorRenderer);
+        HudOverlayManager.register(remoteMonitorOverlay);
+        HudOverlayManager.register(levelMonitorAlarmOverlay);
+        HudOverlayManager.register(levelMonitorAlarmArrowRenderer);
+
         // Register client-side event handlers
-        MinecraftForge.EVENT_BUS.register(new ScannerRenderer());
-        MinecraftForge.EVENT_BUS.register(new LocatorRenderer());
-        MinecraftForge.EVENT_BUS.register(new RemoteMonitorOverlay());
-        MinecraftForge.EVENT_BUS.register(new LevelMonitorAlarmOverlay());
-        MinecraftForge.EVENT_BUS.register(new LevelMonitorAlarmArrowRenderer());
+        MinecraftForge.EVENT_BUS.register(HudOverlayManager.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(scannerRenderer);
+        MinecraftForge.EVENT_BUS.register(locatorRenderer);
+        MinecraftForge.EVENT_BUS.register(levelMonitorAlarmArrowRenderer);
         MinecraftForge.EVENT_BUS.register(new BlockHighlightRenderer());
 
         // Register TESRs for dynamic content rendering (item icon + quantity text)

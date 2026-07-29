@@ -969,6 +969,8 @@ public class NetworkScanner {
      * <p>
      * TODO: Quantum bridge endpoints still need an explicit persisted endpoint index.
      * Their unloaded target is not adjacent, so the local chunk-boundary probe cannot discover it.
+     * Best I can think is mixin'ing into the bridge to write a persistent list of all known bridges.
+     * But I would really really like to avoid invasive changes to AE2's code.
      */
     private void checkAdjacentUnloadedChunks(IGridNode node) {
         if (!node.getGridBlock().isWorldAccessible()) return;
