@@ -29,6 +29,7 @@ import appeng.api.networking.pathing.IPathingGrid;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
 import appeng.block.networking.BlockCableBus;
+import appeng.fluids.helper.IFluidInterfaceHost;
 import appeng.fluids.parts.PartFluidStorageBus;
 import appeng.helpers.IInterfaceHost;
 import appeng.me.cluster.IAECluster;
@@ -57,6 +58,13 @@ import com.ae2powertools.features.scanner.ChannelChokepoint.DirectionFlow;
  * process its first-encountered node and treat subsequent nodes as part of the same entity.
  */
 public class ChannelScanner {
+
+    private enum ResourceType {
+        ITEM,
+        FLUID,
+        GAS,
+        ESSENTIA
+    }
 
     private static final int MAX_NODES_PER_TICK = 100;
     private static final int MAX_TOTAL_NODES = 1000000;
@@ -98,16 +106,19 @@ public class ChannelScanner {
     /**
      * Target key used by both storage buses and interfaces.
      * The side is only relevant when the target block can host multiple parts.
+     * Resource type keeps item and fluid routing independent even on the same face.
      */
     private static class TargetLocation {
         final int dimension;
         final BlockPos pos;
         final EnumFacing side;
+        final ResourceType resourceType;
 
-        TargetLocation(int dimension, BlockPos pos, EnumFacing side) {
+        TargetLocation(int dimension, BlockPos pos, EnumFacing side, ResourceType resourceType) {
             this.dimension = dimension;
             this.pos = pos;
             this.side = side;
+            this.resourceType = resourceType;
         }
 
         @Override
@@ -116,7 +127,10 @@ public class ChannelScanner {
             if (!(obj instanceof TargetLocation)) return false;
 
             TargetLocation other = (TargetLocation) obj;
-            return dimension == other.dimension && pos.equals(other.pos) && side == other.side;
+            return dimension == other.dimension
+                && pos.equals(other.pos)
+                && side == other.side
+                && resourceType == other.resourceType;
         }
 
         @Override
@@ -124,6 +138,7 @@ public class ChannelScanner {
             int result = Integer.hashCode(dimension);
             result = 31 * result + pos.hashCode();
             result = 31 * result + (side != null ? side.hashCode() : 0);
+            result = 31 * result + resourceType.hashCode();
             return result;
         }
     }
@@ -506,7 +521,7 @@ public class ChannelScanner {
     private TargetLocation getDuplicateStorageTargetKey(IGridNode node, TargetLocation exactTarget) {
         if (isCableMultipartTarget(node, exactTarget.pos)) return exactTarget;
 
-        return new TargetLocation(exactTarget.dimension, exactTarget.pos, null);
+        return new TargetLocation(exactTarget.dimension, exactTarget.pos, null, exactTarget.resourceType);
     }
 
     private boolean isCableMultipartTarget(IGridNode node, BlockPos targetPos) {
@@ -520,6 +535,7 @@ public class ChannelScanner {
         IGridHost host = node.getMachine();
         TileEntity hostTile;
         EnumFacing facing;
+        ResourceType resourceType;
 
         if (host instanceof PartStorageBus) {
             PartStorageBus storageBus = (PartStorageBus) host;
@@ -527,13 +543,15 @@ public class ChannelScanner {
 
             hostTile = storageBus.getHost().getTile();
             facing = storageBus.getSide().getFacing();
+            resourceType = ResourceType.ITEM;
         } else if (host instanceof PartFluidStorageBus) {
             PartFluidStorageBus storageBus = (PartFluidStorageBus) host;
             if (storageBus.getHost() == null) return null;
 
             hostTile = storageBus.getHost().getTile();
             facing = storageBus.getSide().getFacing();
-        } else {
+            resourceType = ResourceType.FLUID;
+        } else {  // TODO: add Gas/Essentia storage buses (optional dependencies)
             return null;
         }
 
@@ -542,26 +560,47 @@ public class ChannelScanner {
         int dimension = hostTile.getWorld().provider.getDimension();
         BlockPos targetPos = hostTile.getPos().offset(facing);
         EnumFacing targetSide = facing.getOpposite();
-        return new TargetLocation(dimension, targetPos, targetSide);
+        return new TargetLocation(dimension, targetPos, targetSide, resourceType);
     }
 
     private Set<TargetLocation> getInterfaceTargets(IGridNode node) {
         Set<TargetLocation> targets = new HashSet<>();
         IGridHost host = node.getMachine();
-        if (!(host instanceof IInterfaceHost)) return targets;
 
-        IInterfaceHost interfaceHost = (IInterfaceHost) host;
+        if (host instanceof IInterfaceHost) {
+            addInterfaceTargets(targets, (IInterfaceHost) host, ResourceType.ITEM);
+        }
+
+        if (host instanceof IFluidInterfaceHost) {
+            addFluidInterfaceTargets(targets, (IFluidInterfaceHost) host, ResourceType.FLUID);
+        }
+
+        return targets;
+    }
+
+    private void addInterfaceTargets(Set<TargetLocation> targets, IInterfaceHost interfaceHost, ResourceType resourceType) {
         TileEntity tile = interfaceHost.getTileEntity();
-        if (tile == null || tile.getWorld() == null) return targets;
+        if (tile == null || tile.getWorld() == null) return;
 
         int dimension = tile.getWorld().provider.getDimension();
         for (EnumFacing side : interfaceHost.getTargets()) {
             if (side == null) continue;
 
-            targets.add(new TargetLocation(dimension, tile.getPos(), side));
+            targets.add(new TargetLocation(dimension, tile.getPos(), side, resourceType));
         }
+    }
 
-        return targets;
+    private void addFluidInterfaceTargets(Set<TargetLocation> targets, IFluidInterfaceHost interfaceHost,
+            ResourceType resourceType) {
+        TileEntity tile = interfaceHost.getTileEntity();
+        if (tile == null || tile.getWorld() == null) return;
+
+        int dimension = tile.getWorld().provider.getDimension();
+        for (EnumFacing side : interfaceHost.getTargets()) {
+            if (side == null) continue;
+
+            targets.add(new TargetLocation(dimension, tile.getPos(), side, resourceType));
+        }
     }
 
     private void addFatalError(FatalNetworkError.Category category, IGridNode node, BlockPos pos) {
