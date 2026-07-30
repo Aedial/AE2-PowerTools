@@ -107,7 +107,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     /**
      * Tick counter for scheduling.
      */
-    private int tickCounter;
+    private long tickCounter;
 
     /**
      * Cached fake player for crafting.
@@ -157,10 +157,46 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         tickCounter++;
 
         // Check if it's time to run crafts (and insert pending outputs back into the network)
-        if (tickCounter % (speedTicks * batchSize) == 0) {
-            processPendingOutputs();
-            processAllEntries();
+        long craftIntervalTicks = getCraftIntervalTicks();
+        if (tickCounter < craftIntervalTicks) return;
+
+        tickCounter = 0;
+
+        processPendingOutputs();
+        processAllEntries();
+    }
+
+    private long getCraftIntervalTicks() {
+        // The user-facing timer already supports intervals beyond Integer.MAX_VALUE.
+        // Keep the server scheduler in long space as well so large batch values do not wrap.
+        return Math.max(1L, (long) speedTicks * batchSize);
+    }
+
+    /**
+     * Returns whether this crafter still has work to revisit on its next scheduled run.
+     */
+    public boolean hasScheduledOperation() {
+        for (CrafterEntry entry : entries) {
+            if (entry.hasPendingOutputs()) return true;
+            if (!entry.hasPattern()) continue;
+            if (!entry.isEnabled()) continue;
+
+            return true;
         }
+
+        return false;
+    }
+
+    /**
+     * Returns the remaining ticks before the next craft cycle starts.
+     */
+    public long getTicksUntilNextOperation() {
+        long interval = getCraftIntervalTicks();
+        long remaining = interval - tickCounter;
+
+        if (remaining > 0L) return remaining;
+
+        return interval;
     }
 
     @Override
@@ -1780,7 +1816,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         data.setInteger("speed", speedTicks);
         data.setInteger("batch", batchSize);
-        data.setInteger("tickCounter", tickCounter);
+        data.setLong("tickCounter", tickCounter);
 
         // Save upgrades inventory
         NBTTagList upgradeList = new NBTTagList();
@@ -1812,8 +1848,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         batchSize = data.getInteger("batch");
         if (batchSize < MIN_BATCH_SIZE) batchSize = DEFAULT_BATCH_SIZE;
 
-        tickCounter = data.getInteger("tickCounter");
-        // tickCounter doesn't need validation - 0 is a valid starting point
+        tickCounter = Math.max(0L, data.getLong("tickCounter"));
 
         // Load upgrades inventory
         if (data.hasKey("upgrades")) {
