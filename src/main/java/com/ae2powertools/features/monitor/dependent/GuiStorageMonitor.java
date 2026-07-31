@@ -50,7 +50,7 @@ import com.ae2powertools.network.PacketSetMatchMode;
 import com.ae2powertools.network.PacketToggleAlarmRegistration;
 import com.ae2powertools.network.PacketUpdateMonitorEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -449,7 +449,7 @@ public class GuiStorageMonitor extends GuiContainer {
                 && mouseX >= pollingRateBtn.x && mouseX < pollingRateBtn.x + pollingRateBtn.width
                 && mouseY >= pollingRateBtn.y && mouseY < pollingRateBtn.y + pollingRateBtn.height) {
 
-            String interval = PollingRateUtils.format(container.refreshRate);
+            String interval = FormatUtil.formatTimeTicks(container.refreshRate);
             List<String> tt = new ArrayList<>();
             tt.add("§e" + I18n.format("gui.ae2powertools.storage_emitter.polling_rate.tooltip", interval) + "§r");
             tt.add("");

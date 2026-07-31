@@ -169,22 +169,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     private long getCraftIntervalTicks() {
         // The user-facing timer already supports intervals beyond Integer.MAX_VALUE.
         // Keep the server scheduler in long space as well so large batch values do not wrap.
-        return Math.max(1L, (long) speedTicks * batchSize);
-    }
-
-    /**
-     * Returns whether this crafter still has work to revisit on its next scheduled run.
-     */
-    public boolean hasScheduledOperation() {
-        for (CrafterEntry entry : entries) {
-            if (entry.hasPendingOutputs()) return true;
-            if (!entry.hasPattern()) continue;
-            if (!entry.isEnabled()) continue;
-
-            return true;
-        }
-
-        return false;
+        return Math.max(1L, CrafterMath.saturatingMultiply(speedTicks, batchSize));
     }
 
     /**
@@ -197,6 +182,16 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (remaining > 0L) return remaining;
 
         return interval;
+    }
+
+    boolean isEntryAtTarget(CrafterEntry entry) {
+        if (entry == null || !entry.hasValidRecipeInfo()) return false;
+
+        CrafterRecipeInfo info = entry.getRecipeInfo();
+        if (info == null || info.getOutputs().isEmpty()) return false;
+
+        IAEItemStack output = info.getOutputs().get(0);
+        return getNetworkQuantity(output) >= entry.getTargetQuantity();
     }
 
     @Override
@@ -303,14 +298,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Check target quantity
             CrafterRecipeInfo info = entry.getRecipeInfo();
-            if (info != null && !info.getOutputs().isEmpty()) {
-                IAEItemStack output = info.getOutputs().get(0);
-                long currentQty = getNetworkQuantity(output);
-                if (currentQty >= entry.getTargetQuantity()) {
-                    entry.clearErrorDetails();
-                    updateEntryState(entry, CrafterState.IDLE);
-                    continue;
-                }
+            if (isEntryAtTarget(entry)) {
+                entry.clearErrorDetails();
+                updateEntryState(entry, CrafterState.IDLE);
+                continue;
             }
 
             // Clear previous error details
@@ -440,14 +431,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Check target quantity
             CrafterRecipeInfo info = entry.getRecipeInfo();
-            if (info != null && !info.getOutputs().isEmpty()) {
-                IAEItemStack output = info.getOutputs().get(0);
-                long currentQty = getNetworkQuantity(output);
-                if (currentQty >= entry.getTargetQuantity()) {
-                    entry.clearErrorDetails();
-                    updateEntryState(entry, CrafterState.IDLE);
-                    continue;
-                }
+            if (isEntryAtTarget(entry)) {
+                entry.clearErrorDetails();
+                updateEntryState(entry, CrafterState.IDLE);
+                continue;
             }
 
             // Clear previous error details
@@ -492,7 +479,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
                     // accumulate missing counts for this item (multiple slots may require the same item)
                     long[] counts = missingInputs.computeIfAbsent(key, ignored -> new long[]{0L, available});
-                    counts[0] += needed;
+                    counts[0] = CrafterMath.saturatingAdd(counts[0], needed);
                     counts[1] = Math.min(counts[1], available);
                     missingStacks.putIfAbsent(key, item.createItemStack());
                 }
@@ -622,7 +609,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 ItemStackKey key = new ItemStackKey(item);
                 resourceUsers.computeIfAbsent(key, k -> new ArrayList<>()).add(candidate);
                 long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
-                totalDemand.merge(key, needed, Long::sum);
+                totalDemand.merge(key, needed, CrafterMath::saturatingAdd);
             }
         }
 
@@ -675,7 +662,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (allocated == null) allocated = 0L;
 
                 // Convert item allocation to crafts
-                int craftsFromAllocation = calculateCraftsFromItems(ingredient, allocated);
+                long craftsFromAllocation = calculateCraftsFromItems(ingredient, allocated);
 
                 if (craftsFromAllocation < finalCrafts) {
                     long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
@@ -683,7 +670,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                         long allocatedCount = allocated;
                         long[] counts = limitingFactors.computeIfAbsent(key, ignored -> new long[]{allocatedCount, 0L});
                         counts[0] = Math.min(counts[0], allocatedCount);
-                        counts[1] += needed;
+                        counts[1] = CrafterMath.saturatingAdd(counts[1], needed);
                         limitingStacks.putIfAbsent(key, item.createItemStack());
                     }
                 }
@@ -753,7 +740,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * For most items: 1 craft per item.
      * For DURABILITY items: multiple crafts per item based on durability.
      */
-    private int calculateCraftsFromItems(CrafterRecipeInfo.IngredientInfo ingredient, long items) {
+    private long calculateCraftsFromItems(CrafterRecipeInfo.IngredientInfo ingredient, long items) {
         if (items <= 0) return 0;
 
         if (ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) {
@@ -764,15 +751,16 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 int durabilityPerCraft = ingredient.getDurabilityPerCraft();
 
                 if (maxDurability > 0 && durabilityPerCraft > 0) {
-                    int craftsPerItem = maxDurability / durabilityPerCraft;
+                    long craftsPerItem = maxDurability / (long) durabilityPerCraft;
                     if (craftsPerItem <= 0) craftsPerItem = 1;
-                    return (int) Math.min(items * craftsPerItem, Integer.MAX_VALUE);
+
+                    return CrafterMath.saturatingMultiply(items, craftsPerItem);
                 }
             }
         }
 
         // Regular items: 1 craft per item
-        return (int) Math.min(items, Integer.MAX_VALUE);
+        return items;
     }
 
     /**
@@ -790,9 +778,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 int durabilityPerCraft = ingredient.getDurabilityPerCraft();
 
                 if (maxDurability > 0 && durabilityPerCraft > 0) {
-                    int craftsPerItem = maxDurability / durabilityPerCraft;
+                    long craftsPerItem = maxDurability / (long) durabilityPerCraft;
                     if (craftsPerItem <= 0) craftsPerItem = 1;
-                    return (crafts + craftsPerItem - 1) / craftsPerItem; // Ceiling division
+
+                    return CrafterMath.ceilDivPositive(crafts, craftsPerItem);
                 }
             }
         }
@@ -853,9 +842,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 int durabilityPerCraft = ingredient.getDurabilityPerCraft();
 
                 if (maxDurability > 0 && durabilityPerCraft > 0) {
-                    int craftsPerItem = maxDurability / durabilityPerCraft;
+                    long craftsPerItem = maxDurability / (long) durabilityPerCraft;
                     if (craftsPerItem <= 0) craftsPerItem = 1;
-                    itemsToDeduct = (crafts + craftsPerItem - 1) / craftsPerItem; // Ceiling division
+
+                    itemsToDeduct = CrafterMath.ceilDivPositive(crafts, craftsPerItem);
                 } else {
                     itemsToDeduct = crafts;
                 }
@@ -994,7 +984,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 ItemStack template = item.createItemStack();
                 int maxDurability = template.getMaxDamage();
                 int durabilityPerCraft = ingredient.getDurabilityPerCraft();
-                long totalDurabilityNeeded = crafts * durabilityPerCraft;
+                long totalDurabilityNeeded = CrafterMath.saturatingMultiply(crafts, durabilityPerCraft);
                 
                 // Subtract leftover durability from what we need
                 long durabilityFromNetwork = Math.max(0, totalDurabilityNeeded - leftoverDurability);
@@ -1002,7 +992,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (durabilityFromNetwork > 0 && maxDurability > 0) {
                     // Calculate items needed from network
                     // Each new item from network has full durability
-                    long itemsFromNetwork = (durabilityFromNetwork + maxDurability - 1) / maxDurability; // Ceiling division
+                    long itemsFromNetwork = CrafterMath.ceilDivPositive(durabilityFromNetwork, maxDurability);
                     request.setStackSize(itemsFromNetwork);
                 } else {
                     // Leftover has enough durability, no network extraction needed
@@ -1060,7 +1050,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             
             if (!isTransformedOutput) {
                 IAEItemStack scaledOutput = output.copy();
-                scaledOutput.setStackSize(output.getStackSize() * crafts);
+                scaledOutput.setStackSize(CrafterMath.saturatingMultiply(output.getStackSize(), crafts));
                 outputs.add(scaledOutput);
             }
         }
@@ -1132,7 +1122,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         }
 
         int durabilityPerCraft = ingredient.getDurabilityPerCraft();
-        long totalDurabilityNeeded = crafts * durabilityPerCraft;
+        long totalDurabilityNeeded = CrafterMath.saturatingMultiply(crafts, durabilityPerCraft);
         
         // Get current leftover from internal inventory
         ItemStack leftover = entry.getCatalystStack(recipeSlot);
@@ -1146,17 +1136,19 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // - Fresh items extracted from network (each has maxDurability)
         // extractInputs already calculated how many network items we needed
         long durabilityFromNetwork = Math.max(0, totalDurabilityNeeded - leftoverDurability);
-        long itemsFromNetwork = (durabilityFromNetwork > 0 && maxDurability > 0) 
-                             ? (durabilityFromNetwork + maxDurability - 1) / maxDurability 
+        long itemsFromNetwork = (durabilityFromNetwork > 0 && maxDurability > 0)
+                             ? CrafterMath.ceilDivPositive(durabilityFromNetwork, maxDurability)
                              : 0;
-        long totalDurabilityAvailable = leftoverDurability + (itemsFromNetwork * maxDurability);
+        long totalDurabilityAvailable = CrafterMath.saturatingAdd(
+                leftoverDurability,
+                CrafterMath.saturatingMultiply(itemsFromNetwork, maxDurability));
         
         // After crafting, remaining durability
-        long remainingDurability = totalDurabilityAvailable - totalDurabilityNeeded;
+        long remainingDurability = Math.max(0L, totalDurabilityAvailable - totalDurabilityNeeded);
         
         if (remainingDurability > 0) {
             // Store survivor in internal inventory
-            int finalDamage = maxDurability - (int) remainingDurability;
+            int finalDamage = maxDurability - (int) Math.min(remainingDurability, maxDurability);
             ItemStack survivor = template.copy();
             survivor.setItemDamage(Math.max(0, finalDamage));
             entry.setCatalystStack(recipeSlot, survivor);
@@ -1381,7 +1373,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         for (IAEItemStack output : patternOutputs) {
             if (output != null) {
                 String key = getItemKey(output.createItemStack());
-                outputItemMap.merge(key, output.getStackSize(), Long::sum);
+                outputItemMap.merge(key, output.getStackSize(), CrafterMath::saturatingAdd);
             }
         }
 
@@ -1647,7 +1639,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * Formula: baseCraftsPerOperation (config) * batchSize (user) * upgradeMultiplier
      */
     public long getEffectiveMaxBatchSize() {
-        return (long) getBaseCraftsPerOperation() * batchSize * getUpgradeBatchMultiplier();
+        long baseBatchSize = CrafterMath.saturatingMultiply(getBaseCraftsPerOperation(), batchSize);
+
+        return CrafterMath.saturatingMultiply(baseBatchSize, getUpgradeBatchMultiplier());
     }
 
     /**

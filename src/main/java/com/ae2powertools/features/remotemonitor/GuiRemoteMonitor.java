@@ -30,7 +30,7 @@ import com.ae2powertools.integration.jei.JeiTooltipBridge;
 import com.ae2powertools.network.PacketRemoteMonitorRequestContents;
 import com.ae2powertools.network.PacketRemoteMonitorSelectSlot;
 import com.ae2powertools.network.PowerToolsNetwork;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -245,7 +245,7 @@ public class GuiRemoteMonitor extends GuiScreen {
     }
 
     private void drawRefreshIntervalTooltip(int mouseX, int mouseY) {
-        String interval = PollingRateUtils.format(RemoteMonitorClientState.getOrCreateState(this.deviceId).getRefreshRate());
+        String interval = FormatUtil.formatTimeTicks(RemoteMonitorClientState.getOrCreateState(this.deviceId).getRefreshRate());
         drawTimingTooltip(
             this.refreshIntervalBtn,
             I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.tooltip", interval),
@@ -255,7 +255,7 @@ public class GuiRemoteMonitor extends GuiScreen {
     }
 
     private void drawSlidingWindowTooltip(int mouseX, int mouseY) {
-        String interval = PollingRateUtils.format(RemoteMonitorClientState.getOrCreateState(this.deviceId).getSlidingWindow());
+        String interval = FormatUtil.formatTimeTicks(RemoteMonitorClientState.getOrCreateState(this.deviceId).getSlidingWindow());
         drawTimingTooltip(
             this.slidingWindowBtn,
             I18n.format("gui.ae2powertools.remote_monitor.sliding_window.tooltip", interval),

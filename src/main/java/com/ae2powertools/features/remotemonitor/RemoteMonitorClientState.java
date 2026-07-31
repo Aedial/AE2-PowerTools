@@ -13,7 +13,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.network.PacketRemoteMonitorRequestSync;
 import com.ae2powertools.network.PowerToolsNetwork;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -24,7 +24,7 @@ import com.ae2powertools.util.PollingRateUtils;
 @SideOnly(Side.CLIENT)
 public final class RemoteMonitorClientState {
 
-    private static final int DISPLAYED_MONITOR_RESCAN_INTERVAL = PollingRateUtils.TICKS_PER_SECOND;
+    private static final int DISPLAYED_MONITOR_RESCAN_INTERVAL = FormatUtil.TICKS_PER_SECOND;
 
     public static final class DeviceState {
 

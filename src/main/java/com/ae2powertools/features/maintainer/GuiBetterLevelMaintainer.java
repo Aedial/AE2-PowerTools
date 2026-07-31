@@ -428,7 +428,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
 
         modalFreqField = new GuiTextField(3, fontRenderer, modalLeft + 60, modalTop + 90, 110, 12);
         modalFreqField.setMaxStringLength(20);
-        modalFreqField.setText(FormatUtil.formatTime(modalLastFrequency));
+        modalFreqField.setText(FormatUtil.formatTimeSeconds(modalLastFrequency));
 
         // Frequency buttons
         int btnX = modalLeft + 3;
@@ -1155,7 +1155,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer {
 
         if (delta != 0) {
             modalLastFrequency = Math.max(1, modalLastFrequency + delta);
-            modalFreqField.setText(FormatUtil.formatTime(modalLastFrequency));
+            modalFreqField.setText(FormatUtil.formatTimeSeconds(modalLastFrequency));
         }
     }
 

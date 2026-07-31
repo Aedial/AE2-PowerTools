@@ -6,6 +6,8 @@ import net.minecraft.item.Item;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -28,9 +30,14 @@ import com.ae2powertools.features.scanner.ScannerRenderer;
  */
 public class ClientProxy extends CommonProxy {
 
+    private static final String TOP_MODID = "theoneprobe";
+    private static final String WAILA_MODID = "waila";
+
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
+
+        if (Loader.isModLoaded(TOP_MODID)) registerTheOneProbeIntegration();
 
         MinecraftForge.EVENT_BUS.register(this);
     }
@@ -38,6 +45,8 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+
+        if (Loader.isModLoaded(WAILA_MODID)) registerWailaIntegration();
 
         ScannerRenderer scannerRenderer = new ScannerRenderer();
         LocatorRenderer locatorRenderer = new LocatorRenderer();
@@ -72,6 +81,16 @@ public class ClientProxy extends CommonProxy {
             ItemRegistry.STORAGE_DISPLAY_PART,
             ItemRegistry.STORAGE_DISPLAY_SMALLER_PART,
             ItemRegistry.STORAGE_DISPLAY_SMALLLER_PART);
+    }
+
+    @Optional.Method(modid = TOP_MODID)
+    private static void registerTheOneProbeIntegration() {
+        com.ae2powertools.integration.theoneprobe.PowerToolsTheOneProbePlugin.register();
+    }
+
+    @Optional.Method(modid = WAILA_MODID)
+    private static void registerWailaIntegration() {
+        com.ae2powertools.integration.waila.PowerToolsWailaModule.register();
     }
 
     @SubscribeEvent

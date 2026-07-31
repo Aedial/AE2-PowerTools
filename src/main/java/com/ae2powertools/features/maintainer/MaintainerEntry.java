@@ -353,7 +353,7 @@ public class MaintainerEntry {
      * Formats the frequency as a human-readable string (e.g., "1h 30m 15s").
      */
     public String formatFrequency() {
-        return FormatUtil.formatTime(frequencySeconds);
+        return FormatUtil.formatTimeSeconds(frequencySeconds);
     }
 
     /**

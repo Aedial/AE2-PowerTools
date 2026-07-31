@@ -45,7 +45,7 @@ import com.ae2powertools.network.PacketRemoteMonitorOpenGui;
 import com.ae2powertools.network.PacketRemoteMonitorSync;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.DeviceItemAccess;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -324,7 +324,7 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
         tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2powertools.remote_storage_monitor.tip2"));
         tooltip.add(TextFormatting.GRAY + I18n.format(
             "item.ae2powertools.remote_storage_monitor.tip3",
-            PollingRateUtils.format(getStoredRefreshRate(stack)),
-            PollingRateUtils.format(getStoredSlidingWindow(stack))));
+            FormatUtil.formatTimeTicks(getStoredRefreshRate(stack)),
+            FormatUtil.formatTimeTicks(getStoredSlidingWindow(stack))));
     }
 }

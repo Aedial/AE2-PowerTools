@@ -28,7 +28,7 @@ import appeng.me.helpers.AENetworkProxy;
 
 import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.MonitoredResource;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -45,10 +45,10 @@ import com.ae2powertools.util.PollingRateUtils;
 public class MonitorLogic {
 
     /** Default refresh rate: every 1 second (20 ticks) */
-    public static final int DEFAULT_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
+    public static final int DEFAULT_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
 
     /** Minimum refresh rate: 1 second (20 ticks) */
-    public static final int MIN_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
+    public static final int MIN_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
 
     /**
      * Number of monitored entries (resource/comparison/threshold) supported. This is a fixed limit.

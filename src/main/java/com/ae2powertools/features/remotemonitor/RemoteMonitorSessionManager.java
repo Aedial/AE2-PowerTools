@@ -17,7 +17,7 @@ import appeng.api.features.IWirelessTermHandler;
 
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.items.ItemRemoteStorageMonitor;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -28,15 +28,15 @@ import com.ae2powertools.util.PollingRateUtils;
 public final class RemoteMonitorSessionManager {
 
     public static final int SLOT_COUNT = 81;
-    public static final int DEFAULT_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
-    public static final int MIN_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
+    public static final int DEFAULT_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
+    public static final int MIN_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
     public static final int DEFAULT_SLIDING_WINDOW = DEFAULT_REFRESH_RATE;
 
     /**
      * Extra time to wait after access resumes before locking in a new baseline.
      * AE2 can expose the grid before all storage providers have reported their startup totals.
      */
-    private static final int BASELINE_SETTLE_TICKS = 5 * PollingRateUtils.TICKS_PER_SECOND;
+    private static final int BASELINE_SETTLE_TICKS = 5 * FormatUtil.TICKS_PER_SECOND;
 
     /**
      * Keep the session alive briefly while the item is being dragged around.
@@ -46,7 +46,7 @@ public final class RemoteMonitorSessionManager {
      * This is a server-side grace period for the session only. The client-side overlay
      * will still not render if the monitor is not held or worn.
      */
-    private static final int MONITOR_MISSING_GRACE_TICKS = 30 * PollingRateUtils.TICKS_PER_SECOND;
+    private static final int MONITOR_MISSING_GRACE_TICKS = 30 * FormatUtil.TICKS_PER_SECOND;
 
     private static final Map<SessionKey, RemoteMonitorSession> SESSIONS = new HashMap<>();
 
