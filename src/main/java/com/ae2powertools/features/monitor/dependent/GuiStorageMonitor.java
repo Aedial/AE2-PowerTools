@@ -164,7 +164,7 @@ public class GuiStorageMonitor extends GuiContainer {
     private static final int STRENGTH_PANEL_OFFSET_X = 2;
     private static final int STRENGTH_PANEL_PADDING = 3;
     private static final int STRENGTH_PANEL_WIDTH = 72;
-    private static final int STRENGTH_PANEL_HEIGHT = 66;
+    private static final int STRENGTH_PANEL_HEIGHT = 101;  // Panel + upgrade slots
     private static final int STRENGTH_BTN_Y_START = 12;
     private static final int STRENGTH_BTN_X_OFFSET = 40;
     private static final int STRENGTH_BTN_Y_OFFSET = 16;

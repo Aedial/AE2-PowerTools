@@ -5,11 +5,16 @@ import java.io.IOException;
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
+import net.minecraftforge.items.IItemHandler;
 
+import appeng.api.config.Upgrades;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.ticking.TickRateModulation;
+import appeng.parts.automation.UpgradeInventory;
 import appeng.util.Platform;
+import appeng.util.inv.InvOperation;
 
 import com.ae2powertools.features.monitor.dependent.MonitorHostType;
 import com.ae2powertools.features.monitor.dependent.LevelEmitterLogic;
@@ -20,12 +25,32 @@ import com.ae2powertools.features.monitor.dependent.TileStorageMonitorBase;
  * Tile entity for the ME Storage Level Emitter block.
  * Emits redstone when the monitored entries' overall condition is met.
  */
-public class TileStorageLevelEmitter extends TileStorageMonitorBase implements IEmitterRedstoneHost {
+public class TileStorageLevelEmitter extends TileStorageMonitorBase implements IEmitterCardHost {
 
     private final LevelEmitterLogic emitterLogic;
+    private final EmitterUpgradeInventory upgrades = new EmitterUpgradeInventory(this);
 
     public TileStorageLevelEmitter() {
         this.emitterLogic = new LevelEmitterLogic(monitorLogic);
+    }
+
+    @Override
+    public UpgradeInventory getUpgradeInventory() {
+        return upgrades;
+    }
+
+    @Override
+    public int getInstalledUpgrades(Upgrades upgrade) {
+        return upgrades.getInstalledUpgrades(upgrade);
+    }
+
+    @Override
+    public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removedStack, ItemStack newStack) {
+        if (inv != upgrades) return;
+
+        markDirtyAndSave();
+        monitorLogic.refresh();
+        markForUpdate();
     }
 
     // --- AE2 Grid ticking ---
@@ -109,12 +134,14 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
+        upgrades.readFromNBT(tag, "upgrades");
         emitterLogic.readFromNBT(tag);
     }
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
+        upgrades.writeToNBT(tag, "upgrades");
         emitterLogic.writeToNBT(tag);
         return tag;
     }
