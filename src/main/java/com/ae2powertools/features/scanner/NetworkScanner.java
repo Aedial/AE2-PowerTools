@@ -541,6 +541,11 @@ public class NetworkScanner {
             inputTypeKeys, inputTypeSet, outputTypeSet, summary, patternType, packagerOutputTypeKey);
     }
 
+    /**
+     * Collect patterns that are craftable but no longer resolve to a valid recipe.
+     * This is usually caused by recipe or mod changes that break the pattern's recipe,
+     * and indicates that the user should re-encode the pattern with a valid recipe.
+     */
     private void collectInvalidCraftingPatterns(ProviderContext provider) {
         if (!(provider.provider instanceof IInterfaceHost)) return;
 
@@ -579,32 +584,122 @@ public class NetworkScanner {
         }
     }
 
+    /**
+     * Detect patterns that expose the same output content. If 2 patterns share an output item
+     * and the user attempts to craft that item, it is undefined which pattern AE2 will choose
+     * during tree building. This can lead to unstable or unintended recipe paths.
+     */
     private void detectConflictingOutputs(List<ProviderPatternSnapshot> snapshots) {
-        Map<String, List<ProviderPatternSnapshot>> byOutputSignature = new HashMap<>();
+        Map<String, List<ProviderPatternSnapshot>> byOutputType = new HashMap<>();
+        Map<ProviderContext, Map<String, Integer>> conflictsByProvider = new IdentityHashMap<>();
+        Map<String, String> outputLabels = new HashMap<>();
 
         for (ProviderPatternSnapshot snapshot : snapshots) {
-            if (snapshot.outputSignature.isEmpty()) continue;
+            for (String outputTypeKey : snapshot.outputTypeSet) {
+                if (outputTypeKey.isEmpty()) continue;
 
-            byOutputSignature.computeIfAbsent(snapshot.outputSignature, key -> new ArrayList<>()).add(snapshot);
+                byOutputType.computeIfAbsent(outputTypeKey, key -> new ArrayList<>()).add(snapshot);
+            }
         }
 
-        for (List<ProviderPatternSnapshot> group : byOutputSignature.values()) {
+        // AE2 indexes craftables per individual output item with the stack size reset.
+        // Distinct patterns that expose the same output item type can therefore collide
+        // during tree building even if the counts or secondary outputs differ.
+        for (Map.Entry<String, List<ProviderPatternSnapshot>> entry : byOutputType.entrySet()) {
+            String outputTypeKey = entry.getKey();
+            List<ProviderPatternSnapshot> group = entry.getValue();
             Set<String> uniqueIdentities = new HashSet<>();
             for (ProviderPatternSnapshot snapshot : group) uniqueIdentities.add(snapshot.identityKey);
 
             if (uniqueIdentities.size() < 2) continue;
 
-            int variantCount = uniqueIdentities.size();
+            outputLabels.put(outputTypeKey, resolveConflictingOutputLabel(group, outputTypeKey));
+
             for (ProviderPatternSnapshot snapshot : group) {
-                String summary = snapshot.summary + " (" + variantCount + " variants)";
-                addPatternIssue(new PatternIssue(PatternIssue.Category.CONFLICTING_OUTPUTS,
-                    snapshot.provider.pos,
-                    snapshot.provider.dimension,
-                    snapshot.provider.dimensionName,
-                    snapshot.provider.description,
-                    summary));
+                Map<String, Integer> providerConflicts = conflictsByProvider.computeIfAbsent(snapshot.provider,
+                    key -> new HashMap<>());
+                providerConflicts.put(outputTypeKey, uniqueIdentities.size());
             }
         }
+
+        for (Map.Entry<ProviderContext, Map<String, Integer>> entry : conflictsByProvider.entrySet()) {
+            ProviderContext provider = entry.getKey();
+            String summary = summarizeConflictingOutputs(entry.getValue(), outputLabels);
+
+            addPatternIssue(new PatternIssue(PatternIssue.Category.CONFLICTING_OUTPUTS,
+                provider.pos,
+                provider.dimension,
+                provider.dimensionName,
+                provider.description,
+                summary));
+        }
+    }
+
+    private String summarizeConflictingOutputs(Map<String, Integer> conflictingOutputTypes,
+            Map<String, String> outputLabels) {
+        List<String> outputTypeKeys = new ArrayList<>(conflictingOutputTypes.keySet());
+        outputTypeKeys.sort((first, second) -> outputLabels.getOrDefault(first, first)
+            .compareToIgnoreCase(outputLabels.getOrDefault(second, second)));
+
+        int conflictCount = outputTypeKeys.size();
+        int displayedConflictCount = 0;
+        TextComponentString summary = new TextComponentString("");
+
+        for (String outputTypeKey : outputTypeKeys) {
+            if (displayedConflictCount >= 2) continue;
+
+            String outputLabel = outputLabels.get(outputTypeKey);
+            if (outputLabel == null || outputLabel.isEmpty()) continue;
+
+            if (displayedConflictCount > 0) summary.appendText(", ");
+
+            summary.appendSibling(new TextComponentTranslation(
+                "gui.ae2powertools.scanner.pattern.conflicting_output_entry",
+                outputLabel,
+                conflictingOutputTypes.get(outputTypeKey)
+            ));
+            displayedConflictCount++;
+        }
+
+        if (displayedConflictCount == 0) {
+            return ScannerTextHelper.serializeComponent(
+                new TextComponentTranslation("gui.ae2powertools.scanner.pattern.unknown_output"));
+        }
+
+        if (conflictCount > displayedConflictCount) {
+            summary.appendText(", ");
+            summary.appendSibling(new TextComponentTranslation(
+                "gui.ae2powertools.scanner.pattern.more_outputs",
+                conflictCount - displayedConflictCount
+            ));
+        }
+
+        return ScannerTextHelper.serializeComponent(summary);
+    }
+
+    private String resolveConflictingOutputLabel(List<ProviderPatternSnapshot> group, String outputTypeKey) {
+        for (ProviderPatternSnapshot snapshot : group) {
+            String outputLabel = resolveOutputDisplayName(snapshot.details.getOutputs(), outputTypeKey);
+            if (!outputLabel.isEmpty()) return outputLabel;
+        }
+
+        return "";
+    }
+
+    private String resolveOutputDisplayName(IAEItemStack[] outputs, String outputTypeKey) {
+        for (IAEItemStack output : outputs) {
+            if (output == null) continue;
+
+            ItemStack itemStack = output.createItemStack();
+            if (itemStack.isEmpty()) continue;
+
+            itemStack.setCount(1);
+            if (!outputTypeKey.equals(buildItemTypeKey(itemStack))) continue;
+
+            return itemStack.getDisplayName();
+        }
+
+        return "";
     }
 
     private void detectNestedInputOutputPatterns(List<ProviderPatternSnapshot> snapshots) {
@@ -950,8 +1045,8 @@ public class NetworkScanner {
      * <p>
      * LIMITATION: Quantum Network Bridges are invisible to the grid until they are loaded,
      * so we cannot detect their target chunks if they are not loaded.
-     * A solution may be to persist the last known target chunk of each bridge in the chunk data,
-     * but I'd rather not do that, as it is quite invasive on AE2's code.
+     * TODO: Best I can think is mixin'ing into the bridge to write a persistent list of all known bridges.
+     *       But I would really really like to avoid invasive changes to AE2's code.
      */
     private void checkChunkLoaded(IGridNode node) {
         BlockPos pos = getNodePosition(node);
@@ -966,11 +1061,6 @@ public class NetworkScanner {
     /**
      * Probe the first unloaded chunk directly adjacent to a loaded node by reading saved chunk NBT.
      * This keeps the scan local and avoids activating chunks or rebuilding the live grid.
-     * <p>
-     * TODO: Quantum bridge endpoints still need an explicit persisted endpoint index.
-     * Their unloaded target is not adjacent, so the local chunk-boundary probe cannot discover it.
-     * Best I can think is mixin'ing into the bridge to write a persistent list of all known bridges.
-     * But I would really really like to avoid invasive changes to AE2's code.
      */
     private void checkAdjacentUnloadedChunks(IGridNode node) {
         if (!node.getGridBlock().isWorldAccessible()) return;
@@ -1162,9 +1252,7 @@ public class NetworkScanner {
         EnumSet<EnumFacing> blockedSides = EnumSet.noneOf(EnumFacing.class);
         for (EnumFacing side : EnumFacing.values()) {
             String sideKey = "def:" + side.ordinal();
-            if (tileData.hasKey(sideKey, Constants.NBT.TAG_COMPOUND)) {
-                blockedSides.add(side);
-            }
+            if (tileData.hasKey(sideKey, Constants.NBT.TAG_COMPOUND)) blockedSides.add(side);
         }
 
         return new SavedCableData(((IPartCable) centerPart).getCableColor(), blockedSides);

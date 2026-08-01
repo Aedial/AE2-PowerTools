@@ -20,6 +20,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ### Fixed
 - Fix AutoCrafter crafting instantly when batch * speed (in ticks) goes above max int, which happens when batch is at max int / 20 at default speed.
+- Tighten the Network Health Scanner's conflicting-pattern detection to match AE2's per-output-item craftable index, so patterns that share any output item now conflict even when it is not the exact same pattern identity (e.g. different counts or secondary outputs).
 
 
 ## [1.6.6] - 2026-07-30
