@@ -16,7 +16,8 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [1.6.7] - 2026-08-666
 ### Added
 - Add AutoCrafter WAILA and The One Probe summary tooltips, including next-operation timing, error warnings, and active/full/disabled pattern counts.
-- Add support for the Crafting and Fuzzy card to the Storage Level Emitter, bringing it to feature parity with the AE2 Level Emitter.
+- Add support for the Crafting and Fuzzy card to the Storage Level Emitter, bringing it to feature parity with the AE2 Level Emitter. There is not yet a way to insert the cards into the Emitter.
+- Add AutoCrafter and Better Level Maintainer WAILA/The One Probe performance lines that report the block-side work time, including rolling last/average/max samples.
 
 ### Fixed
 - Fix AutoCrafter crafting instantly when batch * speed (in ticks) goes above max int, which happens when batch is at max int / 20 at default speed.

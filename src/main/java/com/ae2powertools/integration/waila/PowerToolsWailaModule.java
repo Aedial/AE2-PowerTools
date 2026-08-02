@@ -19,6 +19,8 @@ import mcp.mobius.waila.api.IWailaRegistrar;
 
 import com.ae2powertools.features.crafter.AutoCrafterProbeHelper;
 import com.ae2powertools.features.crafter.TileAutoCrafter;
+import com.ae2powertools.features.maintainer.MaintainerProbeHelper;
+import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
 
 
 public final class PowerToolsWailaModule {
@@ -34,6 +36,7 @@ public final class PowerToolsWailaModule {
 
     public static void register(IWailaRegistrar registrar) {
         registrar.registerBodyProvider(new AutoCrafterWailaDataProvider(), TileAutoCrafter.class);
+        registrar.registerBodyProvider(new MaintainerWailaDataProvider(), TileBetterLevelMaintainer.class);
     }
 
     private static final class AutoCrafterWailaDataProvider extends BaseWailaDataProvider {
@@ -64,6 +67,10 @@ public final class PowerToolsWailaModule {
                 AutoCrafterProbeHelper.NEXT_OPERATION_TOOLTIP_KEY,
                 AutoCrafterProbeHelper.formatRemainingTime(probeData.getTicksUntilNextOperation())));
 
+            currentToolTip.add(I18n.format(
+                probeData.getTimingKey(),
+                (Object[]) probeData.getTimingArgs()));
+
             return currentToolTip;
         }
 
@@ -75,6 +82,41 @@ public final class PowerToolsWailaModule {
                                          BlockPos pos) {
             if (te instanceof TileAutoCrafter) {
                 AutoCrafterProbeHelper.writeWailaData((TileAutoCrafter) te, tag);
+            }
+
+            return tag;
+        }
+    }
+
+    private static final class MaintainerWailaDataProvider extends BaseWailaDataProvider {
+
+        @Override
+        public List<String> getWailaBody(ItemStack itemStack,
+                                         List<String> currentToolTip,
+                                         IWailaDataAccessor accessor,
+                                         IWailaConfigHandler config) {
+            NBTTagCompound tag = accessor.getNBTData();
+            MaintainerProbeHelper.ProbeData probeData = MaintainerProbeHelper.readWailaData(tag);
+            if (!probeData.isValid()) return currentToolTip;
+
+            // Separation line
+            currentToolTip.add("");
+
+            currentToolTip.add(I18n.format(
+                probeData.getTimingKey(),
+                (Object[]) probeData.getTimingArgs()));
+
+            return currentToolTip;
+        }
+
+        @Override
+        public NBTTagCompound getNBTData(EntityPlayerMP player,
+                                         TileEntity te,
+                                         NBTTagCompound tag,
+                                         World world,
+                                         BlockPos pos) {
+            if (te instanceof TileBetterLevelMaintainer) {
+                MaintainerProbeHelper.writeWailaData((TileBetterLevelMaintainer) te, tag);
             }
 
             return tag;

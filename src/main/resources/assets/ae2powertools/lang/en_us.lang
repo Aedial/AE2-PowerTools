@@ -350,6 +350,8 @@ ae2powertools.config.server.maintainer.maxCpuRetryCount=Max CPU retry count
 ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=Maximum number of times a task retries waiting for a free CPU before entering an error state
 
 # TOP/WAILA
+tooltip.ae2powertools.performance.none=Block work: no samples yet
+tooltip.ae2powertools.performance.summary=Block work: last %1$s / avg %2$s / max %3$s
 tooltip.ae2powertools.crafter.next_operation=Next operation in %s
 tooltip.ae2powertools.crafter.user_error.catalyst=§cError: missing catalyst(s)§r
 tooltip.ae2powertools.crafter.user_error.pattern=§cError: invalid pattern(s)§r

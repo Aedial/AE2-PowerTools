@@ -11,6 +11,8 @@ import com.ae2powertools.util.FormatUtil;
 public final class AutoCrafterProbeHelper {
 
     public static final String NEXT_OPERATION_TOOLTIP_KEY = "tooltip.ae2powertools.crafter.next_operation";
+    public static final String PERFORMANCE_NONE_TOOLTIP_KEY = "tooltip.ae2powertools.performance.none";
+    public static final String PERFORMANCE_SUMMARY_TOOLTIP_KEY = "tooltip.ae2powertools.performance.summary";
     public static final String ERROR_CATALYST_TOOLTIP_KEY = "tooltip.ae2powertools.crafter.user_error.catalyst";
     public static final String ERROR_PATTERN_TOOLTIP_KEY = "tooltip.ae2powertools.crafter.user_error.pattern";
     public static final String ERROR_CATALYST_PATTERN_TOOLTIP_KEY = "tooltip.ae2powertools.crafter.user_error.catalyst_pattern";
@@ -30,6 +32,10 @@ public final class AutoCrafterProbeHelper {
     public static final String WAILA_DISABLED_PATTERN_COUNT_KEY = "ae2powertoolsDisabledPatternCount";
     public static final String WAILA_HAS_MISSING_CATALYST_ERROR_KEY = "ae2powertoolsHasMissingCatalystError";
     public static final String WAILA_HAS_PATTERN_ERROR_KEY = "ae2powertoolsHasPatternError";
+    public static final String WAILA_HAS_TIMING_SAMPLE_KEY = "ae2powertoolsHasCrafterTimingSample";
+    public static final String WAILA_LAST_OPERATION_DURATION_NANOS_KEY = "ae2powertoolsLastOperationDurationNanos";
+    public static final String WAILA_AVERAGE_OPERATION_DURATION_NANOS_KEY = "ae2powertoolsAverageOperationDurationNanos";
+    public static final String WAILA_MAX_OPERATION_DURATION_NANOS_KEY = "ae2powertoolsMaxOperationDurationNanos";
 
     private AutoCrafterProbeHelper() {}
 
@@ -37,6 +43,10 @@ public final class AutoCrafterProbeHelper {
         // TODO: Should we shorten this?
         //       As in, not show seconds if it's more than a minute, etc.
         return FormatUtil.formatTimeTicksAsSeconds(Math.max(0L, ticks));
+    }
+
+    public static String formatDuration(long durationNanos) {
+        return FormatUtil.formatDurationNanos(Math.max(0L, durationNanos));
     }
 
     public static ProbeData collectData(TileAutoCrafter crafter) {
@@ -79,7 +89,11 @@ public final class AutoCrafterProbeHelper {
             fullPatternCount,
             disabledPatternCount,
             hasMissingCatalystError,
-            hasPatternError);
+            hasPatternError,
+            crafter.hasOperationTimingSamples(),
+            crafter.getLastOperationDurationNanos(),
+            crafter.getAverageOperationDurationNanos(),
+            crafter.getMaxOperationDurationNanos());
     }
 
     // WAILA uses NBT data to pass information from server to the tooltip provider (on client),
@@ -99,7 +113,11 @@ public final class AutoCrafterProbeHelper {
             tag.getInteger(WAILA_FULL_PATTERN_COUNT_KEY),
             tag.getInteger(WAILA_DISABLED_PATTERN_COUNT_KEY),
             tag.getBoolean(WAILA_HAS_MISSING_CATALYST_ERROR_KEY),
-            tag.getBoolean(WAILA_HAS_PATTERN_ERROR_KEY));
+            tag.getBoolean(WAILA_HAS_PATTERN_ERROR_KEY),
+            tag.getBoolean(WAILA_HAS_TIMING_SAMPLE_KEY),
+            tag.getLong(WAILA_LAST_OPERATION_DURATION_NANOS_KEY),
+            tag.getLong(WAILA_AVERAGE_OPERATION_DURATION_NANOS_KEY),
+            tag.getLong(WAILA_MAX_OPERATION_DURATION_NANOS_KEY));
     }
 
     public static long getWailaRemainingTicks(NBTTagCompound tag) {
@@ -120,6 +138,10 @@ public final class AutoCrafterProbeHelper {
         tag.setInteger(WAILA_DISABLED_PATTERN_COUNT_KEY, data.getDisabledPatternCount());
         tag.setBoolean(WAILA_HAS_MISSING_CATALYST_ERROR_KEY, data.hasMissingCatalystError());
         tag.setBoolean(WAILA_HAS_PATTERN_ERROR_KEY, data.hasPatternError());
+        tag.setBoolean(WAILA_HAS_TIMING_SAMPLE_KEY, data.hasTimingSample());
+        tag.setLong(WAILA_LAST_OPERATION_DURATION_NANOS_KEY, data.getLastOperationDurationNanos());
+        tag.setLong(WAILA_AVERAGE_OPERATION_DURATION_NANOS_KEY, data.getAverageOperationDurationNanos());
+        tag.setLong(WAILA_MAX_OPERATION_DURATION_NANOS_KEY, data.getMaxOperationDurationNanos());
     }
 
     public static final class ProbeData {
@@ -131,6 +153,10 @@ public final class AutoCrafterProbeHelper {
         private final int disabledPatternCount;
         private final boolean missingCatalystError;
         private final boolean patternError;
+        private final boolean timingSample;
+        private final long lastOperationDurationNanos;
+        private final long averageOperationDurationNanos;
+        private final long maxOperationDurationNanos;
 
         private ProbeData(boolean valid,
                           long ticksUntilNextOperation,
@@ -138,7 +164,11 @@ public final class AutoCrafterProbeHelper {
                           int fullPatternCount,
                           int disabledPatternCount,
                           boolean missingCatalystError,
-                          boolean patternError) {
+                          boolean patternError,
+                          boolean timingSample,
+                          long lastOperationDurationNanos,
+                          long averageOperationDurationNanos,
+                          long maxOperationDurationNanos) {
             this.valid = valid;
             this.ticksUntilNextOperation = Math.max(0L, ticksUntilNextOperation);
             this.activePatternCount = Math.max(0, activePatternCount);
@@ -146,10 +176,14 @@ public final class AutoCrafterProbeHelper {
             this.disabledPatternCount = Math.max(0, disabledPatternCount);
             this.missingCatalystError = missingCatalystError;
             this.patternError = patternError;
+            this.timingSample = timingSample;
+            this.lastOperationDurationNanos = Math.max(0L, lastOperationDurationNanos);
+            this.averageOperationDurationNanos = Math.max(0L, averageOperationDurationNanos);
+            this.maxOperationDurationNanos = Math.max(0L, maxOperationDurationNanos);
         }
 
         public static ProbeData invalid() {
-            return new ProbeData(false, 0L, 0, 0, 0, false, false);
+            return new ProbeData(false, 0L, 0, 0, 0, false, false, false, 0L, 0L, 0L);
         }
 
         public boolean isValid() {
@@ -178,6 +212,38 @@ public final class AutoCrafterProbeHelper {
 
         public boolean hasPatternError() {
             return patternError;
+        }
+
+        public boolean hasTimingSample() {
+            return timingSample;
+        }
+
+        public long getLastOperationDurationNanos() {
+            return lastOperationDurationNanos;
+        }
+
+        public long getAverageOperationDurationNanos() {
+            return averageOperationDurationNanos;
+        }
+
+        public long getMaxOperationDurationNanos() {
+            return maxOperationDurationNanos;
+        }
+
+        public String getTimingKey() {
+            if (!timingSample) return PERFORMANCE_NONE_TOOLTIP_KEY;
+
+            return PERFORMANCE_SUMMARY_TOOLTIP_KEY;
+        }
+
+        public String[] getTimingArgs() {
+            if (!timingSample) return new String[0];
+
+            return new String[] {
+                formatDuration(lastOperationDurationNanos),
+                formatDuration(averageOperationDurationNanos),
+                formatDuration(maxOperationDurationNanos)
+            };
         }
 
         public boolean hasErrorLine() {

@@ -55,6 +55,7 @@ import appeng.util.ReadableNumberConverter;
 import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.util.Ae2FluidCraftingCompat;
+import com.ae2powertools.util.OperationTimingStats;
 import com.ae2powertools.util.PowerStateClientFlags;
 
 
@@ -93,11 +94,17 @@ public class TileBetterLevelMaintainer extends AEBaseTile
      */
     private static final int NETWORK_SETTLE_TICKS = 5 * 20;
 
+    /**
+     * Minimum number of ticks between probe timing samples for WAILA/TOP performance lines.
+     */
+    private static final int PROBE_TIMING_REFRESH_INTERVAL = 20;
+
 
     private final AENetworkProxy gridProxy;
     private final IActionSource actionSource;
     private final List<MaintainerEntry> entries;
     private final List<MaintainerTask> activeTasks;
+    private final OperationTimingStats workTimingStats;
 
     /**
      * Crafting links restored from NBT after server restart.
@@ -122,6 +129,16 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     private long networkPauseStartTime;
 
+    private long probeTimingSnapshotTick;
+
+    private boolean probeTimingSnapshotHasSample;
+
+    private long probeLastDurationNanos;
+
+    private long probeAverageDurationNanos;
+
+    private long probeMaxDurationNanos;
+
     public TileBetterLevelMaintainer() {
         this.gridProxy = new AENetworkProxy(this, "proxy", this.getItemFromTile(this), true);
         this.gridProxy.setFlags(GridFlags.REQUIRE_CHANNEL);
@@ -132,6 +149,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         for (int i = 0; i < ENTRIES_PER_ROW; i++) this.entries.add(new MaintainerEntry());
 
         this.activeTasks = new ArrayList<>();
+        this.workTimingStats = new OperationTimingStats();
         this.persistedLinks = new ArrayList<>();
 
         this.openRows = 1;
@@ -140,6 +158,11 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         this.networkInitializationPending = true;
         this.networkSettleDeadline = Long.MAX_VALUE;
         this.networkPauseStartTime = -1;
+        this.probeTimingSnapshotTick = 0;
+        this.probeTimingSnapshotHasSample = false;
+        this.probeLastDurationNanos = 0L;
+        this.probeAverageDurationNanos = 0L;
+        this.probeMaxDurationNanos = 0L;
     }
 
     @Override
@@ -149,20 +172,30 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         tickCounter++;
 
         boolean requestsPaused = shouldPauseRequestsForNetworkInitialization();
+        boolean periodicCheckDue = !requestsPaused && tickCounter % CHECK_INTERVAL == 0;
+        long workStartedAt = (!requestsPaused && (!activeTasks.isEmpty() || periodicCheckDue)) ? System.nanoTime() : 0L;
+
+        boolean processedPendingJobs = false;
+        boolean processedCpuWaitQueue = false;
 
         if (!requestsPaused) {
             // Process pending crafting jobs (lightweight: just checks if futures are done)
-            processPendingJobs();
+            processedPendingJobs = processPendingJobs();
 
             // Process CPU wait queue
-            processCpuWaitQueue();
+            processedCpuWaitQueue = processCpuWaitQueue();
         }
 
         // Check active tasks status
-        updateActiveTaskStates();
+        boolean updatedActiveTasks = updateActiveTaskStates();
 
         // Periodic check for crafting needs
-        if (!requestsPaused && tickCounter % CHECK_INTERVAL == 0) checkCraftingNeeds();
+        boolean checkedCraftingNeeds = periodicCheckDue && checkCraftingNeeds();
+
+        if (workStartedAt > 0L &&
+                (processedPendingJobs || processedCpuWaitQueue || updatedActiveTasks || checkedCraftingNeeds)) {
+            workTimingStats.recordSample(System.nanoTime() - workStartedAt);
+        }
 
         // Process dirty entries (debounced frequency changes)
         processDirtyEntries();
@@ -303,11 +336,13 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     /**
      * Checks all entries and schedules crafting as needed.
+     * @return true if any enabled recipe was checked or scheduled this pass
      */
-    private void checkCraftingNeeds() {
-        if (!gridProxy.isActive()) return;
+    private boolean checkCraftingNeeds() {
+        if (!gridProxy.isActive()) return false;
 
         long worldTime = world.getTotalWorldTime();
+        boolean didWork = false;
 
         try {
             IStorageGrid storageGrid = gridProxy.getStorage();
@@ -317,6 +352,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 MaintainerEntry entry = entries.get(i);
 
                 if (!entry.hasRecipe() || !entry.isEnabled()) continue;
+                didWork = true;
 
                 // Skip if task is already running or scheduled
                 if (hasActiveTask(i)) continue;
@@ -340,7 +376,10 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             }
         } catch (GridAccessException e) {
             // Grid not available
+            return false;
         }
+
+        return didWork;
     }
 
     /**
@@ -498,10 +537,12 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     /**
      * Processes completed crafting job calculations.
+     * @return true if any completed calculation or timeout was handled this tick
      */
-    private void processPendingJobs() {
+    private boolean processPendingJobs() {
         long currentTime = world.getTotalWorldTime();
         Iterator<MaintainerTask> taskIter = activeTasks.iterator();
+        boolean didWork = false;
 
         while (taskIter.hasNext()) {
             MaintainerTask task = taskIter.next();
@@ -515,6 +556,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             // Check for timeout on job calculation
             long elapsed = currentTime - task.getCreatedTime();
             if (!future.isDone() && elapsed > JOB_CALCULATION_TIMEOUT) {
+                didWork = true;
                 MaintainerEntry entry = entries.get(task.getEntryIndex());
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.calculation_timeout");
                 entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
@@ -527,6 +569,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             if (!future.isDone()) continue;
 
             try {
+                didWork = true;
                 ICraftingJob job = future.get();
 
                 if (job == null) {
@@ -575,6 +618,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 // else: Task remains in activeTasks (either waiting for CPU, or running with link)
 
             } catch (Exception e) {
+                didWork = true;
                 AE2PowerTools.LOGGER.error("Error processing crafting job", e);
                 MaintainerEntry entry = entries.get(task.getEntryIndex());
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
@@ -582,6 +626,8 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 taskIter.remove();
             }
         }
+
+        return didWork;
     }
 
     /**
@@ -670,14 +716,15 @@ public class TileBetterLevelMaintainer extends AEBaseTile
      *
      * Only processes ONE task per tick to avoid flooding the system with calculations.
      * Uses cached job if available to avoid expensive recalculation.
+     * @return true if a waiting task was retried or rescheduled this tick
      */
-    private void processCpuWaitQueue() {
+    private boolean processCpuWaitQueue() {
         try {
             ICraftingGrid craftingGrid = gridProxy.getCrafting();
 
             // Check if any CPU is free
             boolean hasFreeCpu = craftingGrid.getCpus().stream().anyMatch(cpu -> !cpu.isBusy());
-            if (!hasFreeCpu) return;
+            if (!hasFreeCpu) return false;
 
             // Find ONE task waiting for CPU to process this tick
             // Also clean up cancelled tasks while iterating
@@ -711,7 +758,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 break;  // Only process one per tick
             }
 
-            if (taskToProcess == null) return;
+            if (taskToProcess == null) return false;
 
             // If we have a cached job, try to resubmit it directly
             ICraftingJob cachedJob = taskToProcess.getCachedJob();
@@ -724,7 +771,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 }
 
                 // else: task stays in activeTasks (either running or waiting again)
-                return;
+                return true;
             }
 
             // No cached job - need to reschedule for calculation
@@ -737,16 +784,21 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 scheduleCrafting(entryIndex, entry);
             }
 
+            return true;
+
         } catch (GridAccessException e) {
             // Grid not available
+            return false;
         }
     }
 
     /**
      * Updates the state of active tasks based on their crafting links.
+     * @return true if any running task completed or cancelled this tick
      */
-    private void updateActiveTaskStates() {
+    private boolean updateActiveTaskStates() {
         Iterator<MaintainerTask> iter = activeTasks.iterator();
+        boolean didWork = false;
 
         while (iter.hasNext()) {
             MaintainerTask task = iter.next();
@@ -755,6 +807,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             if (task.getCraftingLink() == null) continue;
 
             if (task.isDone()) {
+                didWork = true;
                 if (task.isCraftingCancelled()) {
                     entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cancelled");
                     entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
@@ -770,6 +823,8 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 iter.remove();
             }
         }
+
+        return didWork;
     }
 
     /**
@@ -904,6 +959,45 @@ public class TileBetterLevelMaintainer extends AEBaseTile
      */
     public int getOpenSlots() {
         return openRows * ENTRIES_PER_ROW;
+    }
+
+    public boolean hasWorkTimingSamples() {
+        refreshProbeTimingSnapshot();
+        return probeTimingSnapshotHasSample;
+    }
+
+    public long getLastWorkDurationNanos() {
+        refreshProbeTimingSnapshot();
+        return probeLastDurationNanos;
+    }
+
+    public long getAverageWorkDurationNanos() {
+        refreshProbeTimingSnapshot();
+        return probeAverageDurationNanos;
+    }
+
+    public long getMaxWorkDurationNanos() {
+        refreshProbeTimingSnapshot();
+        return probeMaxDurationNanos;
+    }
+
+    private void refreshProbeTimingSnapshot() {
+        boolean hasSamples = workTimingStats.hasSamples();
+
+        if (world != null) {
+            long worldTime = world.getTotalWorldTime();
+            if (probeTimingSnapshotHasSample == hasSamples
+                    && worldTime - probeTimingSnapshotTick < PROBE_TIMING_REFRESH_INTERVAL) {
+                return;
+            }
+
+            probeTimingSnapshotTick = worldTime;
+        }
+
+        probeTimingSnapshotHasSample = hasSamples;
+        probeLastDurationNanos = workTimingStats.getLastDurationNanos();
+        probeAverageDurationNanos = workTimingStats.getAverageDurationNanos();
+        probeMaxDurationNanos = workTimingStats.getMaxDurationNanos();
     }
 
     public int getActiveCpuCount() {

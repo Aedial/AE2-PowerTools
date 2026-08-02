@@ -1,5 +1,7 @@
 package com.ae2powertools.util;
 
+import java.util.Locale;
+
 
 /**
  * Shared formatting utilities.
@@ -49,5 +51,31 @@ public final class FormatUtil {
      */
     public static String formatTimeTicksAsSeconds(long ticks) {
         return formatTimeSeconds((ticks + TICKS_PER_SECOND - 1) / TICKS_PER_SECOND);
+    }
+
+    /**
+     * Formats a duration in nanoseconds as a compact human-readable string.
+     */
+    public static String formatDurationNanos(long durationNanos) {
+        if (durationNanos <= 0L) return "0 ms";
+
+        if (durationNanos < 1_000_000_000L) {
+            double millis = durationNanos / 1_000_000.0D;
+            return trimTrailingZeros(String.format(Locale.ROOT, "%.3f", millis)) + " ms";
+        }
+
+        double seconds = durationNanos / 1_000_000_000.0D;
+        return trimTrailingZeros(String.format(Locale.ROOT, "%.3f", seconds)) + " s";
+    }
+
+    private static String trimTrailingZeros(String value) {
+        int dotIndex = value.indexOf('.');
+        if (dotIndex < 0) return value;
+
+        int endIndex = value.length();
+        while (endIndex > dotIndex + 1 && value.charAt(endIndex - 1) == '0') endIndex--;
+        if (endIndex == dotIndex + 1) endIndex--;
+
+        return value.substring(0, endIndex);
     }
 }

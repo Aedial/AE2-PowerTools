@@ -17,6 +17,8 @@ import mcjty.theoneprobe.api.ProbeMode;
 import com.ae2powertools.Tags;
 import com.ae2powertools.features.crafter.AutoCrafterProbeHelper;
 import com.ae2powertools.features.crafter.TileAutoCrafter;
+import com.ae2powertools.features.maintainer.MaintainerProbeHelper;
+import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
 
 
 public class PowerToolsTheOneProbePlugin implements Function<ITheOneProbe, Void>, IProbeInfoProvider {
@@ -37,7 +39,7 @@ public class PowerToolsTheOneProbePlugin implements Function<ITheOneProbe, Void>
 
     @Override
     public String getID() {
-        return Tags.MODID + ":auto_crafter";
+        return Tags.MODID + ":ae2_powertools";
     }
 
     @Override
@@ -48,11 +50,19 @@ public class PowerToolsTheOneProbePlugin implements Function<ITheOneProbe, Void>
                              IBlockState blockState,
                              IProbeHitData data) {
         TileEntity tile = world.getTileEntity(data.getPos());
-        if (!(tile instanceof TileAutoCrafter)) return;
-
-        TileAutoCrafter crafter = (TileAutoCrafter) tile;
         if (probeInfo == null) return;
 
+        if (tile instanceof TileAutoCrafter) {
+            addAutoCrafterInfo(probeInfo, (TileAutoCrafter) tile);
+            return;
+        }
+
+        if (tile instanceof TileBetterLevelMaintainer) {
+            addMaintainerInfo(probeInfo, (TileBetterLevelMaintainer) tile);
+        }
+    }
+
+    private void addAutoCrafterInfo(IProbeInfo probeInfo, TileAutoCrafter crafter) {
         AutoCrafterProbeHelper.ProbeData probeData = AutoCrafterProbeHelper.collectData(crafter);
 
         // Separation line
@@ -71,5 +81,20 @@ public class PowerToolsTheOneProbePlugin implements Function<ITheOneProbe, Void>
         probeInfo.element(new TopTranslatedTextElement(
             AutoCrafterProbeHelper.NEXT_OPERATION_TOOLTIP_KEY,
             AutoCrafterProbeHelper.formatRemainingTime(probeData.getTicksUntilNextOperation())));
+
+        probeInfo.element(new TopTranslatedTextElement(
+            probeData.getTimingKey(),
+            probeData.getTimingArgs()));
+    }
+
+    private void addMaintainerInfo(IProbeInfo probeInfo, TileBetterLevelMaintainer maintainer) {
+        MaintainerProbeHelper.ProbeData probeData = MaintainerProbeHelper.collectData(maintainer);
+
+        // Separation line
+        probeInfo.text("");
+
+        probeInfo.element(new TopTranslatedTextElement(
+            probeData.getTimingKey(),
+            probeData.getTimingArgs()));
     }
 }

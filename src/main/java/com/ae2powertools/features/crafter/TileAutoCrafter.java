@@ -61,6 +61,7 @@ import appeng.util.item.AEItemStack;
 
 import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
+import com.ae2powertools.util.OperationTimingStats;
 import com.ae2powertools.util.PowerStateClientFlags;
 
 
@@ -75,6 +76,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     public static final int DEFAULT_SPEED_TICKS = 20;
     public static final int MIN_BATCH_SIZE = 1;
     public static final int DEFAULT_BATCH_SIZE = 1;
+    private static final int PROBE_TIMING_REFRESH_INTERVAL = 20;
 
     /**
      * Gets the base crafts per operation from server config.
@@ -93,6 +95,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     private final AENetworkProxy gridProxy;
     private final IActionSource actionSource;
     private final List<CrafterEntry> entries;
+    private final OperationTimingStats operationTimingStats;
 
     /**
      * Speed for all recipes (in ticks).
@@ -108,6 +111,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * Tick counter for scheduling.
      */
     private long tickCounter;
+    private long probeTimingSnapshotTick;
+    private boolean probeTimingSnapshotHasSample;
+    private long probeLastDurationNanos;
+    private long probeAverageDurationNanos;
+    private long probeMaxDurationNanos;
 
     /**
      * Cached fake player for crafting.
@@ -138,10 +146,16 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         this.entries = new ArrayList<>();
         for (int i = 0; i < ENTRY_COUNT; i++) entries.add(new CrafterEntry());
+        this.operationTimingStats = new OperationTimingStats();
 
         this.speedTicks = DEFAULT_SPEED_TICKS;
         this.batchSize = DEFAULT_BATCH_SIZE;
         this.tickCounter = 0;
+        this.probeTimingSnapshotTick = 0;
+        this.probeTimingSnapshotHasSample = false;
+        this.probeLastDurationNanos = 0L;
+        this.probeAverageDurationNanos = 0L;
+        this.probeMaxDurationNanos = 0L;
         this.currentPage = 0;
 
         this.upgradeInventory = new ItemStack[UPGRADE_SLOTS];
@@ -162,8 +176,23 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         tickCounter = 0;
 
+        boolean shouldSampleTiming = hasTimingWorkload();
+        long startedAt = shouldSampleTiming ? System.nanoTime() : 0L;
+
         processPendingOutputs();
         processAllEntries();
+
+        if (startedAt > 0L) {
+            operationTimingStats.recordSample(System.nanoTime() - startedAt);
+        }
+    }
+
+    private boolean hasTimingWorkload() {
+        for (CrafterEntry entry : entries) {
+            if (entry.hasPattern() || entry.hasPendingOutputs()) return true;
+        }
+
+        return false;
     }
 
     private long getCraftIntervalTicks() {
@@ -184,14 +213,14 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         return interval;
     }
 
-    boolean isEntryAtTarget(CrafterEntry entry) {
+    boolean isEntryAtTarget(CrafterEntry entry, @Nullable IItemList<IAEItemStack> storageList) {
         if (entry == null || !entry.hasValidRecipeInfo()) return false;
 
         CrafterRecipeInfo info = entry.getRecipeInfo();
         if (info == null || info.getOutputs().isEmpty()) return false;
 
         IAEItemStack output = info.getOutputs().get(0);
-        return getNetworkQuantity(output) >= entry.getTargetQuantity();
+        return getNetworkQuantity(storageList, output) >= entry.getTargetQuantity();
     }
 
     @Override
@@ -222,6 +251,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * Try to insert any pending outputs into the network.
      */
     private void processPendingOutputs() {
+        IMEMonitor<IAEItemStack> itemStorage = getItemStorageMonitor();
+
         for (CrafterEntry entry : entries) {
             if (!entry.hasPendingOutputs()) continue;
 
@@ -230,7 +261,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             while (it.hasNext()) {
                 IAEItemStack pending = it.next();
-                IAEItemStack remaining = tryInsertIntoNetwork(pending, Actionable.MODULATE);
+                IAEItemStack remaining = tryInsertIntoNetwork(itemStorage, pending, Actionable.MODULATE);
 
                 if (remaining == null || remaining.getStackSize() == 0) {
                     it.remove();
@@ -263,6 +294,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * each gets a proportional share rather than first-come-first-served.
      */
     private void processAllEntries() {
+        IMEMonitor<IAEItemStack> itemStorage = getItemStorageMonitor();
+        IItemList<IAEItemStack> storageList = getNetworkStorageList(itemStorage);
+
         // Phase 0: Filter to craftable entries and collect candidates
         List<CraftCandidate> candidates = new ArrayList<>();
 
@@ -298,7 +332,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Check target quantity
             CrafterRecipeInfo info = entry.getRecipeInfo();
-            if (isEntryAtTarget(entry)) {
+            if (isEntryAtTarget(entry, storageList)) {
                 entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.IDLE);
                 continue;
@@ -325,7 +359,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         // Phase 0.5: Pre-initialize shared pool with all items needed by all candidates
         // This avoids making 100+ round-trips to the network during allocation
-        Map<ItemStackKey, Long> sharedPool = initializeSharedPool(candidates);
+        Map<ItemStackKey, Long> sharedPool = initializeSharedPool(candidates, storageList);
 
         // Phase 1: Fair allocation of shared resources
         // allocateResourcesFairly marks entries with insufficient resources as MISSING_INPUT
@@ -338,7 +372,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Phase 2: Extract all inputs from network
         List<CraftSimulation> successfulExtractions = new ArrayList<>();
         for (CraftSimulation sim : simulations) {
-            if (extractInputs(sim.entry, sim.info, sim.crafts)) {
+            if (extractInputs(itemStorage, sim.entry, sim.info, sim.crafts)) {
                 successfulExtractions.add(sim);
             } else {
                 // Extraction failed (ghost items?)
@@ -362,7 +396,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         for (CraftResult result : results) {
             boolean anyPending = false;
             for (IAEItemStack output : result.outputs) {
-                IAEItemStack remaining = tryInsertIntoNetwork(output, Actionable.MODULATE);
+                IAEItemStack remaining = tryInsertIntoNetwork(itemStorage, output, Actionable.MODULATE);
                 if (remaining != null && remaining.getStackSize() > 0) {
                     result.entry.addPendingOutput(remaining);
                     anyPending = true;
@@ -398,6 +432,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * Called on world load to show correct states immediately.
      */
     private void validateAllEntries() {
+        IItemList<IAEItemStack> storageList = getNetworkStorageList();
+
         // Collect candidates (same filtering as processAllEntries Phase 0)
         List<CraftCandidate> candidates = new ArrayList<>();
 
@@ -431,7 +467,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             // Check target quantity
             CrafterRecipeInfo info = entry.getRecipeInfo();
-            if (isEntryAtTarget(entry)) {
+            if (isEntryAtTarget(entry, storageList)) {
                 entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.IDLE);
                 continue;
@@ -457,7 +493,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (candidates.isEmpty()) return;
 
         // Pre-initialize shared pool
-        Map<ItemStackKey, Long> sharedPool = initializeSharedPool(candidates);
+        Map<ItemStackKey, Long> sharedPool = initializeSharedPool(candidates, storageList);
 
         // Simulate fair allocation (same as processAllEntries, but don't extract/craft)
         // Check each candidate for input availability
@@ -553,11 +589,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * @param candidates List of all candidates wanting to craft
      * @return Map of ItemStackKey to available quantity in network
      */
-    private Map<ItemStackKey, Long> initializeSharedPool(List<CraftCandidate> candidates) {
+    private Map<ItemStackKey, Long> initializeSharedPool(List<CraftCandidate> candidates,
+                                                         @Nullable IItemList<IAEItemStack> storageList) {
         Map<ItemStackKey, Long> pool = new HashMap<>();
 
-        // Get storage list ONCE for all lookups
-        IItemList<IAEItemStack> storageList = getNetworkStorageList();
         if (storageList == null) return pool;
 
         // Collect all unique items needed by all candidates
@@ -965,7 +1000,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * 
      * @param crafts Number of individual crafts to perform
      */
-    private boolean extractInputs(CrafterEntry entry, CrafterRecipeInfo info, long crafts) {
+    private boolean extractInputs(@Nullable IMEMonitor<IAEItemStack> itemStorage,
+                                  CrafterEntry entry,
+                                  CrafterRecipeInfo info,
+                                  long crafts) {
         // First simulate all extractions
         List<IAEItemStack> toExtract = new ArrayList<>();
 
@@ -1009,12 +1047,12 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Simulate to verify we can extract everything
         // Note: This can fail if another crafter extracted between calculateAvailableBatches and now
         for (IAEItemStack request : toExtract) {
-            IAEItemStack result = tryExtractFromNetwork(request, Actionable.SIMULATE);
+            IAEItemStack result = tryExtractFromNetwork(itemStorage, request, Actionable.SIMULATE);
             if (result == null || result.getStackSize() < request.getStackSize()) return false;
         }
 
         // Actually extract
-        for (IAEItemStack request : toExtract) tryExtractFromNetwork(request, Actionable.MODULATE);
+        for (IAEItemStack request : toExtract) tryExtractFromNetwork(itemStorage, request, Actionable.MODULATE);
 
         return true;
     }
@@ -1161,25 +1199,25 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     // ==================== NETWORK OPERATIONS ====================
 
     @Nullable
-    private IAEItemStack tryInsertIntoNetwork(IAEItemStack stack, Actionable mode) {
-        try {
-            IGrid grid = gridProxy.getGrid();
-            if (grid == null) return stack;
+    private IAEItemStack tryInsertIntoNetwork(@Nullable IMEMonitor<IAEItemStack> itemStorage,
+                                              IAEItemStack stack,
+                                              Actionable mode) {
+        if (itemStorage == null) return stack;
 
-            IStorageGrid storage = grid.getCache(IStorageGrid.class);
-            if (storage == null) return stack;
-
-            IMEMonitor<IAEItemStack> inv = storage.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-
-            return inv.injectItems(stack, mode, actionSource);
-        } catch (GridAccessException e) {
-            return stack;
-        }
+        return itemStorage.injectItems(stack, mode, actionSource);
     }
 
     @Nullable
-    private IAEItemStack tryExtractFromNetwork(IAEItemStack stack, Actionable mode) {
+    private IAEItemStack tryExtractFromNetwork(@Nullable IMEMonitor<IAEItemStack> itemStorage,
+                                               IAEItemStack stack,
+                                               Actionable mode) {
+        if (itemStorage == null) return null;
+
+        return itemStorage.extractItems(stack, mode, actionSource);
+    }
+
+    @Nullable
+    private IMEMonitor<IAEItemStack> getItemStorageMonitor() {
         try {
             IGrid grid = gridProxy.getGrid();
             if (grid == null) return null;
@@ -1187,10 +1225,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             IStorageGrid storage = grid.getCache(IStorageGrid.class);
             if (storage == null) return null;
 
-            IMEMonitor<IAEItemStack> inv = storage.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-
-            return inv.extractItems(stack, mode, actionSource);
+            return storage.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
         } catch (GridAccessException e) {
             return null;
         }
@@ -1204,20 +1239,14 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      */
     @Nullable
     private IItemList<IAEItemStack> getNetworkStorageList() {
-        try {
-            IGrid grid = gridProxy.getGrid();
-            if (grid == null) return null;
+        return getNetworkStorageList(getItemStorageMonitor());
+    }
 
-            IStorageGrid storage = grid.getCache(IStorageGrid.class);
-            if (storage == null) return null;
+    @Nullable
+    private IItemList<IAEItemStack> getNetworkStorageList(@Nullable IMEMonitor<IAEItemStack> itemStorage) {
+        if (itemStorage == null) return null;
 
-            IMEMonitor<IAEItemStack> inv = storage.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-
-            return inv.getStorageList();
-        } catch (GridAccessException e) {
-            return null;
-        }
+        return itemStorage.getStorageList();
     }
 
     /**
@@ -1226,22 +1255,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * Note: For performance when processing multiple items, use getNetworkStorageList()
      * once and call findPrecise() on it directly. This method is for one-off queries.
      */
-    private long getNetworkQuantity(IAEItemStack item) {
-        try {
-            IGrid grid = gridProxy.getGrid();
-            if (grid == null) return 0;
+    private long getNetworkQuantity(@Nullable IItemList<IAEItemStack> storageList, IAEItemStack item) {
+        if (storageList == null) return 0;
 
-            IStorageGrid storage = grid.getCache(IStorageGrid.class);
-            if (storage == null) return 0;
-
-            IMEMonitor<IAEItemStack> inv = storage.getInventory(
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-
-            IAEItemStack found = inv.getStorageList().findPrecise(item);
-            return found != null ? found.getStackSize() : 0;
-        } catch (GridAccessException e) {
-            return 0;
-        }
+        IAEItemStack found = storageList.findPrecise(item);
+        return found != null ? found.getStackSize() : 0;
     }
 
     // ==================== FAKE PLAYER ====================
@@ -1522,6 +1540,45 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     public List<CrafterEntry> getEntries() {
         return entries;
+    }
+
+    public boolean hasOperationTimingSamples() {
+        refreshProbeTimingSnapshot();
+        return probeTimingSnapshotHasSample;
+    }
+
+    public long getLastOperationDurationNanos() {
+        refreshProbeTimingSnapshot();
+        return probeLastDurationNanos;
+    }
+
+    public long getAverageOperationDurationNanos() {
+        refreshProbeTimingSnapshot();
+        return probeAverageDurationNanos;
+    }
+
+    public long getMaxOperationDurationNanos() {
+        refreshProbeTimingSnapshot();
+        return probeMaxDurationNanos;
+    }
+
+    private void refreshProbeTimingSnapshot() {
+        boolean hasSamples = operationTimingStats.hasSamples();
+
+        if (world != null) {
+            long worldTime = world.getTotalWorldTime();
+            if (probeTimingSnapshotHasSample == hasSamples
+                    && worldTime - probeTimingSnapshotTick < PROBE_TIMING_REFRESH_INTERVAL) {
+                return;
+            }
+
+            probeTimingSnapshotTick = worldTime;
+        }
+
+        probeTimingSnapshotHasSample = hasSamples;
+        probeLastDurationNanos = operationTimingStats.getLastDurationNanos();
+        probeAverageDurationNanos = operationTimingStats.getAverageDurationNanos();
+        probeMaxDurationNanos = operationTimingStats.getMaxDurationNanos();
     }
 
     public int getSpeedTicks() {
