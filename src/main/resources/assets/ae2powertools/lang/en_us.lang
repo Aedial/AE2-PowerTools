@@ -3,6 +3,11 @@ itemGroup.ae2powertools=AE2 PowerTools
 
 # Common strings
 ae2powertools.common.unknown=Unknown
+ae2powertools.common.upgrade.title=Select Upgrade Card
+ae2powertools.common.upgrade.empty=Click to select an upgrade card.
+ae2powertools.common.upgrade.compatible=Compatible:
+ae2powertools.common.upgrade.action.select=Left-click to select another card
+ae2powertools.common.upgrade.action.remove=Right-click to remove the card
 
 # Config GUI and keys for the config factory
 ae2powertools.config.title=AE2 PowerTools Configuration
@@ -533,6 +538,8 @@ gui.ae2powertools.storage_emitter.polling_rate.description=Click to configure ho
 gui.ae2powertools.storage_emitter.strength=Strength
 gui.ae2powertools.storage_emitter.strength.tooltip=Redstone Strength
 gui.ae2powertools.storage_emitter.strength.description=Redstone Strength is the starting strength that the directly adjacent block receives. The signal then decays by 1 for each redstone dust it travels through.
+gui.ae2powertools.storage_emitter.upgrade.fuzzy.description=Counts all matching item variants together instead of only the exact selected stack.
+gui.ae2powertools.storage_emitter.upgrade.crafting.description=Tracks items currently being crafted instead of items already stored in the network.
 gui.ae2powertools.storage_emitter.empty_slot=No resource selected
 gui.ae2powertools.storage_emitter.current_quantity=Current: %s
 gui.ae2powertools.storage_emitter.current_target=Target: %s %s (%s)

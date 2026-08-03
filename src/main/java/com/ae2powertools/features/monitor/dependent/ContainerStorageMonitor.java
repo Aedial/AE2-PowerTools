@@ -1,16 +1,16 @@
 package com.ae2powertools.features.monitor.dependent;
 
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IContainerListener;
-import net.minecraftforge.items.IItemHandler;
 
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
-import appeng.container.slot.SlotRestrictedInput;
+import appeng.container.slot.AppEngSlot;
 import appeng.util.Platform;
 
 import com.ae2powertools.features.monitor.MonitoredEntry;
@@ -20,6 +20,7 @@ import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 import com.ae2powertools.network.PacketStorageEntryStateSync;
 import com.ae2powertools.network.PacketSyncMonitorEntries;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.upgrade.UpgradeInventoryUtil;
 
 
 /**
@@ -35,11 +36,14 @@ public class ContainerStorageMonitor extends AEBaseContainer {
 
     private static final int EMITTER_CARD_PANEL_X = 223;
     private static final int FIRST_EMITTER_CARD_SLOT_X = EMITTER_CARD_PANEL_X + 19;
-    private static final int SECOND_EMITTER_CARD_SLOT_X = EMITTER_CARD_PANEL_X + 37;
     private static final int EMITTER_CARD_SLOT_Y = 77;
+    private static final int EMITTER_CARD_SLOT_COUNT = 2;
+    private static final int HIDDEN_PLAYER_INVENTORY_X = -9999;
+    private static final int HIDDEN_PLAYER_INVENTORY_Y = -9999;
 
     private final IStorageMonitorHost host;
     private final EntityPlayer viewer;
+    private final List<AppEngSlot> emitterCardSlots;
 
     @GuiSync(0)
     public long refreshRate;
@@ -83,37 +87,29 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         this.host = host;
         this.viewer = playerInv.player;
 
-        addEmitterCardSlots(playerInv);
+        // Keep the player inventory synced while the GUI-owned upgrade picker mutates it.
+        // The slots stay far off-screen because the picker renders the 4 inventory rows manually.
+        bindPlayerInventory(playerInv, HIDDEN_PLAYER_INVENTORY_X, HIDDEN_PLAYER_INVENTORY_Y);
+
+        emitterCardSlots = createEmitterCardSlots();
+        for (AppEngSlot slot : emitterCardSlots) addSlotToContainer(slot);
 
         if (Platform.isServer()) syncFromHost();
     }
 
-    private void addEmitterCardSlots(InventoryPlayer playerInv) {
-        if (!(host instanceof IEmitterCardHost)) return;
+    private List<AppEngSlot> createEmitterCardSlots() {
+        if (!(host instanceof IEmitterCardHost)) return Collections.emptyList();
 
-        IItemHandler upgrades = ((IEmitterCardHost) host).getUpgradeInventory();
-
-        SlotRestrictedInput firstSlot = new SlotRestrictedInput(
-            SlotRestrictedInput.PlacableItemType.UPGRADES,
-            upgrades,
-            0,
+        return UpgradeInventoryUtil.createPassiveUpgradeSlots(
+            ((IEmitterCardHost) host).getUpgradeInventory(),
             FIRST_EMITTER_CARD_SLOT_X,
             EMITTER_CARD_SLOT_Y,
-            playerInv);
-        firstSlot.setStackLimit(1);
-        firstSlot.setNotDraggable();
-        addSlotToContainer(firstSlot);
+            EMITTER_CARD_SLOT_COUNT,
+            UpgradeInventoryUtil.SlotLayout.HORIZONTAL);
+    }
 
-        SlotRestrictedInput secondSlot = new SlotRestrictedInput(
-            SlotRestrictedInput.PlacableItemType.UPGRADES,
-            upgrades,
-            1,
-            SECOND_EMITTER_CARD_SLOT_X,
-            EMITTER_CARD_SLOT_Y,
-            playerInv);
-        secondSlot.setStackLimit(1);
-        secondSlot.setNotDraggable();
-        addSlotToContainer(secondSlot);
+    public List<AppEngSlot> getEmitterCardSlots() {
+        return emitterCardSlots;
     }
 
     @Override

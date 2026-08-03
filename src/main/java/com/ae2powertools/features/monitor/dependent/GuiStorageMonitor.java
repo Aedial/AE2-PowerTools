@@ -38,8 +38,10 @@ import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
 import com.ae2powertools.features.monitor.emitter.EmitterRedstonePower;
+import com.ae2powertools.features.monitor.emitter.IEmitterCardHost;
 import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 import com.ae2powertools.integration.jei.JeiTooltipBridge;
+import com.ae2powertools.network.PacketModifyStorageMonitorUpgradeSlot;
 import com.ae2powertools.network.PacketOpenStorageMonitorPollingRate;
 import com.ae2powertools.network.PacketRequestMonitorContents;
 import com.ae2powertools.network.PacketSelectMonitorContent;
@@ -51,6 +53,8 @@ import com.ae2powertools.network.PacketToggleAlarmRegistration;
 import com.ae2powertools.network.PacketUpdateMonitorEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.FormatUtil;
+import com.ae2powertools.util.upgrade.ISelectableUpgradeInventory;
+import com.ae2powertools.util.upgrade.UpgradePickerGuiHelper;
 
 
 /**
@@ -244,6 +248,7 @@ public class GuiStorageMonitor extends GuiContainer {
     private ThresholdField countFieldTarget = ThresholdField.UPPER;
 
     // --- Selector modal state ---
+    private boolean modalOpen;
     private boolean selectorOpen;
     private int selectorLeft, selectorTop;
     private GuiTextField selectorSearchField;
@@ -254,6 +259,8 @@ public class GuiStorageMonitor extends GuiContainer {
     private int selectorHoveredSlot = -1;
     /** Index to replace the resource at; -1 means "append a new entry". */
     private int selectorTargetIndex = -1;
+
+    private final UpgradePickerGuiHelper upgradePicker = new UpgradePickerGuiHelper();
 
     /** Static reference for receiving async packet data from the server. */
     private static GuiStorageMonitor activeInstance;
@@ -332,6 +339,7 @@ public class GuiStorageMonitor extends GuiContainer {
 
         selectorLeft = (width - SELECTOR_WIDTH) / 2;
         selectorTop = (height - SELECTOR_HEIGHT) / 2;
+        upgradePicker.centerIn(width, height);
     }
 
     @Override
@@ -405,6 +413,8 @@ public class GuiStorageMonitor extends GuiContainer {
         // Count field overlay (background tint + text). Drawn here so it sits above
         // the entry grid but below the modal selector.
         drawCountField();
+
+        upgradePicker.drawUpgradeSlotIcons(mc, guiLeft, guiTop, container.getEmitterCardSlots());
     }
 
     @Override
@@ -427,6 +437,14 @@ public class GuiStorageMonitor extends GuiContainer {
             return;
         }
 
+        if (upgradePicker.isOpen()) {
+            upgradePicker.drawPickerModal(mc, getSelectableUpgradeInventory(), mc.player.inventory, mouseX, mouseY);
+            upgradePicker.drawPickerTooltip(mc, getSelectableUpgradeInventory(), mc.player.inventory, mouseX, mouseY, width, height);
+            return;
+        }
+
+        upgradePicker.drawUpgradeSlotHighlight(mouseX, mouseY, guiLeft, guiTop, container.getEmitterCardSlots());
+
         // Side-button hover tooltip.
         if (matchBtnHovered) drawMatchModeTooltip(mouseX, mouseY);
 
@@ -442,6 +460,17 @@ public class GuiStorageMonitor extends GuiContainer {
 
         if (emitterStrengthTextHovered) drawRedstoneStrengthTooltip(mouseX, mouseY);
 
+        upgradePicker.drawUpgradeSlotTooltip(
+            getSelectableUpgradeInventory(),
+            container.getEmitterCardSlots(),
+            guiLeft,
+            guiTop,
+            mouseX,
+            mouseY,
+            width,
+            height,
+            fontRenderer);
+
         drawHoveredEntryTooltip(mouseX, mouseY);
 
         // Polling-rate tab-button tooltip, GuiContainer doesn't render it for us.
@@ -456,6 +485,21 @@ public class GuiStorageMonitor extends GuiContainer {
             tt.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.polling_rate.description") + "§r");
             GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
         }
+    }
+
+    @Override
+    protected void renderHoveredToolTip(int mouseX, int mouseY) {
+        if (modalOpen) return;
+        if (upgradePicker.getUpgradeSlotAt(mouseX, mouseY, guiLeft, guiTop, container.getEmitterCardSlots()) >= 0) return;
+
+        super.renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    @Override
+    protected boolean isPointInRegion(int rectX, int rectY, int rectWidth, int rectHeight, int pointX, int pointY) {
+        if (upgradePicker.isUpgradeSlotRegion(container.getEmitterCardSlots(), rectX, rectY, rectWidth, rectHeight)) return false;
+
+        return super.isPointInRegion(rectX, rectY, rectWidth, rectHeight, pointX, pointY);
     }
 
     private void drawSideButtons(int mouseX, int mouseY) {
@@ -705,16 +749,7 @@ public class GuiStorageMonitor extends GuiContainer {
             // Background tint covers the INNER 50x22 area only, leaving the +1 right/bottom border untinted.
             drawEntryBackground(x, y, entry);
 
-            // Skip content when selector open. See Maintainer GUI for rationale (GL leaks).
-            // We still draw the icon background, as it isn't fully covered by the selector modal.
-            if (selectorOpen) {
-                int color = (entry != null && entry.hasResource()) ? 0x20000000 : 0x40000000;
-                drawRect(x, y, x + ICON_SIZE, y + ICON_SIZE, color);
-                continue;
-            }
-
-            // Hover highlight per zone. Only suppressed when the modal selector is open.
-            drawZoneHover(x, y, mouseX, mouseY, entry);
+            if (!modalOpen) drawZoneHover(x, y, mouseX, mouseY, entry);
 
             // Foreground content: icon + (comparison + numbers if filled).
             drawEntryContent(x, y, entry);
@@ -816,7 +851,7 @@ public class GuiStorageMonitor extends GuiContainer {
         // Icon zone shows either the resource or a clickable "+" placeholder.
         drawEntryIcon(x + ICON_X, y + ICON_Y, entry);
 
-        if (entry != null && entry.hasResource()) {
+        if (entry != null && entry.hasResource() && !modalOpen) {
             drawCurrentQuantity(x + ICON_X, y + ICON_Y, entry);
         }
     }
@@ -873,6 +908,9 @@ public class GuiStorageMonitor extends GuiContainer {
             // stay readable regardless of the slot tint below them.
             drawRect(x, y, x + ICON_SIZE, y + ICON_SIZE, 0x20000000);
         }
+
+        // Skip content when a modal is open. See Maintainer GUI for rationale (GL leaks).
+        if (modalOpen) return;
 
         GlStateManager.enableTexture2D();
         // Delegate to the unified resource renderer; it handles items, fluids, gas, and essentia
@@ -980,6 +1018,7 @@ public class GuiStorageMonitor extends GuiContainer {
 
     private void openSelector(int targetIndex) {
         selectorOpen = true;
+        modalOpen = true;
         selectorTargetIndex = targetIndex;
         selectorScrollOffset = 0;
         selectorResources.clear();
@@ -1190,6 +1229,13 @@ public class GuiStorageMonitor extends GuiContainer {
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         if (selectorOpen) {
             handleSelectorClick(mouseX, mouseY, mouseButton);
+            modalOpen = selectorOpen;
+            return;
+        }
+
+        if (upgradePicker.isOpen()) {
+            handleUpgradePickerClick(mouseX, mouseY, mouseButton);
+            modalOpen = upgradePicker.isOpen();
             return;
         }
 
@@ -1217,6 +1263,13 @@ public class GuiStorageMonitor extends GuiContainer {
 
         if (hysteresisBtnHovered && mouseButton == 0) {
             toggleHysteresisMode();
+            return;
+        }
+
+        int emitterCardSlot = upgradePicker.getUpgradeSlotAt(mouseX, mouseY, guiLeft, guiTop, container.getEmitterCardSlots());
+        if (emitterCardSlot >= 0) {
+            handleEmitterCardSlotClick(emitterCardSlot, mouseButton);
+            modalOpen = upgradePicker.isOpen();
             return;
         }
 
@@ -1294,6 +1347,7 @@ public class GuiStorageMonitor extends GuiContainer {
         if (mouseX < selectorLeft || mouseX >= selectorLeft + SELECTOR_WIDTH
                 || mouseY < selectorTop || mouseY >= selectorTop + SELECTOR_HEIGHT) {
             selectorOpen = false;
+            modalOpen = false;
             return;
         }
 
@@ -1311,15 +1365,59 @@ public class GuiStorageMonitor extends GuiContainer {
                 PowerToolsNetwork.INSTANCE.sendToServer(
                     new PacketSelectMonitorContent(container.getHost(), selected, selectorTargetIndex));
                 selectorOpen = false;
+                modalOpen = false;
             }
         }
     }
 
+    private void handleEmitterCardSlotClick(int slotIndex, int mouseButton) {
+        ISelectableUpgradeInventory inventory = getSelectableUpgradeInventory();
+        if (inventory == null) return;
+
+        ItemStack stack = inventory.getStackInSlot(slotIndex);
+        if (mouseButton == 0) {
+            upgradePicker.open(slotIndex);
+            return;
+        }
+
+        if (mouseButton != 1 || stack.isEmpty()) return;
+
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketModifyStorageMonitorUpgradeSlot(
+            container.getHost(),
+            PacketModifyStorageMonitorUpgradeSlot.Action.REMOVE,
+            slotIndex,
+            -1));
+    }
+
+    private void handleUpgradePickerClick(int mouseX, int mouseY, int mouseButton) {
+        ISelectableUpgradeInventory inventory = getSelectableUpgradeInventory();
+        int selectedPlayerSlot = upgradePicker.handlePickerClick(mouseX, mouseY, mouseButton, inventory, mc.player.inventory);
+        if (selectedPlayerSlot < 0 || inventory == null) return;
+
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketModifyStorageMonitorUpgradeSlot(
+            container.getHost(),
+            PacketModifyStorageMonitorUpgradeSlot.Action.INSTALL_FROM_PLAYER_SLOT,
+            upgradePicker.getTargetUpgradeSlot(),
+            selectedPlayerSlot));
+        upgradePicker.close();
+        modalOpen = false;
+    }
+
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (upgradePicker.isOpen()) {
+            if (keyCode == Keyboard.KEY_ESCAPE) {
+                upgradePicker.close();
+                modalOpen = false;
+            }
+
+            return;
+        }
+
         if (selectorOpen) {
             if (keyCode == Keyboard.KEY_ESCAPE) {
                 selectorOpen = false;
+                modalOpen = false;
                 return;
             }
             if (selectorSearchField != null && selectorSearchField.textboxKeyTyped(typedChar, keyCode)) {
@@ -1377,6 +1475,8 @@ public class GuiStorageMonitor extends GuiContainer {
             return;
         }
 
+        if (upgradePicker.isOpen()) return;
+
         if (!isShiftDown()) return;
 
         int mouseX = Mouse.getEventX() * width / mc.displayWidth;
@@ -1423,6 +1523,12 @@ public class GuiStorageMonitor extends GuiContainer {
         if (zone == CellZone.NONE) return null;
 
         return new GridHit(row * GRID_COLS + col, zone);
+    }
+
+    private ISelectableUpgradeInventory getSelectableUpgradeInventory() {
+        if (!(container.getHost() instanceof IEmitterCardHost)) return null;
+
+        return ((IEmitterCardHost) container.getHost()).getSelectableUpgradeInventory();
     }
 
     private void cycleMatchMode() {

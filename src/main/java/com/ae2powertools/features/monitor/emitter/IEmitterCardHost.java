@@ -4,6 +4,8 @@ import appeng.api.config.Upgrades;
 import appeng.parts.automation.UpgradeInventory;
 import appeng.util.inv.IAEAppEngInventory;
 
+import com.ae2powertools.util.upgrade.ISelectableUpgradeInventory;
+
 
 /**
  * Emitter host that exposes the two AE2-style monitor cards.
@@ -11,6 +13,11 @@ import appeng.util.inv.IAEAppEngInventory;
 public interface IEmitterCardHost extends IEmitterRedstoneHost, IAEAppEngInventory {
 
     UpgradeInventory getUpgradeInventory();
+
+    default ISelectableUpgradeInventory getSelectableUpgradeInventory() {
+        UpgradeInventory inventory = getUpgradeInventory();
+        return inventory instanceof ISelectableUpgradeInventory ? (ISelectableUpgradeInventory) inventory : null;
+    }
 
     int getInstalledUpgrades(Upgrades upgrade);
 
