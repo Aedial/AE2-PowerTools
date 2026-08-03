@@ -357,6 +357,8 @@ ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=Maximum number o
 # TOP/WAILA
 tooltip.ae2powertools.performance.none=Block work: no samples yet
 tooltip.ae2powertools.performance.summary=Block work: last %1$s / avg %2$s / max %3$s
+tooltip.ae2powertools.maintainer.cpus=Crafting CPUs: §a%1$s§r / §8%2$s§r
+tooltip.ae2powertools.maintainer.recipes=Recipes: §a%1$s§r / §8%2$s§r / §c%3$s§r / §5%4$s§r
 tooltip.ae2powertools.crafter.next_operation=Next operation in %s
 tooltip.ae2powertools.crafter.user_error.catalyst=§cError: missing catalyst(s)§r
 tooltip.ae2powertools.crafter.user_error.pattern=§cError: invalid pattern(s)§r
@@ -369,6 +371,10 @@ tooltip.ae2powertools.crafter.patterns.active_full=Patterns: §a%1$s active§r /
 tooltip.ae2powertools.crafter.patterns.active_disabled=Patterns: §a%1$s active§r / §7%2$s disabled§r
 tooltip.ae2powertools.crafter.patterns.full_disabled=Patterns: §e%1$s full§r / §7%2$s disabled§r
 tooltip.ae2powertools.crafter.patterns.active_full_disabled=Patterns: §a%1$s active§r / §e%2$s full§r / §7%3$s disabled§r
+tooltip.ae2powertools.storage_emitter.card.fuzzy=Card: §eFuzzy§r
+tooltip.ae2powertools.storage_emitter.card.crafting=Card: §eCrafting§r
+tooltip.ae2powertools.storage_emitter.redstone.weak=Redstone output: §bWeak§r
+tooltip.ae2powertools.storage_emitter.redstone.strong=Redstone output: §dStrong§r
 
 # GUI - Main
 gui.ae2powertools.crafter.title=AutoCrafter
