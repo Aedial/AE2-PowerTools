@@ -88,6 +88,7 @@ gui.ae2powertools.scanner.pattern.conflicting_outputs.title=输出冲突
 gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=不同的样板输出了相同的结果。AE2在构建合成树时可能会在这些样板之间随机选择，从而导致不稳定或预期外的配方路径。
 gui.ae2powertools.scanner.pattern.nested_input_output.title=输入/输出嵌套
 gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=样板的输入和输出中包含了相同的物品。这类自嵌套配方会在AE2合成树构建时失败。
+gui.ae2powertools.scanner.pattern.conflicting_output_entry=%1$s（%2$d个变种）
 gui.ae2powertools.scanner.pattern.unknown_output=未知输出
 gui.ae2powertools.scanner.pattern.more_outputs=+%d 更多
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.title=重复的存储总线目标
@@ -348,6 +349,21 @@ ae2powertools.config.server.maintainer.maxConcurrentCalculations.tooltip=允许�
 ae2powertools.config.server.maintainer.maxCpuRetryCount=最大CPU重试次数
 ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=任务在进入错误状态前，等待空闲CPU的最大重试次数
 
+# TOP/WAILA
+tooltip.ae2powertools.performance.none=方块工作：暂无样本
+tooltip.ae2powertools.performance.summary=方块工作：最近 %1$s / 平均 %2$s / 最大 %3$s
+tooltip.ae2powertools.crafter.next_operation=距下次操作还有 %s
+tooltip.ae2powertools.crafter.user_error.catalyst=§c错误：缺失催化剂§r
+tooltip.ae2powertools.crafter.user_error.pattern=§c错误：无效样板§r
+tooltip.ae2powertools.crafter.user_error.catalyst_pattern=§c错误：缺失催化剂，无效样板§r
+tooltip.ae2powertools.crafter.patterns.empty=样板：§a无样板§r
+tooltip.ae2powertools.crafter.patterns.active=样板：§a%1$s 活跃§r
+tooltip.ae2powertools.crafter.patterns.full=样板：§e%1$s 已满§r
+tooltip.ae2powertools.crafter.patterns.disabled=样板：§7%1$s 已禁用§r
+tooltip.ae2powertools.crafter.patterns.active_full=样板：§a%1$s 活跃§r / §e%2$s 已满§r
+tooltip.ae2powertools.crafter.patterns.active_disabled=样板：§a%1$s 活跃§r / §7%2$s 已禁用§r
+tooltip.ae2powertools.crafter.patterns.full_disabled=样板：§e%1$s 已满§r / §7%2$s 已禁用§r
+tooltip.ae2powertools.crafter.patterns.active_full_disabled=样板：§a%1$s 活跃§r / §e%2$s 已满§r / §7%3$s 已禁用§r
 
 # GUI - Main
 gui.ae2powertools.crafter.title=自动合成器
@@ -358,7 +374,6 @@ gui.ae2powertools.crafter.page=页码 %d/%d
 gui.ae2powertools.crafter.empty_slot=槽位 %d - 空
 gui.ae2powertools.crafter.click_to_view=左键点击以查看
 gui.ae2powertools.crafter.right_click_toggle=右键点击以开关
-
 
 # GUI - Batch
 gui.ae2powertools.crafter.batch.title=批量大小
