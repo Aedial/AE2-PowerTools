@@ -6,6 +6,7 @@ import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
@@ -103,5 +104,19 @@ public class BlockStorageLevelEmitter extends BlockStorageMonitorBase {
         }
 
         return 0;
+    }
+
+    @Override
+    public void breakBlock(World world, BlockPos pos, IBlockState state) {
+        TileEntity te = world.getTileEntity(pos);
+
+        // Drop any installed upgrade cards when the block is broken
+        if (te instanceof IEmitterCardHost) {
+            for (ItemStack stack : ((IEmitterCardHost) te).getUpgradeInventory()) {
+                if (!stack.isEmpty()) spawnAsEntity(world, pos, stack.copy());
+            }
+        }
+
+        super.breakBlock(world, pos, state);
     }
 }

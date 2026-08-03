@@ -13,6 +13,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.network.PacketRemoteMonitorRequestSync;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -22,6 +23,8 @@ import com.ae2powertools.network.PowerToolsNetwork;
  */
 @SideOnly(Side.CLIENT)
 public final class RemoteMonitorClientState {
+
+    private static final int DISPLAYED_MONITOR_RESCAN_INTERVAL = FormatUtil.TICKS_PER_SECOND;
 
     public static final class DeviceState {
 
@@ -85,6 +88,7 @@ public final class RemoteMonitorClientState {
 
     private static final Map<Long, DeviceState> DEVICE_STATES = new HashMap<>();
     private static long activeDeviceId;
+    private static long lastDisplayedMonitorScanTick = Long.MIN_VALUE;
 
     private RemoteMonitorClientState() {}
 
@@ -94,6 +98,10 @@ public final class RemoteMonitorClientState {
 
     public static long getActiveDeviceId() {
         return activeDeviceId;
+    }
+
+    public static void invalidateActiveDeviceId() {
+        activeDeviceId = 0L;
     }
 
     public static DeviceState getOrCreateState(long deviceId) {
@@ -131,5 +139,16 @@ public final class RemoteMonitorClientState {
     public static void clearState(long deviceId) {
         DEVICE_STATES.remove(deviceId);
         if (activeDeviceId == deviceId) activeDeviceId = 0L;
+    }
+
+    public static boolean shouldRescanDisplayedMonitor(long worldTick) {
+        if (lastDisplayedMonitorScanTick != Long.MIN_VALUE
+                && worldTick >= lastDisplayedMonitorScanTick
+                && worldTick - lastDisplayedMonitorScanTick < DISPLAYED_MONITOR_RESCAN_INTERVAL) {
+            return false;
+        }
+
+        lastDisplayedMonitorScanTick = worldTick;
+        return true;
     }
 }

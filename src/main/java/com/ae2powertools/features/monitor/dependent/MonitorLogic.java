@@ -13,7 +13,11 @@ import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 
 import appeng.api.AEApi;
+import appeng.api.config.FuzzyMode;
 import appeng.api.networking.IGrid;
+import appeng.api.networking.crafting.CraftingItemList;
+import appeng.api.networking.crafting.ICraftingCPU;
+import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.IStorageChannel;
@@ -24,11 +28,13 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import appeng.me.GridAccessException;
+import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.helpers.AENetworkProxy;
 
+import com.ae2powertools.features.monitor.emitter.IEmitterCardHost;
 import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.MonitoredResource;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -45,10 +51,10 @@ import com.ae2powertools.util.PollingRateUtils;
 public class MonitorLogic {
 
     /** Default refresh rate: every 1 second (20 ticks) */
-    public static final int DEFAULT_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
+    public static final int DEFAULT_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
 
     /** Minimum refresh rate: 1 second (20 ticks) */
-    public static final int MIN_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
+    public static final int MIN_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
 
     /**
      * Number of monitored entries (resource/comparison/threshold) supported. This is a fixed limit.
@@ -111,7 +117,7 @@ public class MonitorLogic {
             IGrid grid = proxy.getGrid();
             IStorageGrid storage = grid.getCache(IStorageGrid.class);
 
-            newCondition = evaluateCondition(storage);
+            newCondition = evaluateCondition(grid, storage);
         } catch (GridAccessException e) {
             // Network not available, keep last known state
             return false;
@@ -136,13 +142,13 @@ public class MonitorLogic {
      * Disabled entries are still polled and have their lastQuantity / lastConditionMet
      * updated for client-side GUI feedback, but they are excluded from the AND/OR.
      */
-    private boolean evaluateCondition(IStorageGrid storage) {
+    private boolean evaluateCondition(IGrid grid, IStorageGrid storage) {
         // Poll only ENABLED entries with a resource here. Resource-less placeholders are
         // skipped: they have nothing to look up and don't contribute to the AND/OR.
         for (MonitoredEntry entry : entries) {
             if (!entry.isEnabled() || !entry.hasResource()) continue;
 
-            long qty = lookupQuantity(storage, entry.getResource());
+            long qty = lookupQuantity(grid, storage, entry.getResource());
             entry.evaluate(qty, hysteresisEnabled);
         }
 
@@ -174,13 +180,13 @@ public class MonitorLogic {
      * Looks up the quantity of a single resource in the network.
      * Uses findPrecise() for O(1) lookup on the NetworkMonitor's cached list.
      */
-    private long lookupQuantity(IStorageGrid storage, MonitoredResource resource) {
+    private long lookupQuantity(IGrid grid, IStorageGrid storage, MonitoredResource resource) {
         IAEStack<?> stack = resource.getStack();
         if (stack == null) return 0;
 
         switch (resource.getType()) {
             case ITEM:
-                return lookupItemQuantity(storage, (IAEItemStack) stack);
+                return lookupItemQuantity(grid, storage, (IAEItemStack) stack);
             case FLUID:
                 return lookupFluidQuantity(storage, (IAEFluidStack) stack);
             case GAS:
@@ -194,12 +200,41 @@ public class MonitorLogic {
         }
     }
 
-    private long lookupItemQuantity(IStorageGrid storage, IAEItemStack stack) {
+    private long lookupItemQuantity(IGrid grid, IStorageGrid storage, IAEItemStack stack) {
+        if (usesCraftingCard()) return lookupCraftingItemQuantity(grid, stack);
+
         IMEMonitor<IAEItemStack> monitor = storage.getInventory(
             AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+
+        // findFuzzy() returns every matching variant, so we sum them all up
+        if (usesFuzzyCard()) {
+            return sumItemStacks(monitor.getStorageList().findFuzzy(stack, FuzzyMode.IGNORE_ALL));
+        }
+
         IAEItemStack found = monitor.getStorageList().findPrecise(stack);
 
         return found != null ? found.getStackSize() : 0;
+    }
+
+    private long lookupCraftingItemQuantity(IGrid grid, IAEItemStack stack) {
+        ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
+
+        if (!usesFuzzyCard()) return crafting.requesting(stack);
+
+        // CPUs do not expose a findFuzzy() API, so we have to iterate each CPU and do the work ourselves.
+        long requested = 0;
+        for (ICraftingCPU cpu : crafting.getCpus()) {
+            if (!(cpu instanceof CraftingCPUCluster)) continue;
+
+            IItemList<IAEItemStack> active = AEApi.instance()
+                .storage()
+                .getStorageChannel(IItemStorageChannel.class)
+                .createList();
+            ((CraftingCPUCluster) cpu).getListOfItem(active, CraftingItemList.ACTIVE);
+            requested += sumItemStacks(active.findFuzzy(stack, FuzzyMode.IGNORE_ALL));
+        }
+
+        return requested;
     }
 
     private long lookupFluidQuantity(IStorageGrid storage, IAEFluidStack stack) {
@@ -256,12 +291,30 @@ public class MonitorLogic {
             for (MonitoredEntry entry : entries) {
                 if (entry.isEnabled() || !entry.hasResource()) continue;
 
-                long qty = lookupQuantity(storage, entry.getResource());
+                long qty = lookupQuantity(grid, storage, entry.getResource());
                 entry.evaluate(qty, hysteresisEnabled);
             }
         } catch (GridAccessException e) {
             // Network unavailable, leave last known quantities in place.
         }
+    }
+
+    private boolean usesFuzzyCard() {
+        return host instanceof IEmitterCardHost && ((IEmitterCardHost) host).hasFuzzyCard();
+    }
+
+    private boolean usesCraftingCard() {
+        return host instanceof IEmitterCardHost && ((IEmitterCardHost) host).hasCraftingCard();
+    }
+
+    private long sumItemStacks(Iterable<IAEItemStack> stacks) {
+        long total = 0;
+
+        for (IAEItemStack match : stacks) {
+            if (match != null) total += match.getStackSize();
+        }
+
+        return total;
     }
 
     // --- Public API: query all resources in the grid for the content selector ---

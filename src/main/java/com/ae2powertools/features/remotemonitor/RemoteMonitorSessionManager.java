@@ -17,7 +17,7 @@ import appeng.api.features.IWirelessTermHandler;
 
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.items.ItemRemoteStorageMonitor;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -28,15 +28,25 @@ import com.ae2powertools.util.PollingRateUtils;
 public final class RemoteMonitorSessionManager {
 
     public static final int SLOT_COUNT = 81;
-    public static final int DEFAULT_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
-    public static final int MIN_REFRESH_RATE = PollingRateUtils.TICKS_PER_SECOND;
+    public static final int DEFAULT_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
+    public static final int MIN_REFRESH_RATE = FormatUtil.TICKS_PER_SECOND;
     public static final int DEFAULT_SLIDING_WINDOW = DEFAULT_REFRESH_RATE;
 
     /**
      * Extra time to wait after access resumes before locking in a new baseline.
      * AE2 can expose the grid before all storage providers have reported their startup totals.
      */
-    private static final int BASELINE_SETTLE_TICKS = 5 * PollingRateUtils.TICKS_PER_SECOND;
+    private static final int BASELINE_SETTLE_TICKS = 5 * FormatUtil.TICKS_PER_SECOND;
+
+    /**
+     * Keep the session alive briefly while the item is being dragged around.
+     * This allows the player to not kill the session if they misclick the monitor
+     * into an inventory or drop it, then pick it back up within a few seconds.
+     * <p>
+     * This is a server-side grace period for the session only. The client-side overlay
+     * will still not render if the monitor is not held or worn.
+     */
+    private static final int MONITOR_MISSING_GRACE_TICKS = 30 * FormatUtil.TICKS_PER_SECOND;
 
     private static final Map<SessionKey, RemoteMonitorSession> SESSIONS = new HashMap<>();
 
@@ -102,13 +112,16 @@ public final class RemoteMonitorSessionManager {
         private int refreshRate = DEFAULT_REFRESH_RATE;
         private int slidingWindow = DEFAULT_SLIDING_WINDOW;
         private int ticksUntilPoll = DEFAULT_REFRESH_RATE;
+        private String encryptionKey;
         private boolean awaitingBaselineSample;
         private long baselineSettleDeadline;
         private boolean networkAccessible = true;
+        private long monitorMissingSinceTick = -1L;
 
-        private RemoteMonitorSession(long deviceId, MonitoredResource[] storedResources, int refreshRate,
-                int slidingWindow) {
+        private RemoteMonitorSession(long deviceId, String encryptionKey, MonitoredResource[] storedResources,
+                int refreshRate, int slidingWindow) {
             this.deviceId = deviceId;
+            this.encryptionKey = encryptionKey;
             System.arraycopy(storedResources, 0, this.resources, 0, Math.min(this.resources.length, storedResources.length));
             applyTimingSettings(refreshRate, slidingWindow);
         }
@@ -175,6 +188,16 @@ public final class RemoteMonitorSessionManager {
         }
 
         public void tick(IWirelessTermHandler handler, EntityPlayer player, ItemStack monitorStack) {
+            String currentEncryptionKey = handler.getEncryptionKey(monitorStack);
+
+            // Retuning the monitor switches it to a different network without changing the device id,
+            // so the rolling history has to be discarded before the next poll.
+            if (!this.encryptionKey.equals(currentEncryptionKey)) {
+                this.encryptionKey = currentEncryptionKey;
+                resetBaselines(handler, player, monitorStack);
+                return;
+            }
+
             if (--this.ticksUntilPoll > 0) return;
 
             this.ticksUntilPoll = this.refreshRate;
@@ -197,6 +220,19 @@ public final class RemoteMonitorSessionManager {
             }
 
             pollNow(handler, player, monitorStack, player.world.getTotalWorldTime());
+        }
+
+        public boolean shouldExpireMissingMonitor(long worldTick) {
+            if (this.monitorMissingSinceTick < 0L) {
+                this.monitorMissingSinceTick = worldTick;
+                return false;
+            }
+
+            return worldTick >= this.monitorMissingSinceTick + MONITOR_MISSING_GRACE_TICKS;
+        }
+
+        public void markMonitorPresent() {
+            this.monitorMissingSinceTick = -1L;
         }
 
         public void resetBaselines(IWirelessTermHandler handler, EntityPlayer player, ItemStack monitorStack) {
@@ -346,6 +382,7 @@ public final class RemoteMonitorSessionManager {
 
         session = new RemoteMonitorSession(
             deviceId,
+            handler.getEncryptionKey(monitorStack),
             ItemRemoteStorageMonitor.getStoredResources(monitorStack),
             ItemRemoteStorageMonitor.getStoredRefreshRate(monitorStack),
             ItemRemoteStorageMonitor.getStoredSlidingWindow(monitorStack));
@@ -365,10 +402,12 @@ public final class RemoteMonitorSessionManager {
     }
 
     public static void endSession(EntityPlayer player, long deviceId) {
+        ItemRemoteStorageMonitor.clearMonitorLocationCache(player.getUniqueID(), deviceId);
         SESSIONS.remove(new SessionKey(player.getUniqueID(), deviceId));
     }
 
     public static void endSession(UUID playerId, long deviceId) {
+        ItemRemoteStorageMonitor.clearMonitorLocationCache(playerId, deviceId);
         SESSIONS.remove(new SessionKey(playerId, deviceId));
     }
 

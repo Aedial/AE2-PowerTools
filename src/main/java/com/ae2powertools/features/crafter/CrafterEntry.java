@@ -291,7 +291,7 @@ public class CrafterEntry {
         // Try to merge with existing pending output of the same type
         for (IAEItemStack pending : pendingOutputs) {
             if (pending.isSameType(output)) {
-                pending.setStackSize(pending.getStackSize() + output.getStackSize());
+                pending.setStackSize(CrafterMath.saturatingAdd(pending.getStackSize(), output.getStackSize()));
                 return;
             }
         }
@@ -392,13 +392,13 @@ public class CrafterEntry {
      * @param actualCrafts Actual batch size achieved (0 if error/not crafting)
      */
     public void recordMetrics(boolean wasError, long requestedCrafts, long actualCrafts) {
-        metricsTotal++;
-        if (wasError) metricsError++;
+        metricsTotal = CrafterMath.saturatingAdd(metricsTotal, 1L);
+        if (wasError) metricsError = CrafterMath.saturatingAdd(metricsError, 1L);
 
         // Only count successful operations for occupancy
         if (!wasError && requestedCrafts > 0) {
-            metricsTotalMaxPossible += requestedCrafts;
-            metricsTotalActualCrafted += actualCrafts;
+            metricsTotalMaxPossible = CrafterMath.saturatingAdd(metricsTotalMaxPossible, requestedCrafts);
+            metricsTotalActualCrafted = CrafterMath.saturatingAdd(metricsTotalActualCrafted, actualCrafts);
         }
     }
 

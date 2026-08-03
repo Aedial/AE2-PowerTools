@@ -4,39 +4,47 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
-import net.minecraftforge.client.event.RenderGameOverlayEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+
+import com.ae2powertools.client.HudOverlayManager;
 
 
 /**
  * Pulsing warning text shown above the XP bar whenever one or more subscribed alarms are active.
  */
 @SideOnly(Side.CLIENT)
-public class LevelMonitorAlarmOverlay {
+public class LevelMonitorAlarmOverlay implements HudOverlayManager.HudOverlayProvider {
 
     private static final int COLOR_ORANGE = 0xFFAA33;
     private static final int COLOR_RED = 0xFF3333;
 
-    @SubscribeEvent
-    public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
-        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
-
-        Minecraft mc = Minecraft.getMinecraft();
+    @Override
+    public boolean isActive(Minecraft mc) {
         if (mc.player == null || mc.world == null) {
             LevelMonitorAlarmClientState.clear();
-            return;
+            return false;
         }
-        if (mc.gameSettings.showDebugInfo) return;
-        if (mc.currentScreen != null && !(mc.currentScreen instanceof GuiChat)) return;
 
+        return !LevelMonitorAlarmClientState.getActiveAlarms().isEmpty();
+    }
+
+    @Override
+    public HudOverlayManager.OverlayAnchor getAnchor() {
+        return HudOverlayManager.OverlayAnchor.ABOVE_XP_BAR_STACK;
+    }
+
+    @Override
+    public HudOverlayManager.OverlayStyle getStyle() {
+        return HudOverlayManager.OverlayStyle.UNBOXED;
+    }
+
+    @Override
+    public List<HudOverlayManager.HudOverlayLine> getLines(Minecraft mc) {
         List<AlarmLocation> alarms = LevelMonitorAlarmClientState.getActiveAlarms();
-        if (alarms.isEmpty()) return;
+        if (alarms.isEmpty()) return new ArrayList<>();
 
         String locations = joinLocations(alarms, mc.player.dimension);
         String key = alarms.size() == 1
@@ -46,27 +54,26 @@ public class LevelMonitorAlarmOverlay {
 
         ScaledResolution resolution = new ScaledResolution(mc);
         List<String> lines = mc.fontRenderer.listFormattedStringToWidth(message, resolution.getScaledWidth() - 20);
-        if (lines.isEmpty()) return;
+        if (lines.isEmpty()) return new ArrayList<>();
 
         // 2 pi = 1 full period
         float pulse = 0.5f + 0.5f * (float) Math.sin((2.0 * Math.PI * System.currentTimeMillis()) / 1000.0);
         int color = interpolateColor(COLOR_ORANGE, COLOR_RED, pulse);
 
-        int totalHeight = lines.size() * mc.fontRenderer.FONT_HEIGHT;
-        int y = resolution.getScaledHeight() - 45 - totalHeight;
+        List<Integer> colors = new ArrayList<>();
+        for (int i = 0; i < lines.size(); i++) colors.add(color);
 
-        GlStateManager.pushMatrix();
-        GlStateManager.enableBlend();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        return HudOverlayManager.HudOverlayLine.textLines(lines, colors);
+    }
 
-        for (String line : lines) {
-            int x = (resolution.getScaledWidth() - mc.fontRenderer.getStringWidth(line)) / 2;
-            mc.fontRenderer.drawStringWithShadow(line, x, y, color);
-            y += mc.fontRenderer.FONT_HEIGHT;
-        }
+    @Override
+    public HudOverlayManager.ScreenPolicy getScreenPolicy() {
+        return HudOverlayManager.ScreenPolicy.ALWAYS;
+    }
 
-        GlStateManager.disableBlend();
-        GlStateManager.popMatrix();
+    @Override
+    public boolean hideWithDebugInfo() {
+        return false;
     }
 
     private String joinLocations(List<AlarmLocation> alarms, int currentDimension) {

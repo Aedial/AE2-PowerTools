@@ -13,15 +13,29 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 
 
+## [1.6.7] - 2026-08-666
+### Added
+- Add AutoCrafter WAILA and The One Probe summary tooltips, including next-operation timing, error warnings, and active/full/disabled pattern counts.
+- Add support for the Crafting and Fuzzy card to the Storage Level Emitter, bringing it to feature parity with the AE2 Level Emitter. There is not yet a way to insert the cards into the Emitter.
+- Add AutoCrafter and Better Level Maintainer WAILA/The One Probe performance lines that report the block-side work time, including rolling last/average/max samples.
+
+### Fixed
+- Fix AutoCrafter crafting instantly when batch * speed (in ticks) goes above max int, which happens when batch is at max int / 20 at default speed.
+- Tighten the Network Health Scanner's conflicting-pattern detection to match AE2's per-output-item craftable index, so patterns that share any output item now conflict even when it is not the exact same pattern identity (e.g. different counts or secondary outputs).
+
+
 ## [1.6.6] - 2026-07-30
 ### Added
 - Add detailed AutoCrafter status hover tooltips in the recipe view so error states explain which catalyst or input is missing, or which outputs could not be reinserted into the network.
 - Add Remote Storage Monitor overlay configs to show the post-poll total beside each delta and to switch between shortened and full numeric formatting.
 - Keep the Remote Storage Monitor selector search text when reopening the selector and allow right-clicking the selector search box to clear it.
 - Add optional Interface Terminal integration for the AE2 AutoCrafter, exposing its 12 pattern slots as two editable rows with the last six filler slots disabled, and a startup config toggle for the mixin.
+- Add more leeway to the Remote Storage Monitor so that the overlay does not reset its baseline when the device is removed from the player's inventory. The session will be kept for 30 seconds after the device disappears, allowing for temporary drops or swaps without losing the current state.
 
 ### Fixed
 - Fix the Remote Storage Monitor resetting its baseline when refreshing while the overlay is covered or client FPS throttling delay sync requests.
+- Fix the Network Health Scanner fatal error pass treating item and fluid storage buses on the same target as duplicate storage links.
+- Fix the scroll bar of the Remote Storage Monitor's content selection not being draggable (but still scrollable with the mouse wheel).
 
 ### Changed
 - Split the Remote Storage Monitor timing controls into separate refresh interval and sliding window settings, so that the refresh interval (responsivity) can be set independently of the sliding window duration (sampling period).

@@ -20,14 +20,14 @@ public final class TimeAdjustmentButtons {
     private static final int[] X_OFFSETS = { 20, 54, 88, 122, 20, 54, 88, 122 };
     private static final int[] Y_OFFSETS = { 32, 32, 32, 32, 69, 69, 69, 69 };
     private static final int[] BASE_DELTAS = {
-        PollingRateUtils.TICKS_PER_SECOND,
-        PollingRateUtils.TICKS_PER_MINUTE,
-        PollingRateUtils.TICKS_PER_HOUR,
-        PollingRateUtils.TICKS_PER_DAY,
-        -PollingRateUtils.TICKS_PER_SECOND,
-        -PollingRateUtils.TICKS_PER_MINUTE,
-        -PollingRateUtils.TICKS_PER_HOUR,
-        -PollingRateUtils.TICKS_PER_DAY
+        FormatUtil.TICKS_PER_SECOND,
+        FormatUtil.TICKS_PER_MINUTE,
+        FormatUtil.TICKS_PER_HOUR,
+        FormatUtil.TICKS_PER_DAY,
+        -FormatUtil.TICKS_PER_SECOND,
+        -FormatUtil.TICKS_PER_MINUTE,
+        -FormatUtil.TICKS_PER_HOUR,
+        -FormatUtil.TICKS_PER_DAY
     };
     private static final String[] UNITS = { "s", "m", "h", "d", "s", "m", "h", "d" };
 
@@ -82,7 +82,7 @@ public final class TimeAdjustmentButtons {
     }
 
     public static String formatTimeValue(final long ticks) {
-        return PollingRateUtils.format(ticks);
+        return FormatUtil.formatTimeTicks(ticks);
     }
 
     private boolean isManagedButton(final GuiButton button) {

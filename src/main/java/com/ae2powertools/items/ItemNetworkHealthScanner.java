@@ -39,6 +39,7 @@ import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.features.scanner.GuiNetworkHealthScanner;
 import com.ae2powertools.features.scanner.ScannerClientState;
 import com.ae2powertools.features.scanner.ScanSessionManager;
+import com.ae2powertools.util.DeviceItemAccess;
 
 
 /**
@@ -51,15 +52,13 @@ import com.ae2powertools.features.scanner.ScanSessionManager;
  */
 public class ItemNetworkHealthScanner extends Item {
 
-    private static final String NBT_DEVICE_ID = "DeviceId";
     private static final String NBT_OVERLAY_ENABLED = "OverlayEnabled";
     private static final String NBT_SUBNET_SCAN = "SubnetScan";
 
-    // Cache device ID by NBT compound identity to avoid repeated lookups
-    private static final Map<NBTTagCompound, Long> deviceIdCache = new IdentityHashMap<>();
-
     // Cache overlay state by device ID
     private static final Map<Long, Boolean> overlayCache = new IdentityHashMap<>();
+
+    private static final DeviceItemAccess DEVICE_ACCESS = new DeviceItemAccess(ItemNetworkHealthScanner.class, true);
 
     public ItemNetworkHealthScanner() {
         this.setRegistryName(Tags.MODID, "network_health_scanner");
@@ -74,29 +73,11 @@ public class ItemNetworkHealthScanner extends Item {
      * Values are cached to avoid repeated NBT lookups.
      */
     public static long getDeviceId(ItemStack stack) {
-        if (stack.isEmpty()) return 0L;
+        return DEVICE_ACCESS.getOrCreateDeviceId(stack);
+    }
 
-        NBTTagCompound nbt = stack.getTagCompound();
-
-        // Check cache first (using NBT compound identity)
-        if (nbt != null) {
-            Long cached = deviceIdCache.get(nbt);
-            if (cached != null) return cached;
-        }
-
-        // Create NBT if needed
-        if (nbt == null) {
-            nbt = new NBTTagCompound();
-            stack.setTagCompound(nbt);
-        }
-
-        // Generate new ID if not present
-        if (!nbt.hasKey(NBT_DEVICE_ID)) nbt.setLong(NBT_DEVICE_ID, System.nanoTime());
-
-        long deviceId = nbt.getLong(NBT_DEVICE_ID);
-        deviceIdCache.put(nbt, deviceId);
-
-        return deviceId;
+    public static ItemStack getHeldScanner(EntityPlayer player) {
+        return DEVICE_ACCESS.findHeldDevice(player);
     }
 
     /**
@@ -190,47 +171,17 @@ public class ItemNetworkHealthScanner extends Item {
      * Falls back to the supplied value when the matching scanner item cannot be located.
      */
     public static boolean getSubnetScanEnabled(EntityPlayer player, long deviceId, boolean fallbackValue) {
-        ItemStack scannerStack = findScannerByDeviceId(player, deviceId);
+        ItemStack scannerStack = DEVICE_ACCESS.findDeviceOnPlayerById(player, deviceId);
         if (scannerStack.isEmpty()) return fallbackValue;
 
         return isSubnetScanEnabled(scannerStack);
-    }
-
-    private static ItemStack findScannerByDeviceId(EntityPlayer player, long deviceId) {
-        if (deviceId == 0L) return ItemStack.EMPTY;
-
-        ItemStack mainHand = player.getHeldItem(EnumHand.MAIN_HAND);
-        if (isMatchingScanner(mainHand, deviceId)) return mainHand;
-
-        ItemStack offHand = player.getHeldItem(EnumHand.OFF_HAND);
-        if (isMatchingScanner(offHand, deviceId)) return offHand;
-
-        for (ItemStack stack : player.inventory.mainInventory) {
-            if (isMatchingScanner(stack, deviceId)) return stack;
-        }
-
-        for (ItemStack stack : player.inventory.offHandInventory) {
-            if (isMatchingScanner(stack, deviceId)) return stack;
-        }
-
-        return ItemStack.EMPTY;
-    }
-
-    private static boolean isMatchingScanner(ItemStack stack, long deviceId) {
-        if (stack.isEmpty() || !(stack.getItem() instanceof ItemNetworkHealthScanner)) return false;
-
-        return getDeviceId(stack) == deviceId;
     }
 
     /**
      * Check if a stack has a device ID assigned.
      */
     public static boolean hasDeviceId(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-
-        NBTTagCompound nbt = stack.getTagCompound();
-
-        return nbt != null && nbt.hasKey(NBT_DEVICE_ID);
+        return DEVICE_ACCESS.hasDeviceId(stack);
     }
 
     @Override

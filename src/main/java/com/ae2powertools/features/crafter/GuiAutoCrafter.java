@@ -801,9 +801,9 @@ public class GuiAutoCrafter extends GuiContainer {
         long batchSize = container.syncBatchSize;
         long outputCount = output.getStackSize();
 
-        long itemsPerCraft = container.syncEffectiveBatchSize * outputCount;
+        long itemsPerCraft = CrafterMath.saturatingMultiply(container.syncEffectiveBatchSize, outputCount);
         String itemsPerCraftStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(itemsPerCraft);
-        String timePerOperation = FormatUtil.formatTimeTicks(speedTicks * batchSize);
+        String timePerOperation = FormatUtil.formatTimeTicks(CrafterMath.saturatingMultiply(speedTicks, batchSize));
         String throughput = I18n.format("gui.ae2powertools.crafter.crafts_per_operation",
                 itemsPerCraftStr, timePerOperation);
 

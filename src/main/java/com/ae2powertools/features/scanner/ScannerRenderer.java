@@ -4,20 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
-import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.ae2powertools.ItemRegistry;
+import com.ae2powertools.client.HudOverlayManager;
 import com.ae2powertools.client.BlockHighlightRenderer;
 import com.ae2powertools.client.DirectionArrowRenderer;
 import com.ae2powertools.features.scanner.ScannerClientState.ChunkLocationClient;
@@ -33,16 +30,11 @@ import com.ae2powertools.items.ItemNetworkHealthScanner;
  * Client-side renderer for scanner overlays and direction arrows.
  */
 @SideOnly(Side.CLIENT)
-public class ScannerRenderer {
+public class ScannerRenderer implements HudOverlayManager.HudOverlayProvider {
 
     // ========== Distance Limits ==========
     private static final double WIREFRAME_MAX_DISTANCE = 50.0;  // Max distance for wireframe rendering
     private static final double FLOATING_TEXT_MAX_DISTANCE = 10.0;  // Max distance for floating text
-
-    // ========== Overlay Constants ==========
-    private static final int PADDING_EXTERNAL = 5;
-    private static final int PADDING_INTERNAL = 4;
-    private static final int LINE_SPACING = 2;
 
     // ========== World Text Rendering ==========
     private static final float WORLD_TEXT_SCALE = 0.02f;
@@ -60,26 +52,35 @@ public class ScannerRenderer {
     // Pattern issue color (golden)
     private static final int PATTERN_COLOR = 0xD8B45A;
 
-    /**
-     * Render the scanner overlay on the HUD for info about the positions (top-left corner).
-     */
-    @SubscribeEvent
-    public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
-        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
-
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc.player == null || mc.world == null) return;
-        if (mc.gameSettings.showDebugInfo) return;
+    @Override
+    public boolean isActive(Minecraft mc) {
+        if (mc.player == null || mc.world == null) return false;
 
         // Get held scanner and check its overlay enabled state
         ItemStack heldScanner = getHeldScanner(mc);
-        if (heldScanner.isEmpty()) { lastOverlayHeight = 0; return; }
-        if (!ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) { lastOverlayHeight = 0; return; }
+        if (heldScanner.isEmpty()) return false;
+        if (!ItemNetworkHealthScanner.isOverlayEnabled(heldScanner)) return false;
 
         long deviceId = ItemNetworkHealthScanner.getDeviceId(heldScanner);
         ScannerClientState.setActiveDeviceId(deviceId);
 
-        if (!ScannerClientState.hasActiveSession()) { lastOverlayHeight = 0; return; }
+        return ScannerClientState.hasActiveSession();
+    }
+
+    @Override
+    public HudOverlayManager.OverlayAnchor getAnchor() {
+        return HudOverlayManager.OverlayAnchor.TOP_LEFT_STACK;
+    }
+
+    @Override
+    public HudOverlayManager.OverlayStyle getStyle() {
+        return HudOverlayManager.OverlayStyle.BOXED;
+    }
+
+    @Override
+    public List<HudOverlayManager.HudOverlayLine> getLines(Minecraft mc) {
+        long deviceId = ItemNetworkHealthScanner.getDeviceId(getHeldScanner(mc));
+        ScannerClientState.setActiveDeviceId(deviceId);
 
         Tab currentTab = ScannerClientState.getCurrentTab();
         BlockPos playerPos = mc.player.getPosition();
@@ -169,40 +170,17 @@ public class ScannerRenderer {
             }
         }
 
-        if (lines.isEmpty()) { lastOverlayHeight = 0; return; }
+        return HudOverlayManager.HudOverlayLine.textLines(lines, colors);
+    }
 
-        // Calculate dimensions
-        int lineHeight = mc.fontRenderer.FONT_HEIGHT;
-        int maxWidth = 0;
-        for (String line : lines) maxWidth = Math.max(maxWidth, mc.fontRenderer.getStringWidth(line));
+    @Override
+    public int getPriority() {
+        return 0;
+    }
 
-        int boxW = maxWidth + PADDING_INTERNAL * 2 + 8;  // Extra 8 for color indicator
-        int boxH = lines.size() * lineHeight + (lines.size() - 1) * LINE_SPACING + PADDING_INTERNAL * 2;
-
-        // Position (top left)
-        int boxX = PADDING_EXTERNAL;
-        int boxY = PADDING_EXTERNAL;
-
-        // Draw box with border
-        int bgColor = 0xC0101010;
-        int borderColor = 0xFF404040;
-
-        Gui.drawRect(boxX - 1, boxY - 1, boxX + boxW + 1, boxY + boxH + 1, borderColor);
-        Gui.drawRect(boxX, boxY, boxX + boxW, boxY + boxH, bgColor);
-
-        // Draw text with color indicators
-        int textX = boxX + PADDING_INTERNAL;
-        int textY = boxY + PADDING_INTERNAL;
-
-        for (int i = 0; i < lines.size(); i++) {
-            int color = colors.get(i) | 0xFF000000;
-            Gui.drawRect(textX, textY + 1, textX + 4, textY + lineHeight - 1, color);
-            mc.fontRenderer.drawStringWithShadow(lines.get(i), textX + 8, textY, 0xFFFFFF);
-            textY += lineHeight + LINE_SPACING;
-        }
-
-        // Record the total overlay height (box + border + external padding) for other renderers to offset
-        lastOverlayHeight = boxH + 2 + PADDING_EXTERNAL;
+    @Override
+    public void onOverlayRendered(int renderedHeight) {
+        lastOverlayHeight = renderedHeight;
     }
 
     @SubscribeEvent
@@ -459,13 +437,7 @@ public class ScannerRenderer {
     private ItemStack getHeldScanner(Minecraft mc) {
         if (mc.player == null) return ItemStack.EMPTY;
 
-        ItemStack mainHand = mc.player.getHeldItem(EnumHand.MAIN_HAND);
-        if (mainHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) return mainHand;
-
-        ItemStack offHand = mc.player.getHeldItem(EnumHand.OFF_HAND);
-        if (offHand.getItem() == ItemRegistry.NETWORK_HEALTH_SCANNER) return offHand;
-
-        return ItemStack.EMPTY;
+        return ItemNetworkHealthScanner.getHeldScanner(mc.player);
     }
 
     /**

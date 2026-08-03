@@ -85,9 +85,10 @@ gui.ae2powertools.scanner.loops_info=Note: Loops are not necessarily a problem u
 gui.ae2powertools.scanner.pattern.invalid.title=Invalid crafting recipes
 gui.ae2powertools.scanner.pattern.invalid.tooltip=Crafting patterns that no longer resolve to a valid crafting recipe. This usually happens after recipe or mod changes.
 gui.ae2powertools.scanner.pattern.conflicting_outputs.title=Conflicting outputs
-gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=Different patterns exposing the same outputs. AE2 may pick between them during tree building, leading to unstable or unintended recipe paths.
+gui.ae2powertools.scanner.pattern.conflicting_outputs.tooltip=Different patterns exposing the same outputs. AE2 may pick between them during craft tree building, leading to unstable or unintended recipe paths.
 gui.ae2powertools.scanner.pattern.nested_input_output.title=Nested input/output
 gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=Patterns that have the same item in both inputs and outputs. These self-nesting recipes will fail during AE2 crafting tree construction.
+gui.ae2powertools.scanner.pattern.conflicting_output_entry=%1$s (%2$d variants)
 gui.ae2powertools.scanner.pattern.unknown_output=Unknown output
 gui.ae2powertools.scanner.pattern.more_outputs=+%d more
 gui.ae2powertools.scanner.fatal.duplicate_storage_target.title=Duplicate storage bus targets
@@ -348,6 +349,21 @@ ae2powertools.config.server.maintainer.maxConcurrentCalculations.tooltip=Maximum
 ae2powertools.config.server.maintainer.maxCpuRetryCount=Max CPU retry count
 ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=Maximum number of times a task retries waiting for a free CPU before entering an error state
 
+# TOP/WAILA
+tooltip.ae2powertools.performance.none=Block work: no samples yet
+tooltip.ae2powertools.performance.summary=Block work: last %1$s / avg %2$s / max %3$s
+tooltip.ae2powertools.crafter.next_operation=Next operation in %s
+tooltip.ae2powertools.crafter.user_error.catalyst=§cError: missing catalyst(s)§r
+tooltip.ae2powertools.crafter.user_error.pattern=§cError: invalid pattern(s)§r
+tooltip.ae2powertools.crafter.user_error.catalyst_pattern=§cError: missing catalyst(s), invalid pattern(s)§r
+tooltip.ae2powertools.crafter.patterns.empty=Patterns: §aNo patterns§r
+tooltip.ae2powertools.crafter.patterns.active=Patterns: §a%1$s active§r
+tooltip.ae2powertools.crafter.patterns.full=Patterns: §e%1$s full§r
+tooltip.ae2powertools.crafter.patterns.disabled=Patterns: §7%1$s disabled§r
+tooltip.ae2powertools.crafter.patterns.active_full=Patterns: §a%1$s active§r / §e%2$s full§r
+tooltip.ae2powertools.crafter.patterns.active_disabled=Patterns: §a%1$s active§r / §7%2$s disabled§r
+tooltip.ae2powertools.crafter.patterns.full_disabled=Patterns: §e%1$s full§r / §7%2$s disabled§r
+tooltip.ae2powertools.crafter.patterns.active_full_disabled=Patterns: §a%1$s active§r / §e%2$s full§r / §7%3$s disabled§r
 
 # GUI - Main
 gui.ae2powertools.crafter.title=AutoCrafter
@@ -358,7 +374,6 @@ gui.ae2powertools.crafter.page=Page %d/%d
 gui.ae2powertools.crafter.empty_slot=Slot %d - Empty
 gui.ae2powertools.crafter.click_to_view=Left-click to view
 gui.ae2powertools.crafter.right_click_toggle=Right-click to toggle
-
 
 # GUI - Batch
 gui.ae2powertools.crafter.batch.title=Batch Size

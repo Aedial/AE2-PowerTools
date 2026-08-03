@@ -48,7 +48,7 @@ public class PacketRemoteMonitorRequestSync implements IMessage {
         public IMessage onMessage(PacketRemoteMonitorRequestSync message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                ItemStack stack = ItemRemoteStorageMonitor.findMonitorByDeviceId(player, message.deviceId);
+                ItemStack stack = ItemRemoteStorageMonitor.getMonitorInInventory(player, message.deviceId);
                 if (stack.isEmpty() || !(stack.getItem() instanceof IWirelessTermHandler)) return;
 
                 IWirelessTermHandler handler = (IWirelessTermHandler) stack.getItem();

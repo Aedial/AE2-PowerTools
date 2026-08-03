@@ -4,17 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiChat;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
-import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.ae2powertools.ItemRegistry;
+import com.ae2powertools.client.HudOverlayManager;
 import com.ae2powertools.client.TrackedLocationRenderer;
 import com.ae2powertools.features.locator.LocatorRenderer;
 import com.ae2powertools.features.scanner.ScannerRenderer;
@@ -24,36 +23,44 @@ import com.ae2powertools.features.scanner.ScannerRenderer;
  * Renders directional arrows to all currently active alarms while the locator item is held.
  */
 @SideOnly(Side.CLIENT)
-public class LevelMonitorAlarmArrowRenderer {
+public class LevelMonitorAlarmArrowRenderer implements HudOverlayManager.HudOverlayProvider {
 
     private static final int ARROW_COLOR = 0xFFAA33;
 
     private static int lastOverlayHeight = 0;
 
-    @SubscribeEvent
-    public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
-        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
-
-        lastOverlayHeight = 0;
-
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc.player == null || mc.world == null) return;
-        if (mc.gameSettings.showDebugInfo) return;
-        if (mc.currentScreen != null && !(mc.currentScreen instanceof GuiChat)) return;
-        if (!isHoldingLocator(mc.player.getHeldItemMainhand()) && !isHoldingLocator(mc.player.getHeldItemOffhand())) return;
+    @Override
+    public boolean isActive(Minecraft mc) {
+        if (mc.player == null || mc.world == null) return false;
+        if (!isHoldingLocator(mc.player.getHeldItemMainhand()) && !isHoldingLocator(mc.player.getHeldItemOffhand())) {
+            return false;
+        }
 
         List<AlarmLocation> alarms = LevelMonitorAlarmClientState.getActiveAlarms();
-        if (alarms.isEmpty()) return;
+        return !alarms.isEmpty();
+    }
+
+    @Override
+    public HudOverlayManager.OverlayAnchor getAnchor() {
+        return HudOverlayManager.OverlayAnchor.TOP_LEFT_STACK;
+    }
+
+    @Override
+    public HudOverlayManager.OverlayStyle getStyle() {
+        return HudOverlayManager.OverlayStyle.BOXED;
+    }
+
+    @Override
+    public List<HudOverlayManager.HudOverlayLine> getLines(Minecraft mc) {
+        List<AlarmLocation> alarms = LevelMonitorAlarmClientState.getActiveAlarms();
+        if (alarms.isEmpty()) return new ArrayList<>();
 
         List<String> lines = new ArrayList<>();
         List<Integer> colors = new ArrayList<>();
-        List<BlockPos> sameDimensionTargets = new ArrayList<>();
         BlockPos playerPos = mc.player.getPosition();
 
         for (AlarmLocation alarm : alarms) {
             if (alarm.getDimensionId() != mc.player.dimension) continue;
-
-            sameDimensionTargets.add(alarm.getPos());
 
             double distance = alarm.getPos().distanceSq(playerPos);
             lines.add(String.format("[%d, %d, %d] - %s",
@@ -64,12 +71,17 @@ public class LevelMonitorAlarmArrowRenderer {
             colors.add(ARROW_COLOR);
         }
 
-        if (lines.isEmpty()) return;
+        return HudOverlayManager.HudOverlayLine.textLines(lines, colors);
+    }
 
-        int boxY = TrackedLocationRenderer.getExternalPadding()
-            + ScannerRenderer.getOverlayHeight()
-            + LocatorRenderer.getOverlayHeight();
-        lastOverlayHeight = TrackedLocationRenderer.drawOverlayBox(mc, boxY, lines, colors);
+    @Override
+    public int getPriority() {
+        return 20;
+    }
+
+    @Override
+    public void onOverlayRendered(int renderedHeight) {
+        lastOverlayHeight = renderedHeight;
     }
 
     @SubscribeEvent

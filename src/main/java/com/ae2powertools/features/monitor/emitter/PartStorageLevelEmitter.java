@@ -12,14 +12,18 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
+import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.parts.IPartCollisionHelper;
 import appeng.api.parts.IPartModel;
+import appeng.api.config.Upgrades;
 import appeng.items.parts.PartModels;
+import appeng.parts.automation.UpgradeInventory;
 import appeng.parts.PartModel;
 import appeng.util.Platform;
+import appeng.util.inv.InvOperation;
 
 import com.ae2powertools.Tags;
 import com.ae2powertools.features.monitor.dependent.MonitorHostType;
@@ -31,7 +35,7 @@ import com.ae2powertools.features.monitor.dependent.PartStorageMonitorBase;
  * Cable part variant of the ME Storage Level Emitter.
  * Attaches to AE2 cables, uses grid ticking for refresh, provides redstone on its face.
  */
-public class PartStorageLevelEmitter extends PartStorageMonitorBase implements IEmitterRedstoneHost {
+public class PartStorageLevelEmitter extends PartStorageMonitorBase implements IEmitterCardHost {
 
     // Part model resources
     private static final ResourceLocation MODEL_BASE =
@@ -50,10 +54,31 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     }
 
     private final LevelEmitterLogic emitterLogic;
+    private final EmitterUpgradeInventory upgrades = new EmitterUpgradeInventory(this);
 
     public PartStorageLevelEmitter(ItemStack is) {
         super(is);
         this.emitterLogic = new LevelEmitterLogic(monitorLogic);
+    }
+
+    @Override
+    public UpgradeInventory getUpgradeInventory() {
+        return upgrades;
+    }
+
+    @Override
+    public int getInstalledUpgrades(Upgrades upgrade) {
+        return upgrades.getInstalledUpgrades(upgrade);
+    }
+
+    @Override
+    public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removedStack, ItemStack newStack) {
+        if (inv != upgrades) return;
+
+        markDirtyAndSave();
+        monitorLogic.refresh();
+
+        if (getHost() != null) getHost().markForUpdate();
     }
 
     // --- Grid ticking ---
@@ -147,13 +172,24 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
+        upgrades.readFromNBT(tag, "upgrades");
         emitterLogic.readFromNBT(tag);
     }
 
     @Override
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
+        upgrades.writeToNBT(tag, "upgrades");
         emitterLogic.writeToNBT(tag);
+    }
+
+    @Override
+    public void getDrops(List<ItemStack> drops, boolean wrenched) {
+        super.getDrops(drops, wrenched);
+
+        for (ItemStack stack : upgrades) {
+            if (!stack.isEmpty()) drops.add(stack.copy());
+        }
     }
 
     // --- Network sync ---

@@ -1,8 +1,7 @@
 package com.ae2powertools.items;
 
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -20,7 +19,6 @@ import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 import net.minecraftforge.fml.relauncher.Side;
@@ -37,7 +35,6 @@ import appeng.util.ConfigManager;
 import appeng.util.Platform;
 
 import baubles.api.BaubleType;
-import baubles.api.BaublesApi;
 import baubles.api.IBauble;
 
 import com.ae2powertools.PowerToolsCreativeTab;
@@ -47,7 +44,8 @@ import com.ae2powertools.features.remotemonitor.RemoteMonitorSessionManager;
 import com.ae2powertools.network.PacketRemoteMonitorOpenGui;
 import com.ae2powertools.network.PacketRemoteMonitorSync;
 import com.ae2powertools.network.PowerToolsNetwork;
-import com.ae2powertools.util.PollingRateUtils;
+import com.ae2powertools.util.DeviceItemAccess;
+import com.ae2powertools.util.FormatUtil;
 
 
 /**
@@ -57,12 +55,12 @@ import com.ae2powertools.util.PollingRateUtils;
 @Optional.Interface(iface = "baubles.api.IBauble", modid = "baubles")
 public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandler, IBauble {
 
-    private static final String NBT_DEVICE_ID = "DeviceId";
     private static final String NBT_REFRESH_RATE = "RefreshRate";
     private static final String NBT_SLIDING_WINDOW = "SlidingWindow";
     private static final String NBT_RESOURCES = "Resources";
 
-    private static final Map<NBTTagCompound, Long> DEVICE_ID_CACHE = new IdentityHashMap<>();
+    private static final DeviceItemAccess DEVICE_ACCESS = new DeviceItemAccess(
+        ItemRemoteStorageMonitor.class, true);
 
     public ItemRemoteStorageMonitor() {
         this.setRegistryName(Tags.MODID, "remote_storage_monitor");
@@ -72,60 +70,23 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
     }
 
     public static long getDeviceId(ItemStack stack) {
-        if (stack.isEmpty()) return 0L;
-
-        NBTTagCompound nbt = stack.getTagCompound();
-        if (nbt != null) {
-            Long cached = DEVICE_ID_CACHE.get(nbt);
-            if (cached != null) return cached;
-        }
-
-        if (nbt == null) {
-            nbt = new NBTTagCompound();
-            stack.setTagCompound(nbt);
-        }
-
-        if (!nbt.hasKey(NBT_DEVICE_ID)) nbt.setLong(NBT_DEVICE_ID, System.nanoTime());
-
-        long deviceId = nbt.getLong(NBT_DEVICE_ID);
-        DEVICE_ID_CACHE.put(nbt, deviceId);
-        return deviceId;
+        return DEVICE_ACCESS.getOrCreateDeviceId(stack);
     }
 
-    public static ItemStack findMonitorByDeviceId(EntityPlayer player, long deviceId) {
-        if (deviceId == 0L) return ItemStack.EMPTY;
-
-        // TODO: Consider caching the deviceId -> last known position to avoid a full inventory scan each tick.
-
-        for (ItemStack stack : player.inventory.mainInventory) {
-            if (isMatchingMonitor(stack, deviceId)) return stack;
-        }
-
-        for (ItemStack stack : player.inventory.offHandInventory) {
-            if (isMatchingMonitor(stack, deviceId)) return stack;
-        }
-
-        if (Loader.isModLoaded("baubles")) {
-            ItemStack baubleStack = findMonitorInBaubles(player, deviceId);
-            if (!baubleStack.isEmpty()) return baubleStack;
-        }
-
-        return ItemStack.EMPTY;
+    public static ItemStack getMonitorInInventory(EntityPlayer player, long deviceId) {
+        return DEVICE_ACCESS.findDeviceOnPlayerById(player, deviceId);
     }
 
-    private static boolean isMatchingMonitor(ItemStack stack, long deviceId) {
-        if (stack.isEmpty() || !(stack.getItem() instanceof ItemRemoteStorageMonitor)) return false;
-        return getDeviceId(stack) == deviceId;
+    public static ItemStack getHeldMonitor(EntityPlayer player, long deviceId) {
+        return DEVICE_ACCESS.findHeldDeviceById(player, deviceId);
     }
 
-    @Optional.Method(modid = "baubles")
-    private static ItemStack findMonitorInBaubles(EntityPlayer player, long deviceId) {
-        for (int slot = 0; slot < BaublesApi.getBaublesHandler(player).getSlots(); slot++) {
-            ItemStack stack = BaublesApi.getBaublesHandler(player).getStackInSlot(slot);
-            if (isMatchingMonitor(stack, deviceId)) return stack;
-        }
+    public static ItemStack getHeldMonitor(EntityPlayer player) {
+        return DEVICE_ACCESS.findHeldDevice(player);
+    }
 
-        return ItemStack.EMPTY;
+    public static void clearMonitorLocationCache(UUID playerId, long deviceId) {
+        DEVICE_ACCESS.clearCachedLocation(playerId, deviceId);
     }
 
     public static void syncToClient(EntityPlayerMP player, long deviceId) {
@@ -247,11 +208,7 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
         }
 
         long deviceId = getDeviceId(stack);
-        RemoteMonitorSessionManager.RemoteMonitorSession session = RemoteMonitorSessionManager.getOrCreateSession(
-            this,
-            (EntityPlayerMP) player,
-            stack,
-            deviceId);
+        RemoteMonitorSessionManager.getOrCreateSession(this, (EntityPlayerMP) player, stack, deviceId);
         syncToClient((EntityPlayerMP) player, deviceId);
         PowerToolsNetwork.INSTANCE.sendTo(new PacketRemoteMonitorOpenGui(deviceId), (EntityPlayerMP) player);
 
@@ -367,7 +324,7 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
         tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2powertools.remote_storage_monitor.tip2"));
         tooltip.add(TextFormatting.GRAY + I18n.format(
             "item.ae2powertools.remote_storage_monitor.tip3",
-            PollingRateUtils.format(getStoredRefreshRate(stack)),
-            PollingRateUtils.format(getStoredSlidingWindow(stack))));
+            FormatUtil.formatTimeTicks(getStoredRefreshRate(stack)),
+            FormatUtil.formatTimeTicks(getStoredSlidingWindow(stack))));
     }
 }
