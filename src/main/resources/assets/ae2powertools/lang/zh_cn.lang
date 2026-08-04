@@ -3,6 +3,11 @@ itemGroup.ae2powertools=AE2 PowerTools
 
 # Common strings
 ae2powertools.common.unknown=未知
+ae2powertools.common.upgrade.title=选择升级卡
+ae2powertools.common.upgrade.empty=点击选择一项升级卡。
+ae2powertools.common.upgrade.compatible=兼容：
+ae2powertools.common.upgrade.action.select=左键点击选择另一升级卡
+ae2powertools.common.upgrade.action.remove=右键点击移除升级卡
 
 # Config GUI and keys for the config factory
 ae2powertools.config.title=AE2 PowerTools设置
@@ -245,18 +250,18 @@ gui.ae2powertools.maintainer.error.extraction_failed=物品可见但无法提取
 # =====================================================
 
 # Items
-item.ae2powertools.cards_distributor.name=卡片分配器
-item.ae2powertools.cards_distributor.tip1=对网络右击以从物品栏中分配卡片
-item.ae2powertools.cards_distributor.tip1bis=对网络右击以从物品栏和链接的AE2存储中分配卡片
+item.ae2powertools.cards_distributor.name=升级卡分配器
+item.ae2powertools.cards_distributor.tip1=对网络右击以从物品栏中分配升级卡
+item.ae2powertools.cards_distributor.tip1bis=对网络右击以从物品栏和链接的AE2存储中分配升级卡
 item.ae2powertools.cards_distributor.tip2=支持分子装配室（加速卡）
 item.ae2powertools.cards_distributor.no_network=该位置未找到AE2网络。
 item.ae2powertools.cards_distributor.use_on_network=对网络组件右击以分配加速卡。
 
 # Messages
 item.ae2powertools.cards_distributor.success_accelerator=向%2$d个装配室分配了%1$d张加速卡。
-item.ae2powertools.cards_distributor.still_needed=还需%d张卡片才能完全升级%d个装配室。
+item.ae2powertools.cards_distributor.still_needed=还需%d张升级卡才能完全升级%d个装配室。
 item.ae2powertools.cards_distributor.all_full=网络中的所有装配室都已完全升级！
-item.ae2powertools.cards_distributor.pulled_from_ae2=从AE2网络存储中取出了%d张卡片。
+item.ae2powertools.cards_distributor.pulled_from_ae2=从AE2网络存储中取出了%d张升级卡。
 
 # =====================================================
 # Remote Storage Monitor
@@ -352,6 +357,8 @@ ae2powertools.config.server.maintainer.maxCpuRetryCount.tooltip=任务在进入�
 # TOP/WAILA
 tooltip.ae2powertools.performance.none=方块工作：暂无样本
 tooltip.ae2powertools.performance.summary=方块工作：最近 %1$s / 平均 %2$s / 最大 %3$s
+tooltip.ae2powertools.maintainer.cpus=合成CPU：§a%1$s§r / §8%2$s§r
+tooltip.ae2powertools.maintainer.recipes=配方：§a%1$s§r / §8%2$s§r / §c%3$s§r / §5%4$s§r
 tooltip.ae2powertools.crafter.next_operation=距下次操作还有 %s
 tooltip.ae2powertools.crafter.user_error.catalyst=§c错误：缺失催化剂§r
 tooltip.ae2powertools.crafter.user_error.pattern=§c错误：无效样板§r
@@ -364,6 +371,10 @@ tooltip.ae2powertools.crafter.patterns.active_full=样板：§a%1$s 活跃§r / 
 tooltip.ae2powertools.crafter.patterns.active_disabled=样板：§a%1$s 活跃§r / §7%2$s 已禁用§r
 tooltip.ae2powertools.crafter.patterns.full_disabled=样板：§e%1$s 已满§r / §7%2$s 已禁用§r
 tooltip.ae2powertools.crafter.patterns.active_full_disabled=样板：§a%1$s 活跃§r / §e%2$s 已满§r / §7%3$s 已禁用§r
+tooltip.ae2powertools.storage_emitter.card.fuzzy=升级卡：§e模糊§r
+tooltip.ae2powertools.storage_emitter.card.crafting=升级卡：§e合成§r
+tooltip.ae2powertools.storage_emitter.redstone.weak=红石输出：§b弱信号§r
+tooltip.ae2powertools.storage_emitter.redstone.strong=红石输出：§d强信号§r
 
 # GUI - Main
 gui.ae2powertools.crafter.title=自动合成器
@@ -533,6 +544,8 @@ gui.ae2powertools.storage_emitter.polling_rate.description=点击配置存储内
 gui.ae2powertools.storage_emitter.strength=强度
 gui.ae2powertools.storage_emitter.strength.tooltip=红石强度
 gui.ae2powertools.storage_emitter.strength.description=红石强度指直接相邻方块接收到的初始强度。随后每传导一个红石粉，信号强度衰减1。
+gui.ae2powertools.storage_emitter.upgrade.fuzzy.description=将所有匹配的物品变种合并计数，而不只是精确匹配所选的物品堆叠。
+gui.ae2powertools.storage_emitter.upgrade.crafting.description=追踪当前正在合成的物品，而非网络中已存储的物品。
 gui.ae2powertools.storage_emitter.empty_slot=未选择资源
 gui.ae2powertools.storage_emitter.current_quantity=当前：%s
 gui.ae2powertools.storage_emitter.current_target=目标：%s %s (%s)
