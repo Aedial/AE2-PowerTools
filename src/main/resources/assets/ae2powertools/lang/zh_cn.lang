@@ -415,7 +415,7 @@ gui.ae2powertools.crafter.occupancy_desc=实际完成量占请求批量的百分
 gui.ae2powertools.crafter.error_rate_desc=配方无法执行（错误状态）的操作占总尝试次数的比例
 gui.ae2powertools.crafter.crafts_per_operation=每%2$s合成%1$s
 gui.ae2powertools.crafter.issues=问题
-gui.ae2powertools.crafter.crafts_per_operation=%s 物品 / %s
+gui.ae2powertools.crafter.crafts_per_operation=§2%s§8 物品 / %s
 
 # GUI - Errors
 gui.ae2powertools.crafter.error.not_pattern=物品不是合成样板
@@ -425,12 +425,12 @@ gui.ae2powertools.crafter.error.processing_pattern=仅支持合成样板，不�
 # GUI - Warnings (tooltips)
 gui.ae2powertools.crafter.warning.processing_pattern_title=警告：处理样板！
 gui.ae2powertools.crafter.warning.processing_pattern_desc=自动合成器仅接受合成样板。
-gui.ae2powertools.crafter.error.need_have=%s（需要%d，现有%d）
-gui.ae2powertools.crafter.error.limited_by=受限于%s（分配%d，需要%d）
+gui.ae2powertools.crafter.error.need_have=§b%s§7（需要§r%d§7，现有§r%d§7）
+gui.ae2powertools.crafter.error.limited_by=受限于§b%s§7（分配§r%d§7，需要§r%d§7）
 gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
-gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂：%s
-gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误：应当是%s，实际为%s
-gui.ae2powertools.crafter.error.pending_output=无法将%d x %s插入网络
+gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂§7：§b%s
+gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误§7：应当是§b%s§7，实际为%s
+gui.ae2powertools.crafter.error.pending_output=无法将%d§7 x %s§7插入网络
 gui.ae2powertools.crafter.error.inputs_changed=所需输入原料在提取前从网络中消失了（你的网络中可能存在幽灵物品）
 gui.ae2powertools.crafter.error.catalyst_recipe_mismatch=当前催化剂物品与编码样板不再匹配
 gui.ae2powertools.crafter.error.output_mismatch=当前催化剂物品导致的产物与编码样板不同
