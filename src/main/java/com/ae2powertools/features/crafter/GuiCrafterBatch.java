@@ -13,6 +13,7 @@ import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.StepAdjustmentButtons;
 
 
 /**
@@ -24,14 +25,7 @@ public class GuiCrafterBatch extends AEBaseGui {
     private GuiTextField sizeField;
     private GuiTabButton backBtn;
 
-    private GuiButton plus1;
-    private GuiButton plus10;
-    private GuiButton plus100;
-    private GuiButton plus1000;
-    private GuiButton minus1;
-    private GuiButton minus10;
-    private GuiButton minus100;
-    private GuiButton minus1000;
+    private final StepAdjustmentButtons batchButtons = StepAdjustmentButtons.forNumeric(1, 10, 100, 1000);
 
     private final ContainerCrafterBatch container;
 
@@ -51,20 +45,7 @@ public class GuiCrafterBatch extends AEBaseGui {
         super.initGui();
 
         // Button increments
-        final int a = 1;
-        final int b = 10;
-        final int c = 100;
-        final int d = 1000;
-
-        this.buttonList.add(this.plus1 = new GuiButton(0, this.guiLeft + 20, this.guiTop + 32, 22, 20, "+" + a));
-        this.buttonList.add(this.plus10 = new GuiButton(1, this.guiLeft + 48, this.guiTop + 32, 28, 20, "+" + b));
-        this.buttonList.add(this.plus100 = new GuiButton(2, this.guiLeft + 82, this.guiTop + 32, 32, 20, "+" + c));
-        this.buttonList.add(this.plus1000 = new GuiButton(3, this.guiLeft + 120, this.guiTop + 32, 38, 20, "+" + d));
-
-        this.buttonList.add(this.minus1 = new GuiButton(4, this.guiLeft + 20, this.guiTop + 69, 22, 20, "-" + a));
-        this.buttonList.add(this.minus10 = new GuiButton(5, this.guiLeft + 48, this.guiTop + 69, 28, 20, "-" + b));
-        this.buttonList.add(this.minus100 = new GuiButton(6, this.guiLeft + 82, this.guiTop + 69, 32, 20, "-" + c));
-        this.buttonList.add(this.minus1000 = new GuiButton(7, this.guiLeft + 120, this.guiTop + 69, 38, 20, "-" + d));
+        this.batchButtons.addTo(this.buttonList, this.guiLeft, this.guiTop);
 
         // Back button
         TileAutoCrafter tile = container.getTile();
@@ -129,44 +110,38 @@ public class GuiCrafterBatch extends AEBaseGui {
             return;
         }
 
-        final boolean isPlus = btn == this.plus1 || btn == this.plus10 || btn == this.plus100 || btn == this.plus1000;
-        final boolean isMinus = btn == this.minus1 || btn == this.minus10 || btn == this.minus100 || btn == this.minus1000;
+        if (!this.batchButtons.manages(btn)) return;
 
-        if (isPlus || isMinus) this.addQty(this.getButtonQty(btn));
+        this.applyAdjustedBatchValue(btn);
     }
 
-    private int getButtonQty(GuiButton btn) {
-        if (btn == this.plus1) return 1;
-        if (btn == this.plus10) return 10;
-        if (btn == this.plus100) return 100;
-        if (btn == this.plus1000) return 1000;
-
-        if (btn == this.minus1) return -1;
-        if (btn == this.minus10) return -10;
-        if (btn == this.minus100) return -100;
-        if (btn == this.minus1000) return -1000;
-
-        return 0;
-    }
-
-    private void addQty(int delta) {
+    private void applyAdjustedBatchValue(GuiButton button) {
         try {
-            String out = this.sizeField.getText();
-
-            // Remove leading zeros
-            while (out.startsWith("0") && out.length() > 1) out = out.substring(1);
-
-            if (out.isEmpty()) out = "1";
-
-            long parsed = Long.parseLong(out);
-            parsed += delta;
-            int result = (int) Math.max(TileAutoCrafter.MIN_BATCH_SIZE, Math.min(Integer.MAX_VALUE, parsed));
-
-            this.sizeField.setText(Integer.toString(result));
-            PowerToolsNetwork.INSTANCE.sendToServer(new PacketSetCrafterBatch(container.getTile().getPos(), result));
+            long adjustedValue = this.batchButtons.getAdjustedValue(
+                button,
+                parseCurrentBatchField(),
+                TileAutoCrafter.MIN_BATCH_SIZE,
+                Integer.MAX_VALUE);
+            setBatchValue((int) adjustedValue);
         } catch (NumberFormatException e) {
             this.sizeField.setText("1");
         }
+    }
+
+    private long parseCurrentBatchField() {
+        String out = this.sizeField.getText();
+
+        // Remove leading zeros
+        while (out.startsWith("0") && out.length() > 1) out = out.substring(1);
+
+        if (out.isEmpty()) out = "1";
+
+        return Long.parseLong(out);
+    }
+
+    private void setBatchValue(int value) {
+        this.sizeField.setText(Integer.toString(value));
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketSetCrafterBatch(container.getTile().getPos(), value));
     }
 
     @Override

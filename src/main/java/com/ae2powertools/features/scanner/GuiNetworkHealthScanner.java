@@ -82,8 +82,6 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private static final int ICON_NAME_V = 4 * 16;
     private static final int ICON_SUBNET_U = 5 * 16;    // Wireless icon for subnet toggle
     private static final int ICON_SUBNET_V = 0;
-    private static final int ICON_PATTERN_U = 15 * 16;  // "Pattern" icon at column 15, row 7
-    private static final int ICON_PATTERN_V = 7 * 16;
 
     // Dynamic dimensions
     private int guiWidth;
@@ -1096,14 +1094,14 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.scanner.subnet.title"));
         if (enabled) {
-            tooltip.add("§a" + I18n.format("gui.ae2powertools.scanner.subnet.enabled") + "§r");
+            tooltip.add("§a" + I18n.format("gui.ae2powertools.scanner.subnet.enabled"));
         } else {
-            tooltip.add("§c" + I18n.format("gui.ae2powertools.scanner.subnet.disabled") + "§r");
+            tooltip.add("§c" + I18n.format("gui.ae2powertools.scanner.subnet.disabled"));
         }
 
         tooltip.add("");
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.scanner.subnet.click_toggle") + "§r");
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.scanner.subnet.hint") + "§r");
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.scanner.subnet.click_toggle"));
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.scanner.subnet.hint"));
 
         drawHoveringText(tooltip, mouseX, mouseY);
     }

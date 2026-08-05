@@ -20,6 +20,7 @@ import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 import com.ae2powertools.network.PacketStorageEntryStateSync;
 import com.ae2powertools.network.PacketSyncMonitorEntries;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.ContainerListenerSync;
 import com.ae2powertools.util.upgrade.UpgradeInventoryUtil;
 
 
@@ -140,11 +141,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         lastEntriesVersion = currentVersion;
 
         PacketSyncMonitorEntries packet = new PacketSyncMonitorEntries(host.getEntries());
-        for (Object listener : this.listeners) {
-            if (listener instanceof EntityPlayerMP) {
-                PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) listener);
-            }
-        }
+        ContainerListenerSync.sendToPlayerListeners(this.listeners, packet);
     }
 
     /**
@@ -184,11 +181,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
         System.arraycopy(conditions, 0, cachedConditions, 0, n);
 
         PacketStorageEntryStateSync packet = new PacketStorageEntryStateSync(quantities, conditions);
-        for (Object listener : this.listeners) {
-            if (listener instanceof EntityPlayerMP) {
-                PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) listener);
-            }
-        }
+        ContainerListenerSync.sendToPlayerListeners(this.listeners, packet);
     }
 
     /**
@@ -199,13 +192,14 @@ public class ContainerStorageMonitor extends AEBaseContainer {
     public void addListener(IContainerListener listener) {
         super.addListener(listener);
 
-        if (!Platform.isServer() || !(listener instanceof EntityPlayerMP)) return;
+        EntityPlayerMP mp = ContainerListenerSync.getPlayerListener(listener);
+        if (!Platform.isServer() || mp == null) return;
 
         // Push the full entry list immediately so the freshly-opened GUI doesn't
         // start blank waiting for the next mutation.
         PowerToolsNetwork.INSTANCE.sendTo(
             new PacketSyncMonitorEntries(host.getEntries()),
-            (EntityPlayerMP) listener);
+            mp);
         lastEntriesVersion = host.getMonitorLogic().getEntriesVersion();
 
         List<MonitoredEntry> entries = host.getEntries();
@@ -221,7 +215,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
 
         PowerToolsNetwork.INSTANCE.sendTo(
             new PacketStorageEntryStateSync(quantities, conditions),
-            (EntityPlayerMP) listener);
+            mp);
     }
 
     private void syncFromHost() {

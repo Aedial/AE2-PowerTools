@@ -264,11 +264,11 @@ public class GuiComponentLocator extends GuiScreen {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.locator.style.title"));
         if (useTallView) {
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.tall") + "§r");
+            tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.tall"));
         } else {
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.small") + "§r");
+            tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.small"));
         }
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.click_toggle") + "§r");
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.click_toggle"));
 
         drawHoveringText(tooltip, mouseX, mouseY);
     }
@@ -317,12 +317,12 @@ public class GuiComponentLocator extends GuiScreen {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.locator.subnet.title"));
         if (subnetEnabled) {
-            tooltip.add("§a" + I18n.format("gui.ae2powertools.locator.subnet.enabled") + "§r");
+            tooltip.add("§a" + I18n.format("gui.ae2powertools.locator.subnet.enabled"));
         } else {
-            tooltip.add("§c" + I18n.format("gui.ae2powertools.locator.subnet.disabled") + "§r");
+            tooltip.add("§c" + I18n.format("gui.ae2powertools.locator.subnet.disabled"));
         }
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.subnet.click_toggle") + "§r");
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.subnet.hint") + "§r");
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.subnet.click_toggle"));
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.subnet.hint"));
 
         drawHoveringText(tooltip, mouseX, mouseY);
     }

@@ -12,7 +12,7 @@ import appeng.api.networking.security.IActionSource;
 
 /**
  * Action source used ONLY when calling {@code ICraftingGrid.beginCraftingJob(...)}.
- *
+ * <p>
  * Why this exists:
  *   AE2's {@code CraftingJob.handlePausing()} contains a latent bug where the
  *   {@code craftingTreeWatch} stopwatch is stopped during a pause but never restarted on
@@ -21,19 +21,19 @@ import appeng.api.networking.security.IActionSource;
  *   as "Failed to calculate crafting job". The pause/resume code path is gated entirely on
  *   {@code !actionSrc.player().isPresent()}, presenting a player short-circuits the buggy
  *   branch without altering AE2's calculation result.
- *
+ * <p>
  * What this source does:
  *   - {@code player()} returns a Forge fake player only while AE2 evaluates
  *     {@code handlePausing()}, so the buggy AE2 pause/resume branch is skipped without making
  *     the whole calculation look like an intentional player craft to other integrations.
  *   - {@code machine()} still returns the real tile so any pattern provider that introspects
  *     the source via {@code machine()} sees the maintainer.
- *
+ * <p>
  * What this source does NOT do:
  *   - It is NOT used for {@code submitJob}, {@code injectCraftedItems}, or any real network
  *     extraction. Those keep using the original {@link appeng.me.helpers.MachineSource}, so
  *     AE2 security/permission checks on actual item movement remain unchanged.
- *
+ * <p>
  * Trade-off:
  *   With a player source, AE2 will not yield the calculation thread between ticks. Big
  *   crafting trees burn one worker thread continuously instead of cooperatively pausing.

@@ -10,7 +10,9 @@ import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
 
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraftforge.fml.common.network.ByteBufUtils;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
@@ -21,13 +23,16 @@ import appeng.util.item.AEItemStack;
  * <p>
  * Used by the recipe view (current page) to render:
  * - 3x3 input grid ghost items
+ * - the encoded pattern stack for the current page
+ * - the current catalyst row contents for the current page
  * - catalyst slot expectations (ghost overlays)
  * - current state (recipe view also displays state info)
  * - error details (verbose tooltip)
  * <p>
- * The pattern itself lives in a real Slot and is sync'd by vanilla container code.
  * We sync the derived recipe info because it lives entirely on the server and the
- * client cannot reconstruct it without recipe lookup logic.
+ * client cannot reconstruct it without recipe lookup logic. The current page's real
+ * slot items are also mirrored here so rendering does not depend on vanilla slot-sync
+ * timing during page changes or shift-click transfers.
  */
 public final class CrafterRecipeSnapshot {
 
@@ -35,7 +40,9 @@ public final class CrafterRecipeSnapshot {
         new IAEItemStack[9],
         Collections.emptyList(),
         Collections.emptyList(),
-        false
+        false,
+        ItemStack.EMPTY,
+        new ItemStack[CrafterEntry.CATALYST_SLOTS]
     );
 
     /**
@@ -69,6 +76,8 @@ public final class CrafterRecipeSnapshot {
     }
 
     private final IAEItemStack[] inputGrid;
+    private final ItemStack patternStack;
+    private final ItemStack[] catalystStacks;
     private final List<CatalystExpectation> catalysts;
     private final List<ITextComponent> errorDetails;
     private final boolean hasDisplayData;
@@ -76,8 +85,12 @@ public final class CrafterRecipeSnapshot {
     public CrafterRecipeSnapshot(IAEItemStack[] inputGrid,
                                  List<CatalystExpectation> catalysts,
                                  List<ITextComponent> errorDetails,
-                                 boolean hasDisplayData) {
+                                 boolean hasDisplayData,
+                                 ItemStack patternStack,
+                                 ItemStack[] catalystStacks) {
         this.inputGrid = inputGrid;
+        this.patternStack = patternStack == null || patternStack.isEmpty() ? ItemStack.EMPTY : patternStack.copy();
+        this.catalystStacks = copyCatalystStacks(catalystStacks);
         this.catalysts = catalysts;
         this.errorDetails = errorDetails;
         this.hasDisplayData = hasDisplayData;
@@ -87,12 +100,14 @@ public final class CrafterRecipeSnapshot {
      * Captures the current recipe state of an entry on the server.
      */
     public static CrafterRecipeSnapshot fromEntry(CrafterEntry entry) {
+        ItemStack patternStack = entry.hasPattern() ? entry.getPatternStack().copy() : ItemStack.EMPTY;
+        ItemStack[] catalystStacks = copyCatalystStacks(entry);
         boolean hasDisplay = entry.hasPattern() && entry.hasValidRecipeInfo();
         if (!hasDisplay) {
             // Even when there is no recipe info, we still want to send error details
             // (the entry might be in SIMULATION_FAILED state with helpful messages).
             return new CrafterRecipeSnapshot(new IAEItemStack[9], Collections.emptyList(),
-                copyComponents(entry.getErrorDetails()), false);
+                copyComponents(entry.getErrorDetails()), false, patternStack, catalystStacks);
         }
 
         IAEItemStack[] grid = new IAEItemStack[9];
@@ -112,11 +127,37 @@ public final class CrafterRecipeSnapshot {
             }
         }
 
-        return new CrafterRecipeSnapshot(grid, catalysts, copyComponents(entry.getErrorDetails()), true);
+        return new CrafterRecipeSnapshot(
+            grid,
+            catalysts,
+            copyComponents(entry.getErrorDetails()),
+            true,
+            patternStack,
+            catalystStacks);
     }
 
     private static List<ITextComponent> copyComponents(List<ITextComponent> source) {
         return source.isEmpty() ? Collections.emptyList() : new ArrayList<>(source);
+    }
+
+    private static ItemStack[] copyCatalystStacks(CrafterEntry entry) {
+        ItemStack[] copy = new ItemStack[CrafterEntry.CATALYST_SLOTS];
+        for (int i = 0; i < copy.length; i++) {
+            ItemStack stack = entry.getCatalystStack(i);
+            copy[i] = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
+        }
+
+        return copy;
+    }
+
+    private static ItemStack[] copyCatalystStacks(ItemStack[] source) {
+        ItemStack[] copy = new ItemStack[CrafterEntry.CATALYST_SLOTS];
+        for (int i = 0; i < copy.length; i++) {
+            ItemStack stack = source != null && i < source.length && source[i] != null ? source[i] : ItemStack.EMPTY;
+            copy[i] = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
+        }
+
+        return copy;
     }
 
     public void writeToBuf(ByteBuf buf) throws IOException {
@@ -135,6 +176,11 @@ public final class CrafterRecipeSnapshot {
             buf.writeByte(cat.slotIndex);
             buf.writeBoolean(cat.expectedItem != null);
             if (cat.expectedItem != null) cat.expectedItem.writeToPacket(buf);
+        }
+
+        ByteBufUtils.writeItemStack(buf, patternStack);
+        for (int i = 0; i < catalystStacks.length; i++) {
+            ByteBufUtils.writeItemStack(buf, catalystStacks[i]);
         }
 
         // Error details are serialized as JSON-encoded ITextComponents so the receiving
@@ -160,11 +206,18 @@ public final class CrafterRecipeSnapshot {
             catalysts.add(new CatalystExpectation(slotIndex, expected));
         }
 
+        ItemStack patternStack = ByteBufUtils.readItemStack(buf);
+        ItemStack[] catalystStacks = new ItemStack[CrafterEntry.CATALYST_SLOTS];
+        for (int i = 0; i < catalystStacks.length; i++) {
+            ItemStack stack = ByteBufUtils.readItemStack(buf);
+            catalystStacks[i] = stack.isEmpty() ? ItemStack.EMPTY : stack;
+        }
+
         int errCount = buf.readShort() & 0xFFFF;
         List<ITextComponent> errors = new ArrayList<>(errCount);
         for (int i = 0; i < errCount; i++) errors.add(ITextComponent.Serializer.jsonToComponent(readString(buf)));
 
-        return new CrafterRecipeSnapshot(grid, catalysts, errors, hasDisplay);
+        return new CrafterRecipeSnapshot(grid, catalysts, errors, hasDisplay, patternStack, catalystStacks);
     }
 
     private static void writeString(ByteBuf buf, String s) {
@@ -181,6 +234,8 @@ public final class CrafterRecipeSnapshot {
     }
 
     public IAEItemStack[] getInputGrid() { return inputGrid; }
+    public ItemStack getPatternStack() { return patternStack; }
+    public ItemStack[] getCatalystStacks() { return catalystStacks; }
     public List<CatalystExpectation> getCatalysts() { return catalysts; }
     public List<ITextComponent> getErrorDetails() { return errorDetails; }
     public boolean hasDisplayData() { return hasDisplayData; }
@@ -194,6 +249,11 @@ public final class CrafterRecipeSnapshot {
         if (hasDisplayData != that.hasDisplayData) return false;
         if (!errorDetails.equals(that.errorDetails)) return false;
         if (!catalysts.equals(that.catalysts)) return false;
+        if (!itemStackEquals(patternStack, that.patternStack)) return false;
+
+        for (int i = 0; i < catalystStacks.length; i++) {
+            if (!itemStackEquals(this.catalystStacks[i], that.catalystStacks[i])) return false;
+        }
 
         // Compare input grids
         for (int i = 0; i < 9; i++) {
@@ -211,6 +271,8 @@ public final class CrafterRecipeSnapshot {
         int h = Boolean.hashCode(hasDisplayData);
         h = 31 * h + errorDetails.hashCode();
         h = 31 * h + catalysts.hashCode();
+        h = 31 * h + itemStackHash(patternStack);
+        for (ItemStack stack : catalystStacks) h = 31 * h + itemStackHash(stack);
         for (IAEItemStack s : inputGrid) h = 31 * h + (s == null ? 0 : s.getItem().hashCode());
 
         return h;
@@ -221,5 +283,20 @@ public final class CrafterRecipeSnapshot {
         if (a == null || b == null) return false;
 
         return a.isSameType(b) && a.getStackSize() == b.getStackSize();
+    }
+
+    private static boolean itemStackEquals(ItemStack a, ItemStack b) {
+        if (a.isEmpty() && b.isEmpty()) return true;
+        if (a.isEmpty() || b.isEmpty()) return false;
+        if (!ItemStack.areItemsEqual(a, b)) return false;
+        if (!ItemStack.areItemStackTagsEqual(a, b)) return false;
+
+        return a.getCount() == b.getCount();
+    }
+
+    private static int itemStackHash(ItemStack stack) {
+        if (stack.isEmpty()) return 0;
+
+        return Objects.hash(stack.getItem(), stack.getMetadata(), stack.getCount(), stack.getTagCompound());
     }
 }

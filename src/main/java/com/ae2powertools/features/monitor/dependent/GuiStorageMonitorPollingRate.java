@@ -57,9 +57,9 @@ public class GuiStorageMonitorPollingRate extends AEBaseGui {
             8, 6, 0x404040);
 
         // Centered current rate display.
-        TimeAdjustmentButtons.drawCenteredTimeValue(
+        TimeAdjustmentButtons.drawCenteredValue(
             this.fontRenderer,
-            TimeAdjustmentButtons.formatTimeValue(container.refreshRate),
+            TimeAdjustmentButtons.formatValue(container.refreshRate),
             0,
             this.xSize,
             57,
