@@ -14,6 +14,7 @@ import appeng.client.gui.widgets.GuiNumberBox;
 
 import com.ae2powertools.network.PacketSetTunerPriority;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.StepAdjustmentButtons;
 
 
 /**
@@ -26,8 +27,7 @@ public class GuiPriorityTuner extends GuiContainer {
     private static final ResourceLocation TEXTURE = new ResourceLocation("appliedenergistics2", "textures/guis/priority.png");
 
     private GuiNumberBox priorityField;
-    private GuiButton plus1, plus10, plus100, plus1000;
-    private GuiButton minus1, minus10, minus100, minus1000;
+    private final StepAdjustmentButtons priorityButtons = StepAdjustmentButtons.forNumeric(1, 10, 100, 1000);
 
     private final ContainerPriorityTuner container;
 
@@ -43,15 +43,7 @@ public class GuiPriorityTuner extends GuiContainer {
         super.initGui();
 
         // Priority adjustment buttons
-        this.buttonList.add(this.plus1 = new GuiButton(0, this.guiLeft + 20, this.guiTop + 32, 22, 20, "+1"));
-        this.buttonList.add(this.plus10 = new GuiButton(1, this.guiLeft + 48, this.guiTop + 32, 28, 20, "+10"));
-        this.buttonList.add(this.plus100 = new GuiButton(2, this.guiLeft + 82, this.guiTop + 32, 32, 20, "+100"));
-        this.buttonList.add(this.plus1000 = new GuiButton(3, this.guiLeft + 120, this.guiTop + 32, 38, 20, "+1000"));
-
-        this.buttonList.add(this.minus1 = new GuiButton(4, this.guiLeft + 20, this.guiTop + 69, 22, 20, "-1"));
-        this.buttonList.add(this.minus10 = new GuiButton(5, this.guiLeft + 48, this.guiTop + 69, 28, 20, "-10"));
-        this.buttonList.add(this.minus100 = new GuiButton(6, this.guiLeft + 82, this.guiTop + 69, 32, 20, "-100"));
-        this.buttonList.add(this.minus1000 = new GuiButton(7, this.guiLeft + 120, this.guiTop + 69, 38, 20, "-1000"));
+        this.priorityButtons.addTo(this.buttonList, this.guiLeft, this.guiTop);
 
         // Priority text field
         this.priorityField = new GuiNumberBox(this.fontRenderer, this.guiLeft + 62, this.guiTop + 57, 59, this.fontRenderer.FONT_HEIGHT, Long.class);
@@ -82,36 +74,34 @@ public class GuiPriorityTuner extends GuiContainer {
     protected void actionPerformed(GuiButton button) throws IOException {
         super.actionPerformed(button);
 
-        int adjustment = 0;
+        if (!this.priorityButtons.manages(button)) return;
 
-        if (button == this.plus1) adjustment = 1;
-        else if (button == this.plus10) adjustment = 10;
-        else if (button == this.plus100) adjustment = 100;
-        else if (button == this.plus1000) adjustment = 1000;
-        else if (button == this.minus1) adjustment = -1;
-        else if (button == this.minus10) adjustment = -10;
-        else if (button == this.minus100) adjustment = -100;
-        else if (button == this.minus1000) adjustment = -1000;
-
-        if (adjustment != 0) addPriority(adjustment);
+        applyAdjustedPriority(button);
     }
 
-    private void addPriority(int amount) {
+    private void applyAdjustedPriority(GuiButton button) {
         try {
-            String text = this.priorityField.getText();
-            if (text.isEmpty()) text = "0";
-
-            long current = Long.parseLong(text);
-            current += amount;
-
-            // Clamp to int range
-            current = Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, current));
-
-            this.priorityField.setText(String.valueOf(current));
-            sendPriorityUpdate((int) current);
+            long adjustedValue = this.priorityButtons.getAdjustedValue(
+                button,
+                parseCurrentPriorityField(),
+                Integer.MIN_VALUE,
+                Integer.MAX_VALUE);
+            setPriorityValue((int) adjustedValue);
         } catch (NumberFormatException e) {
             // Ignore invalid input
         }
+    }
+
+    private long parseCurrentPriorityField() {
+        String text = this.priorityField.getText();
+        if (text.isEmpty()) text = "0";
+
+        return Long.parseLong(text);
+    }
+
+    private void setPriorityValue(int priority) {
+        this.priorityField.setText(String.valueOf(priority));
+        sendPriorityUpdate(priority);
     }
 
     @Override

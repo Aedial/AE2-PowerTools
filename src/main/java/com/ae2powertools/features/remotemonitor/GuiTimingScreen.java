@@ -1,5 +1,6 @@
 package com.ae2powertools.features.remotemonitor;
 
+import java.util.Collections;
 import java.io.IOException;
 
 import org.lwjgl.input.Keyboard;
@@ -11,6 +12,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 
 import appeng.client.gui.widgets.GuiTabButton;
+import appeng.client.gui.widgets.ITooltip;
 
 import com.ae2powertools.ItemRegistry;
 import com.ae2powertools.util.TimeAdjustmentButtons;
@@ -86,15 +88,17 @@ public abstract class GuiTimingScreen extends GuiScreen {
 
         this.fontRenderer.drawString(I18n.format(getTitleKey()), this.guiLeft + 8, this.guiTop + 6, 0x404040);
 
-        TimeAdjustmentButtons.drawCenteredTimeValue(
+        TimeAdjustmentButtons.drawCenteredValue(
             this.fontRenderer,
-            TimeAdjustmentButtons.formatTimeValue(this.currentValue),
+            TimeAdjustmentButtons.formatValue(this.currentValue),
             this.guiLeft,
             GUI_WIDTH,
             this.guiTop + 57,
             0xFFFFFF);
 
         this.timeButtons.updateLabels();
+
+        drawBackButtonTooltip(mouseX, mouseY);
     }
 
     @Override
@@ -109,6 +113,21 @@ public abstract class GuiTimingScreen extends GuiScreen {
 
     private void returnToParent() {
         this.mc.displayGuiScreen(new GuiRemoteMonitor(this.deviceId));
+    }
+
+    private void drawBackButtonTooltip(int mouseX, int mouseY) {
+        if (!(this.backBtn instanceof ITooltip) || !this.backBtn.visible) return;
+
+        ITooltip tooltip = (ITooltip) this.backBtn;
+        int x = tooltip.xPos();
+        int y = tooltip.yPos();
+        if (mouseX < x || mouseX >= x + tooltip.getWidth()) return;
+        if (mouseY < y || mouseY >= y + tooltip.getHeight()) return;
+
+        String message = tooltip.getMessage();
+        if (message == null || message.isEmpty()) return;
+
+        this.drawHoveringText(Collections.singletonList(message), x + 11, Math.max(15, y + 4), this.fontRenderer);
     }
 
     protected abstract int getSyncedValue();

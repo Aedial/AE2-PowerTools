@@ -30,6 +30,7 @@ import com.ae2powertools.features.crafter.pmt.PMTSlot;
 import com.ae2powertools.features.crafter.terminal.AutoCrafterPatternActions;
 import com.ae2powertools.items.ItemCrafterSpeedUpgrade;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.util.ContainerListenerSync;
 
 
 /**
@@ -213,6 +214,10 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
             int newPage = tile.getCurrentPage();
             if (newPage != this.syncCurrentPage) {
+                // Repoint the client-side pattern/catalyst slots before vanilla's slot diff for
+                // the new page arrives, just like the initial open path does in addListener().
+                ContainerListenerSync.sendToPlayerListeners(this.listeners, new PacketCrafterPageInit(newPage));
+
                 // Update server-side slot entry indices BEFORE super so that the vanilla
                 // slot diff picks up the new page's pattern + catalysts atomically with
                 // the @GuiSync currentPage update.
@@ -251,11 +256,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         if (changed == null) return;
 
         PacketCrafterOverviewSync packet = new PacketCrafterOverviewSync(changed);
-        for (IContainerListener listener : this.listeners) {
-            if (listener instanceof EntityPlayerMP) {
-                PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) listener);
-            }
-        }
+        ContainerListenerSync.sendToPlayerListeners(this.listeners, packet);
     }
 
     /**
@@ -278,11 +279,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         lastRecipeSnapshot = current;
 
         PacketCrafterRecipeSync packet = new PacketCrafterRecipeSync(currentEntry, current);
-        for (IContainerListener listener : this.listeners) {
-            if (listener instanceof EntityPlayerMP) {
-                PowerToolsNetwork.INSTANCE.sendTo(packet, (EntityPlayerMP) listener);
-            }
-        }
+        ContainerListenerSync.sendToPlayerListeners(this.listeners, packet);
     }
 
     @Override
@@ -295,10 +292,11 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         // the server is actually on. Without this packet, the initial catalyst stacks for the
         // server's actual page leak into the client's entry[0], causing the catalyst to
         // reappear on page 1 when the user navigates back to it later. See PacketCrafterPageInit.
-        if (Platform.isServer() && listener instanceof EntityPlayerMP) {
+        EntityPlayerMP playerListener = ContainerListenerSync.getPlayerListener(listener);
+        if (Platform.isServer() && playerListener != null) {
             PowerToolsNetwork.INSTANCE.sendTo(
                 new PacketCrafterPageInit(tile.getCurrentPage()),
-                (EntityPlayerMP) listener
+                playerListener
             );
         }
 
@@ -306,9 +304,8 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
         // Initial full sync to the new listener. The diff caches are
         // also populated so the very next tick only sends real changes.
-        if (!Platform.isServer() || !(listener instanceof EntityPlayerMP)) return;
-
-        EntityPlayerMP mp = (EntityPlayerMP) listener;
+        EntityPlayerMP mp = ContainerListenerSync.getPlayerListener(listener);
+        if (!Platform.isServer() || mp == null) return;
 
         // Full overview snapshot for all entries
         Map<Integer, CrafterOverviewSnapshot> all = new HashMap<>();
@@ -341,6 +338,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         if (index < 0 || index >= TileAutoCrafter.ENTRY_COUNT) return;
 
         this.syncCurrentPage = index;
+        this.tile.setCurrentPage(index);
         updateSlotsForCurrentPage();
     }
 
@@ -856,7 +854,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     tile.markDirty();
                     // Update PMT inventory
                     if (pmtManager != null) pmtManager.saveChanges();
-                    return original;
+                    return finishTransfer(slot, player, original);
                 }
             }
             return ItemStack.EMPTY;
@@ -872,7 +870,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     entry.setPatternStack(toInsert);
                     tile.simulatePattern(syncCurrentPage, toInsert);
                     tile.markDirty();
-                    return original;
+                    return finishTransfer(slot, player, original);
                 }
             }
 
@@ -893,7 +891,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                         if (tile.getUpgradeStack(i).isEmpty()) {
                             ItemStack toInsert = stack.splitStack(1);
                             tile.setUpgradeStack(i, toInsert);
-                            return original;
+                            return finishTransfer(slot, player, original);
                         }
                     }
                 }
@@ -916,7 +914,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                                     entry.setCatalystStack(slotIdx, toInsert);
                                     tile.validateCatalysts(syncCurrentPage);
                                     tile.markDirty();
-                                    return original;
+                                    return finishTransfer(slot, player, original);
                                 }
                             }
                         }
@@ -938,7 +936,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     entry.setPatternStack(null);
                     tile.simulatePattern(syncCurrentPage, null);
                     tile.markDirty();
-                    return pattern;
+                    return finishTransfer(slot, player, original);
                 }
 
                 // Fall back to player inventory
@@ -946,7 +944,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                     entry.setPatternStack(null);
                     tile.simulatePattern(syncCurrentPage, null);
                     tile.markDirty();
-                    return pattern;
+                    return finishTransfer(slot, player, original);
                 }
             }
         } else if (slotIndex >= SLOT_CATALYST_START && slotIndex < SLOT_UPGRADE_START) {
@@ -959,7 +957,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
                         entry.setCatalystStack(catalystIdx, ItemStack.EMPTY);
                         tile.validateCatalysts(syncCurrentPage);
                         tile.markDirty();
-                        return catalyst;
+                        return finishTransfer(slot, player, original);
                     }
                 }
             }
@@ -969,12 +967,24 @@ public class ContainerAutoCrafter extends AEBaseContainer {
             if (!upgrade.isEmpty()) {
                 if (player.inventory.addItemStackToInventory(upgrade.copy())) {
                     tile.setUpgradeStack(upgradeIdx, ItemStack.EMPTY);
-                    return upgrade;
+                    return finishTransfer(slot, player, original);
                 }
             }
         }
 
         return ItemStack.EMPTY;
+    }
+
+    private ItemStack finishTransfer(Slot slot, EntityPlayer player, ItemStack original) {
+        ItemStack remaining = slot.getStack();
+        if (remaining.isEmpty()) {
+            slot.putStack(ItemStack.EMPTY);
+        } else {
+            slot.onSlotChanged();
+        }
+
+        slot.onTake(player, remaining);
+        return original;
     }
 
     @Override

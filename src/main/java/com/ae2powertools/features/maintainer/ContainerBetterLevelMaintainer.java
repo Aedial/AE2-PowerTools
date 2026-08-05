@@ -32,6 +32,7 @@ import com.ae2powertools.network.PacketCraftableItemsSync;
 import com.ae2powertools.network.PacketMaintainerEntrySync;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.Ae2FluidCraftingCompat;
+import com.ae2powertools.util.ContainerListenerSync;
 
 
 /**
@@ -121,15 +122,16 @@ public class ContainerBetterLevelMaintainer extends Container {
             lastPostErrorRecipes = postErrorRecipes;
 
             // Send sync packet
-            for (IContainerListener listener : this.listeners) {
-                listener.sendWindowProperty(this, 0, openSlots);
-                listener.sendWindowProperty(this, 1, activeCpus);
-                listener.sendWindowProperty(this, 2, totalCpus);
-                listener.sendWindowProperty(this, 3, runningRecipes);
-                listener.sendWindowProperty(this, 4, totalRecipes);
-                listener.sendWindowProperty(this, 5, failedRecipes);
-                listener.sendWindowProperty(this, 6, postErrorRecipes);
-            }
+            ContainerListenerSync.sendWindowProperties(
+                this,
+                this.listeners,
+                openSlots,
+                activeCpus,
+                totalCpus,
+                runningRecipes,
+                totalRecipes,
+                failedRecipes,
+                postErrorRecipes);
         }
 
         // Periodically sync craftable items
@@ -196,7 +198,8 @@ public class ContainerBetterLevelMaintainer extends Container {
         // Resetting the cache is sufficient: every snapshot will diff against null and be
         // sent. The container only ever has one listener (single-player GUI), so resetting
         // the shared cache is safe.
-        if (!(listener instanceof EntityPlayerMP) || player.world.isRemote) return;
+        EntityPlayerMP mp = ContainerListenerSync.getPlayerListener(listener);
+        if (mp == null || player.world.isRemote) return;
 
         lastEntrySnapshots = null;
         lastSentOpenRows = -1;

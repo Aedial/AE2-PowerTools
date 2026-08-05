@@ -7,15 +7,19 @@ package com.ae2powertools.features.monitor.emitter;
  */
 public enum EmitterRedstonePower {
 
-    WEAK(0, "gui.ae2powertools.storage_emitter.redstone_signal.weak"),
-    STRONG(1, "gui.ae2powertools.storage_emitter.redstone_signal.strong");
+    WEAK(0, "gui.ae2powertools.storage_emitter.redstone_signal.weak", 0),
+    STRONG(1, "gui.ae2powertools.storage_emitter.redstone_signal.strong", 1);
+
+    private static final int ICON_INDEX_START = 0 * 16 + 0;
 
     private final int id;
     private final String langKey;
+    private final int iconIndex;
 
-    EmitterRedstonePower(int id, String langKey) {
+    EmitterRedstonePower(int id, String langKey, int iconIndex) {
         this.id = id;
         this.langKey = langKey;
+        this.iconIndex = iconIndex;
     }
 
     public int getId() {
@@ -24,6 +28,10 @@ public enum EmitterRedstonePower {
 
     public String getLangKey() {
         return langKey;
+    }
+
+    public int getIconIndex() {
+        return ICON_INDEX_START + iconIndex;
     }
 
     public EmitterRedstonePower next() {

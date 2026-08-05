@@ -152,9 +152,9 @@ public final class JeiTooltipBridge {
         lines.add(resource.getDisplayName());
 
         String modName = lookupModName(resource);
-        if (modName != null) lines.add("§9§o" + modName + "§r");
+        if (modName != null) lines.add("§9§o" + modName);
 
-        lines.add("§7" + resource.getType().getName() + "§r");
+        lines.add("§7" + resource.getType().getName());
         return lines;
     }
 

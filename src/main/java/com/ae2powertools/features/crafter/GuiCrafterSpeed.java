@@ -52,9 +52,9 @@ public class GuiCrafterSpeed extends AEBaseGui {
         this.fontRenderer.drawString(I18n.format("gui.ae2powertools.crafter.speed.title"), 8, 6, 0x404040);
 
         // Draw the current speed centered in the display area
-        TimeAdjustmentButtons.drawCenteredTimeValue(
+        TimeAdjustmentButtons.drawCenteredValue(
             this.fontRenderer,
-            TimeAdjustmentButtons.formatTimeValue(container.speedTicks),
+            TimeAdjustmentButtons.formatValue(container.speedTicks),
             0,
             this.xSize,
             57,

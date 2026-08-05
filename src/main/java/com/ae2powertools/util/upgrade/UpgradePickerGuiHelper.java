@@ -5,7 +5,6 @@ import java.util.List;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
@@ -19,6 +18,8 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.container.slot.AppEngSlot;
 
+import com.ae2powertools.widgets.AbstractModalGui;
+
 
 /**
  * Shared client-side behavior for passive upgrade-card slots and the click-to-pick modal.
@@ -26,7 +27,7 @@ import appeng.container.slot.AppEngSlot;
  * the rendering, hover logic, and common tooltip text.
  */
 @SideOnly(Side.CLIENT)
-public class UpgradePickerGuiHelper extends Gui {
+public class UpgradePickerGuiHelper extends AbstractModalGui {
 
     private static final ResourceLocation PLAYER_INVENTORY_BACKGROUND = new ResourceLocation(
         "minecraft", "textures/gui/container/generic_54.png");
@@ -62,27 +63,28 @@ public class UpgradePickerGuiHelper extends Gui {
     private static final int DISABLED_SLOT_OVERLAY = 0xAA555555;
     private static final int HOVER_OVERLAY = 0x40FFFFFF;
 
-    private boolean open;
     private int pickerLeft;
     private int pickerTop;
     private int targetUpgradeSlot = -1;
 
+    public UpgradePickerGuiHelper() {
+        super(PICKER_WIDTH, PICKER_HEIGHT);
+    }
+
     public void centerIn(int screenWidth, int screenHeight) {
         pickerLeft = (screenWidth - PICKER_WIDTH) / 2;
         pickerTop = (screenHeight - PICKER_HEIGHT) / 2;
-    }
-
-    public boolean isOpen() {
-        return open;
+        super.setPosition(pickerLeft, pickerTop);
     }
 
     public void open(int slotIndex) {
-        open = true;
+        super.open();
         targetUpgradeSlot = slotIndex;
     }
 
+    @Override
     public void close() {
-        open = false;
+        super.close();
         targetUpgradeSlot = -1;
     }
 
@@ -259,12 +261,8 @@ public class UpgradePickerGuiHelper extends Gui {
             int mouseButton,
             ISelectableUpgradeInventory inventory,
             InventoryPlayer playerInventory) {
-        if (!open) return -1;
-
-        if (!isInsidePicker(mouseX, mouseY)) {
-            close();
-            return -1;
-        }
+        if (!isOpen()) return -1;
+        if (super.mouseClicked(mouseX, mouseY)) return -1;
 
         if (mouseButton != 0 || inventory == null) return -1;
 
@@ -272,11 +270,6 @@ public class UpgradePickerGuiHelper extends Gui {
         if (hoveredPlayerSlot < 0 || !isSelectablePlayerSlot(inventory, playerInventory, hoveredPlayerSlot)) return -1;
 
         return hoveredPlayerSlot;
-    }
-
-    private boolean isInsidePicker(int mouseX, int mouseY) {
-        return mouseX >= pickerLeft && mouseX < pickerLeft + PICKER_WIDTH
-            && mouseY >= pickerTop && mouseY < pickerTop + PICKER_HEIGHT;
     }
 
     private int getPickerPlayerSlotAt(int mouseX, int mouseY) {
