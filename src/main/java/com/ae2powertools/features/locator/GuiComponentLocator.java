@@ -28,7 +28,7 @@ import com.ae2powertools.network.PowerToolsNetwork;
  * Two views in one screen:
  * - Grid view: shows all component types in a 5x4 grid (like AE2 Network Tool's networkstatus.png)
  * - Detail view: shows all locations of a selected component type in a scrollable list
- *
+ * <p>
  * Uses AE2's networkstatus.png as the background texture.
  * Arrows texture from ae2powertools for the back button.
  */
@@ -420,7 +420,7 @@ public class GuiComponentLocator extends GuiScreen {
             GlStateManager.scale(0.5f, 0.5f, 0.5f);
 
             // Base X position for count text (right-aligned to left of icon)
-            int baseCountX = (int) ((x * SECTION_LENGTH + GRID_X_OFFSET + SECTION_LENGTH - 19) * 2);
+            int baseCountX = (x * SECTION_LENGTH + GRID_X_OFFSET + SECTION_LENGTH - 19) * 2;
             // Base Y position for count area (scaled coordinates)
             int baseCountY = (y * ROW_HEIGHT + GRID_Y_OFFSET + 6) * 2;
             int countWidth = fontRenderer.getStringWidth(countStr);
@@ -660,7 +660,7 @@ public class GuiComponentLocator extends GuiScreen {
 
         int maxScroll = Math.max(0, totalRows - visibleRows);
 
-        if (maxScroll <= 0) {
+        if (maxScroll == 0) {
             // Disabled scrollbar - show thumb at top with disabled texture
             drawTexturedModalRect(scrollbarX, scrollbarY, 232 + SCROLLBAR_WIDTH, 0, SCROLLBAR_WIDTH, SCROLLBAR_THUMB_HEIGHT);
         } else {
@@ -680,7 +680,7 @@ public class GuiComponentLocator extends GuiScreen {
         String ellipsis = "...";
         int ellipsisWidth = fontRenderer.getStringWidth(ellipsis);
 
-        while (str.length() > 0 && fontRenderer.getStringWidth(str) + ellipsisWidth > maxWidth) {
+        while (!str.isEmpty() && fontRenderer.getStringWidth(str) + ellipsisWidth > maxWidth) {
             str = str.substring(0, str.length() - 1);
         }
 

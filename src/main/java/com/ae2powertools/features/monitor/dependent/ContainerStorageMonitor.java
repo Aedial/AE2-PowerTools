@@ -3,6 +3,8 @@ package com.ae2powertools.features.monitor.dependent;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -29,7 +31,7 @@ import com.ae2powertools.util.upgrade.UpgradeInventoryUtil;
  * Syncs host fields to the client via @GuiSync, and pushes per-entry
  * quantity / condition state to listeners via {@link PacketStorageEntryStateSync}
  * whenever any of those values change (so the GUI can render live feedback).
- *
+ * <p>
  * Adapts automatically based on the host's {@link IStorageMonitorHost#getHostType()} to decide
  * which fields are relevant.
  */
@@ -189,7 +191,7 @@ public class ContainerStorageMonitor extends AEBaseContainer {
      * so a freshly-opened GUI doesn't have to wait for the next change to render.
      */
     @Override
-    public void addListener(IContainerListener listener) {
+    public void addListener(@Nonnull IContainerListener listener) {
         super.addListener(listener);
 
         EntityPlayerMP mp = ContainerListenerSync.getPlayerListener(listener);

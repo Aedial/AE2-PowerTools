@@ -16,8 +16,8 @@ import com.ae2powertools.features.monitor.MonitoredResource;
 /**
  * TESR (Tile Entity Special Renderer) for the ME Storage Display block.
  * Renders the configured content icon and quantity text on the facing face,
- * sourcing its data from the {@link DisplayLogic}'s client-side render cache so it
- * works the moment the chunk loads (no need to open the GUI first).
+ * sourcing its data from the {@link com.ae2powertools.features.monitor.dependent.DisplayLogic}'s
+ * client-side render cache so it works the moment the chunk loads (no need to open the GUI first).
  * <p>
  * Skips rendering when the player is beyond the configured maximum render distance,
  * or when the player is on the back side of the block (so the back of a screen doesn't

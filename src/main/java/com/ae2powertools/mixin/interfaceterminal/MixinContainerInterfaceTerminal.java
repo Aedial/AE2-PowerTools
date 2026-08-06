@@ -190,7 +190,7 @@ public abstract class MixinContainerInterfaceTerminal {
         if (host == null) return rebuilt;
 
         IGridNode actionableNode = host.getActionableNode();
-        if (actionableNode == null || !actionableNode.isActive()) return rebuilt;
+        if (!actionableNode.isActive()) return rebuilt;
 
         // AE2 indexes machine sets by the node's exact runtime class, so scanning the class buckets is
         // more reliable than assuming every AutoCrafter lives under one exact key.

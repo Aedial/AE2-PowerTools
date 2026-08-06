@@ -15,8 +15,6 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import com.ae2powertools.ItemRegistry;
 import com.ae2powertools.client.HudOverlayManager;
 import com.ae2powertools.client.TrackedLocationRenderer;
-import com.ae2powertools.features.locator.LocatorRenderer;
-import com.ae2powertools.features.scanner.ScannerRenderer;
 
 
 /**

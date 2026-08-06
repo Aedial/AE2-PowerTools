@@ -3,6 +3,8 @@ package com.ae2powertools.features.remotemonitor;
 import java.util.Collections;
 import java.io.IOException;
 
+import javax.annotation.Nonnull;
+
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.gui.GuiButton;
@@ -62,7 +64,7 @@ public abstract class GuiTimingScreen extends GuiScreen {
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
+    protected void actionPerformed(@Nonnull GuiButton button) throws IOException {
         super.actionPerformed(button);
 
         if (button == this.backBtn) {
@@ -116,9 +118,9 @@ public abstract class GuiTimingScreen extends GuiScreen {
     }
 
     private void drawBackButtonTooltip(int mouseX, int mouseY) {
-        if (!(this.backBtn instanceof ITooltip) || !this.backBtn.visible) return;
+        if (this.backBtn == null || !this.backBtn.visible) return;
 
-        ITooltip tooltip = (ITooltip) this.backBtn;
+        ITooltip tooltip = this.backBtn;
         int x = tooltip.xPos();
         int y = tooltip.yPos();
         if (mouseX < x || mouseX >= x + tooltip.getWidth()) return;

@@ -89,8 +89,6 @@ public final class JeiTooltipBridge {
             return null;
         }
 
-        if (renderer == null) return null;
-
         Minecraft mc = Minecraft.getMinecraft();
         return renderer.getTooltip(mc, ingredient, flag);
     }
@@ -108,8 +106,7 @@ public final class JeiTooltipBridge {
         if (stack == null) return null;
 
         if (stack instanceof IAEFluidStack) {
-            FluidStack fs = ((IAEFluidStack) stack).getFluidStack();
-            return fs;
+            return ((IAEFluidStack) stack).getFluidStack();
         }
 
         // Gas / essentia paths are guarded by mod presence and use reflection-free

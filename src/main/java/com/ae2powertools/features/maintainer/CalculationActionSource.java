@@ -2,6 +2,8 @@ package com.ae2powertools.features.maintainer;
 
 import java.util.Optional;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.FakePlayerFactory;
@@ -54,6 +56,7 @@ public class CalculationActionSource implements IActionSource {
     }
 
     @Override
+    @Nonnull
     public Optional<EntityPlayer> player() {
         if (!isAe2HandlePausingCheck()) return Optional.empty();
 
@@ -77,12 +80,14 @@ public class CalculationActionSource implements IActionSource {
     }
 
     @Override
+    @Nonnull
     public Optional<IActionHost> machine() {
         return Optional.ofNullable(machine);
     }
 
     @Override
-    public <T> Optional<T> context(Class<T> key) {
+    @Nonnull
+    public <T> Optional<T> context(@Nonnull Class<T> key) {
         return Optional.empty();
     }
 }

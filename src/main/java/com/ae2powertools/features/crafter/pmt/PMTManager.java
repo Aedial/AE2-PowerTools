@@ -24,11 +24,11 @@ import appeng.util.inv.filter.IAEItemFilter;
 
 /**
  * Manages Pattern Multi-Tool inventory for the AutoCrafter GUI.
- * 
+ * <p>
  * This class provides a self-contained PMT implementation that doesn't rely on NAE2's mixins.
  * It finds the PMT in the player's inventory, manages its pattern storage, and handles
  * capacity upgrades.
- * 
+ * <p>
  * The PMT has:
  * - 36 pattern slots (4 columns x 9 rows)
  * - Column 0 is always enabled
@@ -123,7 +123,6 @@ public class PMTManager implements IAEAppEngInventory {
     private static ItemStack findPMTInBaubles(EntityPlayer player) {
         try {
             IInventory baublesInv = getBaublesInventory(player);
-            if (baublesInv == null) return null;
 
             for (int i = 0; i < baublesInv.getSizeInventory(); i++) {
                 ItemStack stack = baublesInv.getStackInSlot(i);

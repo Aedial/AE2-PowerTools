@@ -2,6 +2,8 @@ package com.ae2powertools.features.crafter;
 
 import java.io.IOException;
 
+import javax.annotation.Nonnull;
+
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.gui.GuiButton;
@@ -99,7 +101,7 @@ public class GuiCrafterBatch extends AEBaseGui {
     }
 
     @Override
-    protected void actionPerformed(GuiButton btn) throws IOException {
+    protected void actionPerformed(@Nonnull GuiButton btn) throws IOException {
         super.actionPerformed(btn);
 
         if (btn == this.backBtn) {

@@ -19,6 +19,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add support for the Crafting and Fuzzy card to the Storage Level Emitter, bringing it to feature parity with the AE2 Level Emitter, alongside a cards picker GUI to easily select the card to use.
 - Add AutoCrafter and Better Level Maintainer WAILA/The One Probe performance lines that report the block-side work time, including rolling last/average/max samples.
 - Add Better Level Maintainer, Storage Level Emitter, and Level Monitor Alarm WAILA/The One Probe lines for maintainer queue status, emitter card/redstone mode, and per-player alarm registration.
+- Add right-click insertion of catalyst items into the AutoCrafter block, in the same way as patterns.
 
 ### Fixed
 - Fix AutoCrafter crafting instantly when batch * speed (in ticks) goes above max int, which happens when batch is at max int / 20 at default speed.

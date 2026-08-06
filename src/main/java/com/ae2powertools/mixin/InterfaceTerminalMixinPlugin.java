@@ -46,7 +46,7 @@ public class InterfaceTerminalMixinPlugin implements ILateMixinLoader {
     }
 
     private static boolean isEnabled() {
-        if (cachedEnabled != null) return cachedEnabled.booleanValue();
+        if (cachedEnabled != null) return cachedEnabled;
 
         File configFile = resolveConfigFile();
         if (!configFile.isFile()) {
@@ -67,7 +67,7 @@ public class InterfaceTerminalMixinPlugin implements ILateMixinLoader {
             cachedEnabled = Boolean.TRUE;
         }
 
-        return cachedEnabled.booleanValue();
+        return cachedEnabled;
     }
 
     private static File resolveConfigFile() {

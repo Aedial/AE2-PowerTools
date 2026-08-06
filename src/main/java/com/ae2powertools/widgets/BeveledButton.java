@@ -19,6 +19,10 @@ public class BeveledButton extends PressableWidget {
         this.label = label;
     }
 
+    public BeveledButton(int x, int y, int size, String label) {
+        this(x, y, size, size, label);
+    }
+
     @Override
     protected void drawWidget(WidgetContext context, int mouseX, int mouseY) {
         VanillaButtonRenderer.drawBeveledButton(

@@ -11,7 +11,7 @@ import com.ae2powertools.features.monitor.emitter.IEmitterRedstoneHost;
 /**
  * Logic for the ME Storage Level Emitter host.
  * Composes {@link MonitorLogic} and tracks redstone emitting state.
- *
+ * <p>
  * The emitter emits redstone when the monitor's overall condition is met
  * (AND/OR across all per-entry threshold evaluations).
  */
@@ -112,10 +112,7 @@ public class LevelEmitterLogic {
             return IEmitterRedstoneHost.MIN_REDSTONE_STRENGTH;
         }
 
-        if (redstoneStrength > IEmitterRedstoneHost.MAX_REDSTONE_STRENGTH) {
-            return IEmitterRedstoneHost.MAX_REDSTONE_STRENGTH;
-        }
+        return Math.min(redstoneStrength, IEmitterRedstoneHost.MAX_REDSTONE_STRENGTH);
 
-        return redstoneStrength;
     }
 }

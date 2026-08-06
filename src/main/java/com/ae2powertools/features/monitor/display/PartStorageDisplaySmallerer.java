@@ -2,6 +2,8 @@ package com.ae2powertools.features.monitor.display;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import com.google.common.collect.ImmutableList;
 
 import net.minecraft.item.ItemStack;
@@ -37,6 +39,7 @@ public class PartStorageDisplaySmallerer extends PartStorageDisplayBase {
     }
 
     @Override
+    @Nonnull
     public IPartModel getStaticModels() {
         return MODEL;
     }

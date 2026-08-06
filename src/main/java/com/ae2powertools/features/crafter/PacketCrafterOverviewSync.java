@@ -17,11 +17,11 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
  * Server -> Client packet carrying a diff of {@link CrafterOverviewSnapshot}s.
- *
+ * <p>
  * Each packet maps {entryIndex -> snapshot}. The server only includes entries
  * whose snapshot actually changed since the last sync, which is what makes this
  * a "diff" packet. On addListener (initial sync) all 12 entries are sent at once.
- *
+ * <p>
  * This replaces the previous monolithic compressed-NBT PacketCrafterStateSync,
  * which was sent every 10 ticks regardless of whether anything changed.
  */
@@ -43,17 +43,13 @@ public class PacketCrafterOverviewSync implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        try {
-            int count = buf.readByte() & 0xFF;
-            this.snapshots = new HashMap<>(count);
-            for (int i = 0; i < count; i++) {
-                int entryIndex = buf.readByte() & 0xFF;
-                this.snapshots.put(entryIndex, CrafterOverviewSnapshot.readFromBuf(buf));
-            }
-        } catch (IOException e) {
-            // Corrupted packet: leave snapshots empty so the GUI just keeps its previous state
-            this.snapshots = new HashMap<>();
+        int count = buf.readByte() & 0xFF;
+        this.snapshots = new HashMap<>(count);
+        for (int i = 0; i < count; i++) {
+            int entryIndex = buf.readByte() & 0xFF;
+            this.snapshots.put(entryIndex, CrafterOverviewSnapshot.readFromBuf(buf));
         }
+
     }
 
     @Override

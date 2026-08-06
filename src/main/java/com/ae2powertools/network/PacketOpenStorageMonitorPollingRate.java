@@ -21,10 +21,10 @@ import com.ae2powertools.features.monitor.dependent.StorageMonitorHostResolver;
  * Packet sent by the client when the wrench tab button is clicked in the main
  * Storage Emitter / Display GUI. Triggers the server to open the polling-rate
  * sub-GUI (priority-style screen with +/- buttons).
- *
+ * <p>
  * Modeled after {@code PacketOpenCrafterSubGui} for consistency with the rest
  * of the codebase.
- *
+ * <p>
  * Supports both block tiles and cable parts: the side byte is -1 for tiles and
  * the AEPartLocation ordinal for parts, mirroring every other monitor packet.
  */

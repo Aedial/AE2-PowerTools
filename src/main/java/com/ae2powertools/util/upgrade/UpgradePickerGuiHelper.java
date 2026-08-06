@@ -2,6 +2,8 @@ package com.ae2powertools.util.upgrade;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
+import java.util.function.Supplier;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -19,6 +21,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import appeng.container.slot.AppEngSlot;
 
 import com.ae2powertools.widgets.AbstractModalGui;
+import com.ae2powertools.widgets.WidgetContext;
 
 
 /**
@@ -66,9 +69,24 @@ public class UpgradePickerGuiHelper extends AbstractModalGui {
     private int pickerLeft;
     private int pickerTop;
     private int targetUpgradeSlot = -1;
+    private WidgetContext context;
+    private Supplier<ISelectableUpgradeInventory> inventorySupplier = () -> null;
+    private Supplier<InventoryPlayer> playerInventorySupplier = () -> null;
+    private IntConsumer slotSelectionHandler = slot -> {};
 
     public UpgradePickerGuiHelper() {
         super(PICKER_WIDTH, PICKER_HEIGHT);
+    }
+
+    public void configure(
+            WidgetContext context,
+            Supplier<ISelectableUpgradeInventory> inventorySupplier,
+            Supplier<InventoryPlayer> playerInventorySupplier,
+            IntConsumer slotSelectionHandler) {
+        this.context = context;
+        this.inventorySupplier = inventorySupplier == null ? () -> null : inventorySupplier;
+        this.playerInventorySupplier = playerInventorySupplier == null ? () -> null : playerInventorySupplier;
+        this.slotSelectionHandler = slotSelectionHandler == null ? slot -> {} : slotSelectionHandler;
     }
 
     public void centerIn(int screenWidth, int screenHeight) {
@@ -90,6 +108,57 @@ public class UpgradePickerGuiHelper extends AbstractModalGui {
 
     public int getTargetUpgradeSlot() {
         return targetUpgradeSlot;
+    }
+
+    @Override
+    public void setPosition(int x, int y) {
+        super.setPosition(x, y);
+        pickerLeft = x;
+        pickerTop = y;
+    }
+
+    @Override
+    public void draw(int mouseX, int mouseY, float partialTicks) {
+        if (!isOpen() || context == null) return;
+
+        drawPickerModal(
+            context.getWidgetMinecraft(),
+            inventorySupplier.get(),
+            playerInventorySupplier.get(),
+            mouseX,
+            mouseY);
+    }
+
+    @Override
+    public void drawTooltip(int mouseX, int mouseY) {
+        if (!isOpen() || context == null) return;
+
+        drawPickerTooltip(
+            context.getWidgetMinecraft(),
+            inventorySupplier.get(),
+            playerInventorySupplier.get(),
+            mouseX,
+            mouseY,
+            context.getWidgetWidth(),
+            context.getWidgetHeight());
+    }
+
+    @Override
+    public boolean mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        if (!isOpen()) return false;
+        if (super.mouseClicked(mouseX, mouseY)) return true;
+
+        int selectedPlayerSlot = handlePickerClick(
+            mouseX,
+            mouseY,
+            mouseButton,
+            inventorySupplier.get(),
+            playerInventorySupplier.get());
+        if (selectedPlayerSlot < 0) return true;
+
+        slotSelectionHandler.accept(selectedPlayerSlot);
+        close();
+        return true;
     }
 
     public int getUpgradeSlotAt(int mouseX, int mouseY, int guiLeft, int guiTop, List<AppEngSlot> slots) {

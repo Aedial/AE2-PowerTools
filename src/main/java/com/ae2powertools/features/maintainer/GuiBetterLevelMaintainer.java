@@ -1,19 +1,14 @@
 package com.ae2powertools.features.maintainer;
 
 import java.awt.Rectangle;
-import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiTextField;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
@@ -29,15 +24,15 @@ import com.ae2powertools.network.PacketSelectRecipe;
 import com.ae2powertools.network.PacketUpdateMaintainerEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.widgets.Ae2Button;
-import com.ae2powertools.widgets.WidgetContext;
-import com.ae2powertools.widgets.WidgetTextures;
+import com.ae2powertools.widgets.WidgetAnchor;
+import com.ae2powertools.widgets.WidgetGui;
 
 
 /**
  * Main GUI for the Better Level Maintainer.
  */
 @SideOnly(Side.CLIENT)
-public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetContext {
+public class GuiBetterLevelMaintainer extends WidgetGui {
 
     private static final ResourceLocation BACKGROUND = new ResourceLocation(
         Tags.MODID, "textures/guis/maintainer_gui.png");
@@ -60,6 +55,8 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
     private static final int TALL_MARGIN = 10;
 
     private static final int STYLE_BUTTON_SIZE = 16;
+    private static final int STYLE_ICON_TALL = 13 * 16;
+    private static final int STYLE_ICON_SMALL = 13 * 16 + 1;
 
     private final ContainerBetterLevelMaintainer container;
     private final MaintainerEntryViewport entryViewport;
@@ -72,7 +69,8 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
     private int tallScrollbarHeight;
 
     public GuiBetterLevelMaintainer(ContainerBetterLevelMaintainer container) {
-        super(container);
+        super(container, GUI_WIDTH, GUI_HEIGHT, null);
+
         this.container = container;
         this.entryViewport = new MaintainerEntryViewport(this, container);
         this.entryEditorOverlay = new MaintainerEntryEditorOverlay(
@@ -80,12 +78,13 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
             container::getCraftableItems,
             this::selectRecipe,
             this::sendModalEntryUpdate);
+        registerModal(this.entryEditorOverlay, WidgetAnchor.SCREEN_CENTER, 0, 0);
+
         this.useTallView = PowerToolsClientConfig.maintainer.isUseTallView();
-        this.xSize = GUI_WIDTH;
-        this.ySize = GUI_HEIGHT;
 
         styleButton.setOnClick(this::toggleViewStyle);
         styleButton.setTooltipProvider(this::buildStyleButtonTooltip);
+        registerWidget(styleButton, -STYLE_BUTTON_SIZE - 2, SEARCH_Y);
     }
 
     @Override
@@ -105,18 +104,27 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
         }
 
         super.initGui();
+    }
 
+    @Override
+    protected void afterWidgetGuiInit() {
         searchField = new GuiTextField(0, fontRenderer, guiLeft + SEARCH_X, guiTop + SEARCH_Y, SEARCH_WIDTH, SEARCH_HEIGHT);
         searchField.setMaxStringLength(50);
         searchField.setEnableBackgroundDrawing(true);
         searchField.setTextColor(0xFFFFFF);
 
-        styleButton.setPosition(guiLeft - STYLE_BUTTON_SIZE - 2, guiTop + SEARCH_Y);
-        syncStyleButtonIcon();
+        styleButton.setAe2TextureIcon(useTallView ? STYLE_ICON_TALL : STYLE_ICON_SMALL);
 
         entryViewport.setTallLayout(tallVisibleRows, tallScrollbarHeight);
         entryViewport.updateScrollLimits(useTallView);
-        entryEditorOverlay.initGui();
+    }
+
+    private List<String> buildStyleButtonTooltip() {
+        return Arrays.asList(
+            I18n.format("gui.ae2powertools.maintainer.style.title"),
+            "§7" + I18n.format("gui.ae2powertools.maintainer.style." + (useTallView ? "tall" : "small")),
+            "§7" + I18n.format("gui.ae2powertools.maintainer.style.click_toggle")
+        );
     }
 
     private void toggleViewStyle() {
@@ -129,41 +137,40 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
     }
 
     @Override
-    public void updateScreen() {
-        super.updateScreen();
+    protected void updateWidgetGuiScreen() {
         searchField.updateCursorCounter();
         entryViewport.updateScrollLimits(useTallView);
-        entryEditorOverlay.updateScreen();
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
-        super.drawScreen(mouseX, mouseY, partialTicks);
-
-        // The editor overlay owns the top layer. When it is open, the entry list stops at its
-        // background and text so item renders from the viewport cannot leak into the modal.
-        if (entryEditorOverlay.isOpen()) {
-            entryEditorOverlay.draw(mouseX, mouseY, partialTicks);
-            entryEditorOverlay.drawTooltip(mouseX, mouseY);
-            return;
-        }
-
-        styleButton.drawTooltip(this, mouseX, mouseY);
+    protected void drawWidgetGuiTooltips(int mouseX, int mouseY) {
         renderHoveredToolTip(mouseX, mouseY);
     }
 
     @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+    protected void drawWidgetGuiBackgroundContents(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         if (useTallView) {
-            drawTallBackground();
+            mc.getTextureManager().bindTexture(BACKGROUND_TALL);
+
+            // Draw header (0 to TALL_SLICE_START_Y)
+            drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, TALL_SLICE_START_Y);
+
+            // Draw entry slices with separators (footer provides the last row without separator)
+            for (int row = 0; row < tallVisibleRows - 1; row++) {
+                int y = guiTop + TALL_SLICE_START_Y + row * TALL_SLICE_HEIGHT;
+                drawTexturedModalRect(guiLeft, y, 0, TALL_SLICE_START_Y, xSize, TALL_SLICE_HEIGHT);
+            }
+
+            // Draw footer (last entry without separator + status bar)
+            int footerY = guiTop + TALL_SLICE_START_Y + (tallVisibleRows - 1) * TALL_SLICE_HEIGHT;
+            int footerHeight = TALL_GUI_BASE_HEIGHT - TALL_SLICE_END_Y;
+            drawTexturedModalRect(guiLeft, footerY, 0, TALL_SLICE_END_Y, xSize, footerHeight);
         } else {
             mc.getTextureManager().bindTexture(BACKGROUND);
             drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize);
         }
 
-        styleButton.draw(this, mouseX, mouseY);
         searchField.drawTextBox();
 
         entryViewport.draw(
@@ -178,24 +185,6 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
             mouseY);
     }
 
-    private void drawTallBackground() {
-        mc.getTextureManager().bindTexture(BACKGROUND_TALL);
-
-        // Draw header (0 to TALL_SLICE_START_Y)
-        drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, TALL_SLICE_START_Y);
-
-        // Draw entry slices with separators (footer provides the last row without separator)
-        for (int row = 0; row < tallVisibleRows - 1; row++) {
-            int y = guiTop + TALL_SLICE_START_Y + row * TALL_SLICE_HEIGHT;
-            drawTexturedModalRect(guiLeft, y, 0, TALL_SLICE_START_Y, xSize, TALL_SLICE_HEIGHT);
-        }
-
-        // Draw footer (last entry without separator + status bar)
-        int footerY = guiTop + TALL_SLICE_START_Y + (tallVisibleRows - 1) * TALL_SLICE_HEIGHT;
-        int footerHeight = TALL_GUI_BASE_HEIGHT - TALL_SLICE_END_Y;
-        drawTexturedModalRect(guiLeft, footerY, 0, TALL_SLICE_END_Y, xSize, footerHeight);
-    }
-
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         fontRenderer.drawString(I18n.format("gui.ae2powertools.maintainer.title"), 8, 6, 0x000000);
@@ -205,19 +194,12 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
     }
 
     @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (entryEditorOverlay.keyTyped(typedChar, keyCode)) return;
-        if (searchField.textboxKeyTyped(typedChar, keyCode)) return;
-
-        super.keyTyped(typedChar, keyCode);
+    protected boolean handleWidgetGuiKeyTyped(char typedChar, int keyCode) {
+        return searchField.textboxKeyTyped(typedChar, keyCode);
     }
 
     @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        if (entryEditorOverlay.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        if (styleButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-
-        super.mouseClicked(mouseX, mouseY, mouseButton);
+    protected void afterWidgetGuiMouseClicked(int mouseX, int mouseY, int mouseButton) {
         searchField.mouseClicked(mouseX, mouseY, mouseButton);
 
         if (entryViewport.beginScrollbarDrag(useTallView, guiLeft, guiTop, mouseX, mouseY)) return;
@@ -253,32 +235,17 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
     }
 
     @Override
-    protected void mouseReleased(int mouseX, int mouseY, int state) {
-        super.mouseReleased(mouseX, mouseY, state);
+    protected void afterWidgetGuiMouseReleased(int mouseX, int mouseY, int state) {
         entryViewport.mouseReleased();
-        entryEditorOverlay.mouseReleased(mouseX, mouseY, state);
     }
 
     @Override
-    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
-        if (entryEditorOverlay.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick)) return;
-        if (entryViewport.mouseClickMove(useTallView, guiTop, mouseY)) return;
-
-        super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
+    protected boolean handleWidgetGuiMouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
+        return entryViewport.mouseClickMove(useTallView, guiTop, mouseY);
     }
 
     @Override
-    public void handleMouseInput() throws IOException {
-        super.handleMouseInput();
-
-        int scroll = Mouse.getEventDWheel();
-        if (scroll == 0) return;
-
-        if (entryEditorOverlay.handleMouseWheel(scroll)) return;
-        if (entryEditorOverlay.isOpen()) return;
-
-        int mouseX = Mouse.getEventX() * width / mc.displayWidth;
-        int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
+    protected void handleWidgetGuiMouseWheel(int mouseX, int mouseY, int scroll) {
         int hoveredEntry = entryViewport.getEntryAtPosition(
             useTallView,
             guiLeft,
@@ -362,48 +329,7 @@ public class GuiBetterLevelMaintainer extends GuiContainer implements WidgetCont
     }
 
     public List<Rectangle> getJEIExclusionArea() {
-        List<Rectangle> areas = new ArrayList<>();
-        areas.add(styleButton.getBounds());
-        return areas;
+        return Collections.singletonList(styleButton.getBounds());
     }
 
-    private void syncStyleButtonIcon() {
-        styleButton.setTextureIcon(WidgetTextures.AE2_STATES, useTallView ? 0 : 16, 13 * 16);
-    }
-
-    private List<String> buildStyleButtonTooltip() {
-        List<String> tooltip = new ArrayList<>();
-        tooltip.add(I18n.format("gui.ae2powertools.maintainer.style.title"));
-        tooltip.add("§7" + I18n.format(
-            useTallView
-                ? "gui.ae2powertools.maintainer.style.tall"
-                : "gui.ae2powertools.maintainer.style.small"));
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.style.click_toggle"));
-        return tooltip;
-    }
-
-    @Override
-    public Minecraft getWidgetMinecraft() {
-        return mc;
-    }
-
-    @Override
-    public FontRenderer getWidgetFontRenderer() {
-        return fontRenderer;
-    }
-
-    @Override
-    public RenderItem getWidgetItemRenderer() {
-        return itemRender;
-    }
-
-    @Override
-    public int getWidgetWidth() {
-        return width;
-    }
-
-    @Override
-    public int getWidgetHeight() {
-        return height;
-    }
 }

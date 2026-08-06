@@ -2,6 +2,8 @@ package com.ae2powertools.items;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
@@ -73,8 +75,9 @@ public class ItemPriorityTuner extends Item {
     }
 
     @Override
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side,
-            float hitX, float hitY, float hitZ, EnumHand hand) {
+    @Nonnull
+    public EnumActionResult onItemUseFirst(@Nonnull EntityPlayer player, World world, @Nonnull BlockPos pos,
+            @Nonnull EnumFacing side, float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
         TileEntity te = world.getTileEntity(pos);
         IPriorityHost priorityHost = getPriorityHost(te, hitX, hitY, hitZ);
         if (priorityHost == null) return EnumActionResult.PASS;
@@ -122,7 +125,8 @@ public class ItemPriorityTuner extends Item {
     }
 
     @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
+    @Nonnull
+    public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, EntityPlayer player, @Nonnull EnumHand hand) {
         // Shift-right click in air: open Priority Tuner GUI to set stored priority
         if (player.isSneaking()) {
             // If tuner is in off-hand and main hand has an item, don't open GUI
@@ -146,7 +150,8 @@ public class ItemPriorityTuner extends Item {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
         int priority = getStoredPriority(stack);

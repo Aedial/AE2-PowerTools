@@ -1,5 +1,6 @@
 package com.ae2powertools.widgets;
 
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -36,11 +37,13 @@ public class Ae2Button extends PressableWidget {
         context.getWidgetMinecraft().getTextureManager().bindTexture(WidgetTextures.AE2_STATES);
         drawTexturedModalRect(getX(), getY(), 240, 240, getWidth(), getHeight());
 
+        FontRenderer fontRenderer = context.getWidgetFontRenderer();
+
         if (label != null) {
-            int labelWidth = context.getWidgetFontRenderer().getStringWidth(label);
+            int labelWidth = fontRenderer.getStringWidth(label);
             int labelX = getX() + (getWidth() - labelWidth) / 2;
-            int labelY = getY() + (getHeight() - 8) / 2;
-            context.getWidgetFontRenderer().drawString(label, labelX, labelY, labelColor);
+            int labelY = getY() + (getHeight() - fontRenderer.FONT_HEIGHT) / 2;
+            fontRenderer.drawString(label, labelX, labelY, labelColor);
         } else if (iconTexture != null) {
             context.getWidgetMinecraft().getTextureManager().bindTexture(iconTexture);
             if (scaledIcon) {

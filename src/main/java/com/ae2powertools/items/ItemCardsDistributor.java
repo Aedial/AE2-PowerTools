@@ -3,6 +3,8 @@ package com.ae2powertools.items;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
@@ -54,7 +56,7 @@ import com.ae2powertools.Tags;
 /**
  * Cards Distributor - distributes cards from player inventory
  * to Molecular Assemblers (and similar machines) on the network.
- *
+ * <p>
  * Usage:
  * - Right-click on network component: Distribute cards to all assemblers on network
  */
@@ -116,8 +118,9 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
     }
 
     @Override
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side,
-            float hitX, float hitY, float hitZ, EnumHand hand) {
+    @Nonnull
+    public EnumActionResult onItemUseFirst(@Nonnull EntityPlayer player, World world, @Nonnull BlockPos pos,
+            @Nonnull EnumFacing side, float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
         // Return SUCCESS on client to prevent onItemRightClick from also firing
         if (world.isRemote) return EnumActionResult.SUCCESS;
 
@@ -168,7 +171,8 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
     }
 
     @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
+    @Nonnull
+    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, @Nonnull EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
 
         if (!world.isRemote) {
@@ -290,6 +294,8 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
         for (AssemblerInfo info : assemblersToUpgrade) {
             if (info.cardsInserted > 0) result.assemblersUpgraded++;
         }
+
+        // FIXME: clean this mess
 
         // Also count assemblers we upgraded that are no longer in the list
         result.assemblersUpgraded = (int) assemblersToUpgrade.stream()
@@ -428,9 +434,8 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
 
         // Drain energy from the ME network
         IGridNode node = wtg.getActionableNode();
-        if (node == null || node.getGrid() == null) return 0;
+        node.getGrid();
         IEnergyGrid eg = node.getGrid().getCache(IEnergyGrid.class);
-        if (eg == null) return 0;
 
         IAEItemStack extracted = Platform.poweredExtraction(eg, inv, req, new BaseActionSource(), Actionable.MODULATE);
         if (extracted == null) return 0;
@@ -455,14 +460,20 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
 
             if (part instanceof IGridHost) {
                 IGridNode node = ((IGridHost) part).getGridNode(AEPartLocation.INTERNAL);
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
 
             // Try the cable in the center
             IPart cable = partHost.getPart(AEPartLocation.INTERNAL);
             if (cable instanceof IGridHost) {
                 IGridNode node = ((IGridHost) cable).getGridNode(AEPartLocation.INTERNAL);
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
 
             // Try all sides
@@ -470,7 +481,10 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
                 IPart p = partHost.getPart(loc);
                 if (p instanceof IGridHost) {
                     IGridNode node = ((IGridHost) p).getGridNode(AEPartLocation.INTERNAL);
-                    if (node != null && node.getGrid() != null) return node.getGrid();
+                    if (node != null) {
+                        node.getGrid();
+                        return node.getGrid();
+                    }
                 }
             }
         }
@@ -482,7 +496,10 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
             // Try all possible node locations
             for (AEPartLocation loc : AEPartLocation.values()) {
                 IGridNode node = host.getGridNode(loc);
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
         }
 
@@ -491,7 +508,8 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
         String encKey = null;

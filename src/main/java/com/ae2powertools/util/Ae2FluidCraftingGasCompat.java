@@ -105,7 +105,7 @@ public final class Ae2FluidCraftingGasCompat {
         if (gasStack == null) return items;
 
         IAEGasStack remainder = gasStorage.injectItems(gasStack, mode, actionSource);
-        return restoreOriginalForm(items, remainder != null ? (GasStack) remainder.getGasStack() : null);
+        return restoreOriginalForm(items, remainder != null ? remainder.getGasStack() : null);
     }
 
     @Optional.Method(modid = GAS_MOD_ID)
@@ -155,7 +155,7 @@ public final class Ae2FluidCraftingGasCompat {
         if (stack.isEmpty()) return false;
 
         Item item = stack.getItem();
-        return item != null && itemId.equals(item.getRegistryName());
+        return itemId.equals(item.getRegistryName());
     }
 
     @Nullable

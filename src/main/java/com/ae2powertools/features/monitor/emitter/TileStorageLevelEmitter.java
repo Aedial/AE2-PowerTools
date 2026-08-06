@@ -2,6 +2,8 @@ package com.ae2powertools.features.monitor.emitter;
 
 import java.io.IOException;
 
+import javax.annotation.Nonnull;
+
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.nbt.NBTTagCompound;
@@ -56,7 +58,8 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     // --- AE2 Grid ticking ---
 
     @Override
-    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+    @Nonnull
+    public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
         if (world == null) return TickRateModulation.IDLE;
 
         monitorLogic.refresh();
@@ -139,6 +142,7 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     }
 
     @Override
+    @Nonnull
     public NBTTagCompound writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
         upgrades.writeToNBT(tag, "upgrades");

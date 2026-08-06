@@ -23,12 +23,12 @@ import appeng.util.ReadableNumberConverter;
 
 /**
  * Renders the Pattern Multi-Tool panel in the GUI.
- *
+ * <p>
  * NOTE:
  * This is a re-implementation of the PMT feature, as the original implementation
  * relies on AEBaseGui (which itself has annoying limitations), instead of offering
  * a simple container we can attach to anything.
- * 
+ * <p>
  * Features:
  * - Draws the PMT panel background texture
  * - Draws additional columns based on installed capacity upgrades
@@ -137,7 +137,7 @@ public class PMTRenderer {
      * Draws overlays for PMT slots:
      * - Stack count (top-right): how many patterns are stacked in this slot
      * - Output count (bottom-right): how many items the pattern produces
-     * 
+     * <p>
      * Call this in drawGuiContainerForegroundLayer (coordinates are relative to GUI).
      * 
      * @param gui The parent GUI

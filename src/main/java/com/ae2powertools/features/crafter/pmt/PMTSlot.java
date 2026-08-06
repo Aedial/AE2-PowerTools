@@ -10,6 +10,8 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.api.AEApi;
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
 import appeng.container.slot.SlotRestrictedInput;
 import appeng.items.misc.ItemEncodedPattern;
 import appeng.util.Platform;
@@ -17,7 +19,7 @@ import appeng.util.Platform;
 
 /**
  * Slot for Pattern Multi-Tool patterns.
- * 
+ * <p>
  * Features:
  * - Only accepts patterns (blank or encoded)
  * - Slots are enabled/disabled based on capacity upgrades in the PMT
@@ -40,7 +42,8 @@ public class PMTSlot extends SlotRestrictedInput {
      * @param groupNum Column index (0=always enabled, 1-3 require capacity upgrades)
      * @param playerInv Player inventory for slot restrictions
      */
-    public PMTSlot(IItemHandler itemHandler, PMTManager pmtManager, int slotIndex, int x, int y, int groupNum, InventoryPlayer playerInv) {
+    public PMTSlot(IItemHandler itemHandler, PMTManager pmtManager, int slotIndex, int x, int y,
+            int groupNum, InventoryPlayer playerInv) {
         super(PlacableItemType.PATTERN, itemHandler, slotIndex, x, y, playerInv);
         this.pmtManager = pmtManager;
         this.groupNum = groupNum;
@@ -64,7 +67,7 @@ public class PMTSlot extends SlotRestrictedInput {
     /**
      * Gets the display stack - shows the crafting output instead of the encoded pattern.
      * This makes it easier to see what each pattern does at a glance.
-     * 
+     * <p>
      * Called by AE2's rendering system when isDisplay() returns true.
      */
     @Override
@@ -93,7 +96,7 @@ public class PMTSlot extends SlotRestrictedInput {
         // Return the first output
         return Arrays.stream(details.getOutputs())
                 .findFirst()
-                .map(aeStack -> aeStack.createItemStack())
+                .map(IAEItemStack::createItemStack)
                 .orElse(patternStack);
     }
 
@@ -115,7 +118,7 @@ public class PMTSlot extends SlotRestrictedInput {
 
         return Arrays.stream(details.getOutputs())
                 .findFirst()
-                .map(aeStack -> aeStack.getStackSize())
+                .map(IAEStack::getStackSize)
                 .orElse(0L);
     }
 

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
@@ -85,7 +86,8 @@ public class TileLevelMonitorAlarm extends TileStorageMonitorBase {
     //       This would avoid briefly alarming on network reloads
 
     @Override
-    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+    @Nonnull
+    public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
         if (world == null) return TickRateModulation.IDLE;
         if (!hasConnectedRegisteredPlayers()) return TickRateModulation.SLEEP;
 
@@ -250,6 +252,7 @@ public class TileLevelMonitorAlarm extends TileStorageMonitorBase {
     }
 
     @Override
+    @Nonnull
     public NBTTagCompound writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
         monitorLogic.writeToNBT(tag);
@@ -291,9 +294,7 @@ public class TileLevelMonitorAlarm extends TileStorageMonitorBase {
     private void normalizeEntriesInPlace() {
         List<MonitoredEntry> entries = monitorLogic.getEntries();
 
-        for (int i = 0; i < entries.size(); i++) {
-            entries.set(i, normalizeEntry(entries.get(i)));
-        }
+        entries.replaceAll(this::normalizeEntry);
     }
 
     private MonitoredEntry normalizeEntry(MonitoredEntry entry) {

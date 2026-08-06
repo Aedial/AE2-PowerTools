@@ -176,7 +176,7 @@ public final class SubnetGridHelper {
 
     private static void addAdjacentStorageBusTarget(TileEntity ifaceTile, EnumFacing facing, IGrid localGrid,
             Set<IGrid> adjacent) {
-        if (ifaceTile == null || ifaceTile.getWorld() == null || facing == null) return;
+        if (ifaceTile == null || facing == null) return;
 
         TileEntity adjacentTile = ifaceTile.getWorld().getTileEntity(ifaceTile.getPos().offset(facing));
         if (adjacentTile == null) return;
@@ -192,13 +192,23 @@ public final class SubnetGridHelper {
         IPart part = host.getPart(AEPartLocation.fromFacing(side));
 
         if (part instanceof PartStorageBus) {
-            IGridNode node = ((PartStorageBus) part).getGridNode();
-            if (node != null && node.getGrid() != null && node.getGrid() != localGrid) return node.getGrid();
+            IGridNode node = part.getGridNode();
+            if (node != null) {
+                node.getGrid();
+                if (node.getGrid() != localGrid) {
+                    return node.getGrid();
+                }
+            }
         }
 
         if (part instanceof PartFluidStorageBus) {
-            IGridNode node = ((PartFluidStorageBus) part).getGridNode();
-            if (node != null && node.getGrid() != null && node.getGrid() != localGrid) return node.getGrid();
+            IGridNode node = part.getGridNode();
+            if (node != null) {
+                node.getGrid();
+                if (node.getGrid() != localGrid) {
+                    return node.getGrid();
+                }
+            }
         }
 
         return null;
@@ -221,7 +231,7 @@ public final class SubnetGridHelper {
     }
 
     private static IGrid getGridFromFacingTarget(TileEntity hostTile, EnumFacing facing) {
-        if (hostTile == null || hostTile.getWorld() == null || facing == null) return null;
+        if (hostTile == null || facing == null) return null;
 
         TileEntity targetTile = hostTile.getWorld().getTileEntity(hostTile.getPos().offset(facing));
         if (targetTile == null) return null;
@@ -243,7 +253,10 @@ public final class SubnetGridHelper {
                 if (part == null) continue;
 
                 IGridNode node = part.getGridNode();
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
         }
 
@@ -252,7 +265,10 @@ public final class SubnetGridHelper {
 
             for (AEPartLocation location : AEPartLocation.values()) {
                 IGridNode node = host.getGridNode(location);
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
         }
 
@@ -267,11 +283,9 @@ public final class SubnetGridHelper {
 
         try {
             DimensionalCoord coord = node.getGridBlock().getLocation();
-            if (coord != null) return coord.getWorld();
+            return coord.getWorld();
         } catch (Exception e) {
             return null;
         }
-
-        return null;
     }
 }

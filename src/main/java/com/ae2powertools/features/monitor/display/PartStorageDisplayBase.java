@@ -2,6 +2,8 @@ package com.ae2powertools.features.monitor.display;
 
 import java.io.IOException;
 
+import javax.annotation.Nonnull;
+
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.client.Minecraft;
@@ -44,7 +46,8 @@ abstract public class PartStorageDisplayBase extends PartStorageMonitorBase {
     // --- Grid ticking ---
 
     @Override
-    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+    @Nonnull
+    public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
         World world = getHostWorld();
         if (world == null) return TickRateModulation.IDLE;
 

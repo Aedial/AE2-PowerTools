@@ -1,19 +1,13 @@
 package com.ae2powertools.features.monitor.dependent;
 
 import java.awt.Rectangle;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
@@ -51,7 +45,8 @@ import com.ae2powertools.widgets.Ae2Button;
 import com.ae2powertools.widgets.BeveledButton;
 import com.ae2powertools.widgets.TabButton;
 import com.ae2powertools.widgets.SearchableGridSelectorWidget;
-import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetAnchor;
+import com.ae2powertools.widgets.WidgetGui;
 
 
 /**
@@ -94,7 +89,7 @@ import com.ae2powertools.widgets.WidgetContext;
  * Hover tooltips summarize the resource, exact values, and per-cell controls.
  */
 @SideOnly(Side.CLIENT)
-public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
+public class GuiStorageMonitor extends WidgetGui {
 
     private static final ResourceLocation BACKGROUND = new ResourceLocation(
         Tags.MODID, "textures/guis/emitter_gui.png");
@@ -131,14 +126,14 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
     private final ContainerStorageMonitor container;
 
     /** Emitter-only redstone-strength button. */
-    private Ae2Button redstoneSignalBtn = new Ae2Button(0, 0, SIDE_BTN_SIZE);
+    private final Ae2Button redstoneSignalBtn = new Ae2Button(0, 0, SIDE_BTN_SIZE);
 
     /** Wrench tab button. */
-    private TabButton pollingRateBtn = new TabButton(0, 0, POLLING_ICON_INDEX,
-        I18n.format("gui.ae2powertools.storage_emitter.polling_rate.title"));
+    private final TabButton pollingRateBtn = new TabButton(0, 0, POLLING_ICON_INDEX,
+                                                           I18n.format("gui.ae2powertools.storage_emitter.polling_rate.title"));
 
     /** Alarm-only registration toggle button shown next to the polling-rate tab. */
-    private Ae2Button alarmRegistrationBtn = new Ae2Button(0, 0, SIDE_BTN_SIZE);
+    private final Ae2Button alarmRegistrationBtn = new Ae2Button(0, 0, SIDE_BTN_SIZE);
 
     /** Match-mode button shown on the left side of the GUI. */
     private final Ae2Button matchModeButton = new Ae2Button(0, 0, SIDE_BTN_SIZE);
@@ -147,7 +142,6 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
     private final Ae2Button hysteresisButton = new Ae2Button(0, 0, SIDE_BTN_SIZE);
 
     /** Compact strength controls drawn in the right-side panel. */
-    private final List<BeveledButton> emitterStrengthButtons = new ArrayList<>();
     private int emitterStrengthPanelX;
     private int emitterStrengthPanelY;
     private boolean emitterStrengthTextHovered = false;
@@ -164,10 +158,8 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
     private static GuiStorageMonitor activeInstance;
 
     public GuiStorageMonitor(ContainerStorageMonitor container) {
-        super(container);
+        super(container, GUI_WIDTH, GUI_HEIGHT, BACKGROUND);
         this.container = container;
-        this.xSize = GUI_WIDTH;
-        this.ySize = GUI_HEIGHT;
 
         this.selectorWidget = new SearchableGridSelectorWidget<>(
             this,
@@ -179,6 +171,9 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
             },
             this::renderSelectorResourceTooltip,
             this::selectMonitorResource);
+        upgradePicker.configure(this, this::getSelectableUpgradeInventory, () -> mc.player.inventory, this::installUpgradeFromPlayerSlot);
+        registerModal(upgradePicker, WidgetAnchor.SCREEN_CENTER, 0, 0);
+
         this.entryGrid = new StorageMonitorEntryGridWidget(this, container, this::openSelector, this::sendEntryUpdate);
 
         redstoneSignalBtn.setVisible(container.supportsEmitterRedstone());
@@ -199,49 +194,43 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
 
         pollingRateBtn.setOnClick(this::openPollingRateGui);
         pollingRateBtn.setTooltipProvider(this::buildPollingRateTooltip);
-    }
 
-    @Override
-    public void initGui() {
-        super.initGui();
-        activeInstance = this;
-        emitterStrengthButtons.clear();
-
-        emitterStrengthPanelX = guiLeft + GUI_WIDTH + STRENGTH_PANEL_OFFSET_X;
-        emitterStrengthPanelY = guiTop;
-
-        int nextSideButtonY = guiTop + MATCH_MODE_BTN_Y;
+        int nextSideButtonY = MATCH_MODE_BTN_Y;
 
         if (matchModeButton.isVisible()) {
-            matchModeButton.setPosition(guiLeft + SIDE_BTN_X_OFFSET, nextSideButtonY);
+            registerWidget(matchModeButton, SIDE_BTN_X_OFFSET, nextSideButtonY);
             nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
         if (redstoneSignalBtn.isVisible()) {
-            addEmitterStrengthButtons();
+            registerEmitterStrengthButtons();
 
-            redstoneSignalBtn.setPosition(guiLeft + SIDE_BTN_X_OFFSET, nextSideButtonY);
+            registerWidget(redstoneSignalBtn, SIDE_BTN_X_OFFSET, nextSideButtonY);
             nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
         if (hysteresisButton.isVisible()) {
-            hysteresisButton.setPosition(guiLeft + SIDE_BTN_X_OFFSET, nextSideButtonY);
+            registerWidget(hysteresisButton, SIDE_BTN_X_OFFSET, nextSideButtonY);
             nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
-        // We position the polling rate tab button so the visible portion sits just at the corner
-        pollingRateBtn.setPosition(guiLeft + xSize - TAB_BTN_SIZE + 1, guiTop);
-
         if (alarmRegistrationBtn.isVisible()) {
-            alarmRegistrationBtn.setPosition(
-                pollingRateBtn.getX() - SIDE_BTN_SIZE - TOP_BUTTON_GAP,
-                guiTop + 1);
-            alarmRegistrationBtn.setCenteredLabel(container.isSyncPlayerRegistered() ? "-" : "+");
+            registerWidget(alarmRegistrationBtn, GUI_WIDTH - TAB_BTN_SIZE + 1 - SIDE_BTN_SIZE - TOP_BUTTON_GAP, 1);
+            nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
-        upgradePicker.centerIn(width, height);
+        // ... and any further side button can be added here, using the same pattern
+
+        registerWidget(pollingRateBtn, GUI_WIDTH - TAB_BTN_SIZE + 1, 0);
+    }
+
+    @Override
+    protected void afterWidgetGuiInit() {
+        activeInstance = this;
+
+        emitterStrengthPanelX = guiLeft + GUI_WIDTH + STRENGTH_PANEL_OFFSET_X;
+        emitterStrengthPanelY = guiTop;
         selectorWidget.setSearchText("");
-        selectorWidget.initGui();
         entryGrid.initGui(guiLeft, guiTop);
     }
 
@@ -253,31 +242,36 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
     }
 
     @Override
-    public void updateScreen() {
-        super.updateScreen();
-        selectorWidget.updateScreen();
+    protected void updateWidgetGuiScreen() {
         entryGrid.updateScreen();
     }
 
     // ====================== DRAWING ======================
 
     @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        drawDefaultBackground();
+    protected void drawWidgetGuiBackgroundContents(float partialTicks, int mouseX, int mouseY) {
+        emitterStrengthPanelX = guiLeft + GUI_WIDTH + STRENGTH_PANEL_OFFSET_X;
+        emitterStrengthPanelY = guiTop;
 
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        mc.getTextureManager().bindTexture(BACKGROUND);
-        drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize);
+        syncEmitterRedstoneButton();
+        syncAlarmRegistrationButton();
+        syncSideButtons(mouseX, mouseY);
 
         if (container.supportsEmitterRedstone()) drawEmitterStrengthPanel(mouseX, mouseY);
 
-        // Side button: drawn here (clean GL state) to avoid the lighting/blend leaks
-        // that occur when drawing custom textures after super.drawScreen has rendered slots.
-        drawSideButtons(mouseX, mouseY);
-
-        entryGrid.draw(guiLeft, guiTop, hasBlockingOverlay(), mouseX, mouseY);
+        entryGrid.draw(guiLeft, guiTop, isManagedModalOpen(), mouseX, mouseY);
 
         upgradePicker.drawUpgradeSlotIcons(mc, guiLeft, guiTop, container.getEmitterCardSlots());
+
+        // Reset GL state so the registered buttons do not inherit lighting/depth from prior draws.
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    @Override
+    protected void afterWidgetGuiWidgetsDraw() {
+        GlStateManager.enableDepth();
     }
 
     @Override
@@ -289,30 +283,12 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        syncEmitterRedstoneButton();
-        syncAlarmRegistrationButton();
         super.drawScreen(mouseX, mouseY, partialTicks);
+    }
 
-        if (selectorWidget.isOpen()) {
-            selectorWidget.draw(mouseX, mouseY, partialTicks);
-            selectorWidget.drawTooltip(mouseX, mouseY);
-            return;
-        }
-
-        if (upgradePicker.isOpen()) {
-            upgradePicker.drawPickerModal(mc, getSelectableUpgradeInventory(), mc.player.inventory, mouseX, mouseY);
-            upgradePicker.drawPickerTooltip(mc, getSelectableUpgradeInventory(), mc.player.inventory, mouseX, mouseY, width, height);
-            return;
-        }
-
+    @Override
+    protected void drawWidgetGuiTooltips(int mouseX, int mouseY) {
         upgradePicker.drawUpgradeSlotHighlight(mouseX, mouseY, guiLeft, guiTop, container.getEmitterCardSlots());
-
-        matchModeButton.drawTooltip(this, mouseX, mouseY);
-        hysteresisButton.drawTooltip(this, mouseX, mouseY);
-
-        redstoneSignalBtn.drawTooltip(this, mouseX, mouseY);
-        alarmRegistrationBtn.drawTooltip(this, mouseX, mouseY);
-        pollingRateBtn.drawTooltip(this, mouseX, mouseY);
 
         if (emitterStrengthTextHovered) drawRedstoneStrengthTooltip(mouseX, mouseY);
 
@@ -328,12 +304,11 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
             fontRenderer);
 
         entryGrid.drawTooltip(guiLeft, guiTop, mouseX, mouseY);
-
     }
 
     @Override
     protected void renderHoveredToolTip(int mouseX, int mouseY) {
-        if (selectorWidget.isOpen()) return;
+        if (isManagedModalOpen()) return;
         if (upgradePicker.getUpgradeSlotAt(mouseX, mouseY, guiLeft, guiTop, container.getEmitterCardSlots()) >= 0) return;
 
         super.renderHoveredToolTip(mouseX, mouseY);
@@ -346,30 +321,16 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
         return super.isPointInRegion(rectX, rectY, rectWidth, rectHeight, pointX, pointY);
     }
 
-    private void drawSideButtons(int mouseX, int mouseY) {
-        // Reset GL state so the buttons do not inherit lighting/depth from prior draws.
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-
+    private void syncSideButtons(int mouseX, int mouseY) {
         if (matchModeButton.isVisible()) {
             matchModeButton.setCenteredLabel(container.getSyncMatchMode().getSymbol(), 0xFFFFFFFF);
-            matchModeButton.draw(this, mouseX, mouseY);
         }
-
-        redstoneSignalBtn.draw(this, mouseX, mouseY);
 
         if (hysteresisButton.isVisible()) {
             int iconX = (container.isSyncHysteresisEnabled() ? 0 : 1) * SIDE_BTN_SIZE;
             int iconY = (hysteresisButton.contains(mouseX, mouseY) ? 1 : 0) * SIDE_BTN_SIZE;
             hysteresisButton.setScaledTextureIcon(HYSTERESIS_ICON, iconX, iconY, SIDE_BTN_SIZE * 2, SIDE_BTN_SIZE * 2);
-            hysteresisButton.draw(this, mouseX, mouseY);
         }
-
-        pollingRateBtn.draw(this, mouseX, mouseY);
-        alarmRegistrationBtn.draw(this, mouseX, mouseY);
-
-        GlStateManager.enableDepth();
     }
 
     private void drawRedstoneStrengthTooltip(int mouseX, int mouseY) {
@@ -446,30 +407,18 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
     // ====================== INPUT HANDLING ======================
 
     @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        if (selectorWidget.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        if (pollingRateBtn.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        if (alarmRegistrationBtn.mouseClicked(mouseX, mouseY, mouseButton)) return;
-
-        if (upgradePicker.isOpen()) {
-            handleUpgradePickerClick(mouseX, mouseY, mouseButton);
-            return;
-        }
-
-        if (matchModeButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        if (hysteresisButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        if (redstoneSignalBtn.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        for (BeveledButton button : emitterStrengthButtons) {
-            if (button.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        }
-
+    protected boolean handleWidgetGuiMouseClicked(int mouseX, int mouseY, int mouseButton) {
         int emitterCardSlot = upgradePicker.getUpgradeSlotAt(mouseX, mouseY, guiLeft, guiTop, container.getEmitterCardSlots());
         if (emitterCardSlot >= 0) {
             handleEmitterCardSlotClick(emitterCardSlot, mouseButton);
-            return;
+            return true;
         }
 
-        super.mouseClicked(mouseX, mouseY, mouseButton);
+        return false;
+    }
+
+    @Override
+    protected void afterWidgetGuiMouseClicked(int mouseX, int mouseY, int mouseButton) {
         entryGrid.mouseClicked(guiLeft, guiTop, mouseX, mouseY, mouseButton);
     }
 
@@ -492,66 +441,21 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
             -1));
     }
 
-    private void handleUpgradePickerClick(int mouseX, int mouseY, int mouseButton) {
-        ISelectableUpgradeInventory inventory = getSelectableUpgradeInventory();
-        int selectedPlayerSlot = upgradePicker.handlePickerClick(mouseX, mouseY, mouseButton, inventory, mc.player.inventory);
-        if (selectedPlayerSlot < 0 || inventory == null) return;
-
+    private void installUpgradeFromPlayerSlot(int selectedPlayerSlot) {
         PowerToolsNetwork.INSTANCE.sendToServer(new PacketModifyStorageMonitorUpgradeSlot(
             container.getHost(),
             PacketModifyStorageMonitorUpgradeSlot.Action.INSTALL_FROM_PLAYER_SLOT,
             upgradePicker.getTargetUpgradeSlot(),
             selectedPlayerSlot));
-        upgradePicker.close();
     }
 
     @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (upgradePicker.isOpen()) {
-            if (keyCode == Keyboard.KEY_ESCAPE) {
-                upgradePicker.close();
-            }
-
-            return;
-        }
-
-        if (selectorWidget.keyTyped(typedChar, keyCode)) return;
-        if (entryGrid.keyTyped(typedChar, keyCode)) return;
-
-        super.keyTyped(typedChar, keyCode);
+    protected boolean handleWidgetGuiKeyTyped(char typedChar, int keyCode) {
+        return entryGrid.keyTyped(typedChar, keyCode);
     }
 
     @Override
-    protected void mouseReleased(int mouseX, int mouseY, int state) {
-        if (selectorWidget.isOpen()) {
-            selectorWidget.mouseReleased(mouseX, mouseY, state);
-            return;
-        }
-
-        super.mouseReleased(mouseX, mouseY, state);
-    }
-
-    @Override
-    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
-        if (selectorWidget.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick)) return;
-
-        super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
-    }
-
-    @Override
-    public void handleMouseInput() throws IOException {
-        super.handleMouseInput();
-
-        int scroll = Mouse.getEventDWheel();
-        if (scroll == 0) return;
-
-        if (selectorWidget.handleMouseWheel(scroll)) return;
-
-        if (upgradePicker.isOpen()) return;
-
-        int mouseX = Mouse.getEventX() * width / mc.displayWidth;
-        int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
-
+    protected void handleWidgetGuiMouseWheel(int mouseX, int mouseY, int scroll) {
         entryGrid.handleMouseWheel(guiLeft, guiTop, mouseX, mouseY, scroll, isShiftDown());
     }
 
@@ -613,7 +517,7 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
     }
 
     private void syncEmitterRedstoneButton() {
-        if (redstoneSignalBtn == null) return;
+        if (!redstoneSignalBtn.isVisible()) return;
 
         // Reuse AE2's redstone-emitter button art
         redstoneSignalBtn.setAe2TextureIcon(container.getSyncEmitterRedstonePower().getIconIndex());
@@ -623,17 +527,17 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
         alarmRegistrationBtn.setCenteredLabel(container.isSyncPlayerRegistered() ? "-" : "+");
     }
 
-    private void addEmitterStrengthButtons() {
-        int btnY = emitterStrengthPanelY + STRENGTH_PANEL_PADDING + STRENGTH_BTN_Y_START;
+    private void registerEmitterStrengthButtons() {
+        int btnY = STRENGTH_PANEL_PADDING + STRENGTH_BTN_Y_START;
 
         for (int y = 1; y < 4; y++) {  // 1, 2, 3
-            int btnX = emitterStrengthPanelX + STRENGTH_PANEL_PADDING;
+            int btnX = GUI_WIDTH + STRENGTH_PANEL_OFFSET_X + STRENGTH_PANEL_PADDING;
 
             for (int x = -1; x < 2; x += 2) {  // -1, 1
                 int delta = x * y * 5;
-                BeveledButton button = new BeveledButton(btnX, btnY, STRENGTH_BTN_WIDTH, STRENGTH_BTN_HEIGHT, formatDelta(delta));
+                BeveledButton button = new BeveledButton(0, 0, STRENGTH_BTN_WIDTH, formatDelta(delta));
                 button.setOnClick(() -> adjustEmitterStrength(delta));
-                emitterStrengthButtons.add(button);
+                registerWidget(button, btnX, btnY);
                 btnX += STRENGTH_BTN_X_OFFSET;
             }
 
@@ -663,8 +567,6 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
         boolean emitterStrengthValueHovered = mouseX >= valueX && mouseX < valueX + width
             && mouseY >= valueY && mouseY < valueY + fontRenderer.FONT_HEIGHT;
         emitterStrengthTextHovered = emitterStrengthTitleHovered || emitterStrengthValueHovered;
-
-        for (BeveledButton button : emitterStrengthButtons) button.draw(this, mouseX, mouseY);
     }
 
     private void sendEntryUpdate(int idx, ComparisonMode comparison, long threshold, long lowerThreshold, boolean enabled) {
@@ -685,8 +587,8 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
      */
     public List<Rectangle> getJEIExclusionArea() {
         List<Rectangle> areas = new ArrayList<>();
-        areas.add(matchModeButton.getBounds());
 
+        if (matchModeButton.isVisible()) areas.add(matchModeButton.getBounds());
         if (hysteresisButton.isVisible()) areas.add(hysteresisButton.getBounds());
         if (redstoneSignalBtn.isVisible()) areas.add(redstoneSignalBtn.getBounds());
 
@@ -696,10 +598,6 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
         }
 
         return areas;
-    }
-
-    private boolean hasBlockingOverlay() {
-        return selectorWidget.isOpen() || upgradePicker.isOpen();
     }
 
     private List<String> buildMatchModeTooltip() {
@@ -773,30 +671,5 @@ public class GuiStorageMonitor extends GuiContainer implements WidgetContext {
 
     private static String formatDelta(int delta) {
         return delta > 0 ? "+" + delta : Integer.toString(delta);
-    }
-
-    @Override
-    public Minecraft getWidgetMinecraft() {
-        return mc;
-    }
-
-    @Override
-    public FontRenderer getWidgetFontRenderer() {
-        return fontRenderer;
-    }
-
-    @Override
-    public RenderItem getWidgetItemRenderer() {
-        return itemRender;
-    }
-
-    @Override
-    public int getWidgetWidth() {
-        return width;
-    }
-
-    @Override
-    public int getWidgetHeight() {
-        return height;
     }
 }

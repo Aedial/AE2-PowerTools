@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.block.Block;
@@ -67,23 +68,26 @@ public class BlockAutoCrafter extends Block {
     }
 
     @Override
+    @Nonnull
     protected BlockStateContainer createBlockState() {
         return new BlockStateContainer(this, TIER);
     }
 
     @Override
-    public int getMetaFromState(IBlockState state) {
+    public int getMetaFromState(@Nonnull IBlockState state) {
         // Tier is stored in TileEntity, not in metadata
         return 0;
     }
 
     @Override
+    @Nonnull
     public IBlockState getStateFromMeta(int meta) {
         return getDefaultState();
     }
 
     @Override
-    public IBlockState getActualState(IBlockState state, IBlockAccess world, BlockPos pos) {
+    @Nonnull
+    public IBlockState getActualState(@Nonnull IBlockState state, IBlockAccess world, @Nonnull BlockPos pos) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileAutoCrafter) {
             int tier = ((TileAutoCrafter) te).getUpgradeTier();
@@ -96,6 +100,7 @@ public class BlockAutoCrafter extends Block {
     // === Render Layer Configuration for Transparency ===
 
     @Override
+    @Nonnull
     @SideOnly(Side.CLIENT)
     public BlockRenderLayer getRenderLayer() {
         // Primary layer for item rendering - CUTOUT_MIPPED for binary transparency
@@ -104,26 +109,27 @@ public class BlockAutoCrafter extends Block {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public boolean canRenderInLayer(IBlockState state, BlockRenderLayer layer) {
+    public boolean canRenderInLayer(@Nonnull IBlockState state, @Nonnull BlockRenderLayer layer) {
         // Render in both CUTOUT_MIPPED (binary transparency for frame) and TRANSLUCENT (alpha blending for colored overlay)
         return layer == BlockRenderLayer.CUTOUT_MIPPED || layer == BlockRenderLayer.TRANSLUCENT;
     }
 
     @Override
-    public boolean isOpaqueCube(IBlockState state) {
+    public boolean isOpaqueCube(@Nonnull IBlockState state) {
         // Required for transparency - tells Minecraft this block has transparent parts
         return false;
     }
 
     @Override
-    public boolean isFullCube(IBlockState state) {
+    public boolean isFullCube(@Nonnull IBlockState state) {
         // The block is visually a full cube, but has transparent textures
         return false;
     }
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
         tooltip.add(TextFormatting.AQUA + I18n.format("tile.ae2powertools.auto_crafter.tooltip"));
@@ -131,20 +137,20 @@ public class BlockAutoCrafter extends Block {
     }
 
     @Override
-    public boolean hasTileEntity(IBlockState state) {
+    public boolean hasTileEntity(@Nonnull IBlockState state) {
         return true;
     }
 
     @Nullable
     @Override
-    public TileEntity createTileEntity(World world, IBlockState state) {
+    public TileEntity createTileEntity(@Nonnull World world, @Nonnull IBlockState state) {
         return new TileAutoCrafter();
     }
 
     @Override
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state,
-                                     EntityPlayer player, EnumHand hand,
-                                     EnumFacing facing, float hitX, float hitY, float hitZ) {
+    public boolean onBlockActivated(World world, @Nonnull BlockPos pos, @Nonnull IBlockState state,
+                                    @Nonnull EntityPlayer player, @Nonnull EnumHand hand,
+                                    @Nonnull EnumFacing facing, float hitX, float hitY, float hitZ) {
         if (world.isRemote) return true;
 
         TileEntity te = world.getTileEntity(pos);
@@ -178,6 +184,10 @@ public class BlockAutoCrafter extends Block {
                 }
             }
             // Fall through to open GUI if pattern is invalid or crafter is full
+        }
+
+        if (!heldItem.isEmpty() && crafter.tryQuickInsertCatalyst(heldItem)) {
+            return true;
         }
 
         player.openGui(AE2PowerTools.instance, CrafterGuiHandler.GUI_CRAFTER, world,
@@ -389,7 +399,7 @@ public class BlockAutoCrafter extends Block {
     }
 
     @Override
-    public void breakBlock(World world, BlockPos pos, IBlockState state) {
+    public void breakBlock(World world, @Nonnull BlockPos pos, @Nonnull IBlockState state) {
         TileEntity te = world.getTileEntity(pos);
 
         if (te instanceof TileAutoCrafter) {

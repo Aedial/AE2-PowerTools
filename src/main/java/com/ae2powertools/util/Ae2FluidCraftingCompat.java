@@ -127,7 +127,6 @@ public final class Ae2FluidCraftingCompat {
             IMEMonitor<IAEFluidStack> fluidStorage = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             IAEFluidStack fluidKey = AEFluidStack.fromFluidStack(fluid);
-            if (fluidKey == null) return 0;
 
             IAEFluidStack storedFluid = fluidStorage.getStorageList().findPrecise(fluidKey);
             return storedFluid != null ? storedFluid.getStackSize() : 0;
@@ -153,7 +152,6 @@ public final class Ae2FluidCraftingCompat {
             IMEMonitor<IAEFluidStack> fluidStorage = storageGrid.getInventory(
                     AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             IAEFluidStack fluidStack = AEFluidStack.fromFluidStack(fluid);
-            if (fluidStack == null) return items;
 
             IAEFluidStack remainder = fluidStorage.injectItems(fluidStack, mode, actionSource);
             return restoreOriginalForm(items, remainder != null ? remainder.getFluidStack() : null);
@@ -201,7 +199,7 @@ public final class Ae2FluidCraftingCompat {
         if (stack.isEmpty()) return false;
 
         Item item = stack.getItem();
-        return item != null && itemId.equals(item.getRegistryName());
+        return itemId.equals(item.getRegistryName());
     }
 
     @Nullable

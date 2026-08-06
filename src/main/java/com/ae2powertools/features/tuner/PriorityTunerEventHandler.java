@@ -29,6 +29,7 @@ import com.ae2powertools.network.PowerToolsNetwork;
 public class PriorityTunerEventHandler {
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
+    @SuppressWarnings("deprecation")
     public void onBlockPlace(BlockEvent.PlaceEvent event) {
         EntityPlayer player = event.getPlayer();
         if (player == null || player.world.isRemote) return;

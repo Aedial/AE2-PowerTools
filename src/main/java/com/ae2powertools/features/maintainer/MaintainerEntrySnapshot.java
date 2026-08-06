@@ -74,12 +74,15 @@ public final class MaintainerEntrySnapshot {
         // simple string comparison and avoids repeating serialization every diff tick.
         String json = err != null ? ITextComponent.Serializer.componentToJson(err) : null;
 
+        IAEItemStack target = entry.getTargetItem();
+        if (target == null || target.getDefinition().isEmpty()) return EMPTY;
+
         // Defensive copy so the cached snapshot doesn't hold a reference that mutates.
-        IAEItemStack target = entry.getTargetItem().copy();
+        IAEItemStack targetCopy = target.copy();
 
         return new MaintainerEntrySnapshot(
                 true,
-                target,
+                targetCopy,
                 entry.getTargetQuantity(),
                 entry.getBatchSize(),
                 entry.getFrequencySeconds(),
@@ -91,7 +94,7 @@ public final class MaintainerEntrySnapshot {
 
     public void writeToBuf(ByteBuf buf) throws IOException {
         buf.writeBoolean(hasRecipe);
-        if (!hasRecipe) return;
+        if (!hasRecipe || targetItem == null) return;
 
         targetItem.writeToPacket(buf);
         buf.writeLong(targetQuantity);
@@ -112,7 +115,7 @@ public final class MaintainerEntrySnapshot {
         }
     }
 
-    public static MaintainerEntrySnapshot readFromBuf(ByteBuf buf) throws IOException {
+    public static MaintainerEntrySnapshot readFromBuf(ByteBuf buf) {
         boolean hasRecipe = buf.readBoolean();
         if (!hasRecipe) return EMPTY;
 

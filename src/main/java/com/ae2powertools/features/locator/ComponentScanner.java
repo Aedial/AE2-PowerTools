@@ -24,7 +24,7 @@ import com.ae2powertools.util.SubnetGridHelper;
 /**
  * Scans an AE2 network and groups all components by their item representation.
  * This is the server-side scanning logic for the Network Component Locator.
- *
+ * <p>
  * Iterates all machine classes on the grid, groups nodes by their getMachineRepresentation() ItemStack,
  * and collects all coordinates for each component type.
  */

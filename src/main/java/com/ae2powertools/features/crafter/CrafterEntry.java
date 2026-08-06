@@ -37,7 +37,7 @@ public class CrafterEntry {
     /**
      * Internal inventory for items stored between crafts (9 slots).
      * Mirrors the crafting grid 1:1: slot 0-8 corresponds to crafting slot 0-8.
-     * 
+     * <p>
      * Each slot stores:
      * - REUSABLE ingredients: the catalyst item that never gets consumed
      * - DUPLICATION ingredients: the catalyst item that appears in output

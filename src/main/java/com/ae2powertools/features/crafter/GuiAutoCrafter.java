@@ -1,22 +1,17 @@
 package com.ae2powertools.features.crafter;
 
 import java.awt.Rectangle;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.lwjgl.input.Mouse;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.inventory.Slot;
@@ -41,22 +36,23 @@ import com.ae2powertools.util.FormatUtil;
 import com.ae2powertools.widgets.BeveledButton;
 import com.ae2powertools.widgets.QueuedItemRenderer;
 import com.ae2powertools.widgets.TexturedButton;
-import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetAnchor;
 import com.ae2powertools.widgets.WidgetDrawHelper;
+import com.ae2powertools.widgets.WidgetGui;
 
 
 /**
  * GUI for the AE2 AutoCrafter.
  * Recipe view (per-entry) with Overview modal overlay.
- * 
+ * <p>
  * Modal system: the extracted overview overlay replaces the covered recipe/inventory
  * area while keeping the PMT panel visible to the left.
- * 
+ * <p>
  * When NAE2 is installed and the player has a Pattern Multi-Tool, displays the PMT
  * panel to the left of the main GUI for convenient pattern storage access.
  */
 @SideOnly(Side.CLIENT)
-public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
+public class GuiAutoCrafter extends WidgetGui {
 
     private static final ResourceLocation RECIPE_TEXTURE = new ResourceLocation(
             Tags.MODID, "textures/guis/crafter_recipe.png");
@@ -114,13 +110,11 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
 
     private final ContainerAutoCrafter container;
     private final CrafterOverviewOverlay overviewOverlay;
-    private final BeveledButton overviewButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, PAGE_BTN_SIZE, "<");
-    private final BeveledButton pagePrevButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, PAGE_BTN_SIZE, "<");
-    private final BeveledButton pageNextButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, PAGE_BTN_SIZE, ">");
-    private final TexturedButton batchButton = new TexturedButton(
-        0, 0, TAB_BTN_SIZE, TAB_BTN_SIZE, BATCH_BUTTON_TEXTURE, 0, 0, TAB_BTN_SIZE, TAB_BTN_SIZE);
-    private final TexturedButton speedButton = new TexturedButton(
-        0, 0, TAB_BTN_SIZE, TAB_BTN_SIZE, SPEED_BUTTON_TEXTURE, 0, 0, TAB_BTN_SIZE, TAB_BTN_SIZE);
+    private final BeveledButton overviewButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, "<");
+    private final BeveledButton pagePrevButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, "<");
+    private final BeveledButton pageNextButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, ">");
+    private final TexturedButton batchButton = new TexturedButton(0, 0, TAB_BTN_SIZE, BATCH_BUTTON_TEXTURE);
+    private final TexturedButton speedButton = new TexturedButton(0, 0, TAB_BTN_SIZE, SPEED_BUTTON_TEXTURE);
 
     // Hovered elements
     private int hoveredRecipeSlot = -1;
@@ -152,7 +146,7 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
     // recipeEntryIndex is checked when reading to guard against stale draws after a
     // page change, before the server's fresh recipe packet arrives.
     private int recipeEntryIndex = -1;
-    private IAEItemStack[] syncedInputGrid = new IAEItemStack[9];
+    private final IAEItemStack[] syncedInputGrid = new IAEItemStack[9];
     private ItemStack syncedPatternStack = ItemStack.EMPTY;
     private final ItemStack[] syncedCatalystStacks = new ItemStack[CrafterEntry.CATALYST_SLOTS];
     private final List<CatalystInfo> syncedCatalystInfo = new ArrayList<>();
@@ -162,6 +156,7 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
     private static class CatalystInfo {
         final int slotIndex;
         final IAEItemStack expectedItem;
+
         CatalystInfo(int slotIndex, IAEItemStack expectedItem) {
             this.slotIndex = slotIndex;
             this.expectedItem = expectedItem;
@@ -169,10 +164,8 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
     }
 
     public GuiAutoCrafter(ContainerAutoCrafter container) {
-        super(container);
+        super(container, GUI_WIDTH, GUI_HEIGHT, RECIPE_TEXTURE);
         this.container = container;
-        this.xSize = GUI_WIDTH;
-        this.ySize = GUI_HEIGHT;
 
         this.overviewOverlay = new CrafterOverviewOverlay(
             this,
@@ -184,24 +177,34 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
             this::getSyncedErrorRate,
             this::getSyncedMetricsTotal,
             this::getEntryOverviewInfo,
-            state -> state.getTranslated(),
+            CrafterState::getTranslated,
             this::setCurrentPage,
             this::toggleEntryFromOverview);
+        registerModal(this.overviewOverlay, WidgetAnchor.GUI, 0, 0);
 
         overviewButton.setOnClick(overviewOverlay::open);
-        overviewButton.setTooltipProvider(() -> Collections.singletonList(I18n.format("gui.ae2powertools.crafter.overview")));
+        overviewButton.setTooltipKey("gui.ae2powertools.crafter.overview");
+        registerWidget(overviewButton, OVERVIEW_BTN_X, OVERVIEW_BTN_Y);
+
         pagePrevButton.setOnClick(() -> {
             if (getCurrentPage() > 0) setCurrentPage(getCurrentPage() - 1);
         });
-        pagePrevButton.setTooltipProvider(() -> Collections.singletonList(I18n.format("gui.ae2powertools.crafter.page.previous")));
+        pagePrevButton.setTooltipKey("gui.ae2powertools.crafter.page.previous");
+        registerWidget(pagePrevButton, PAGE_LEFT_X, PAGE_LEFT_Y);
+
         pageNextButton.setOnClick(() -> {
             if (getCurrentPage() < TileAutoCrafter.ENTRY_COUNT - 1) setCurrentPage(getCurrentPage() + 1);
         });
-        pageNextButton.setTooltipProvider(() -> Collections.singletonList(I18n.format("gui.ae2powertools.crafter.page.next")));
+        pageNextButton.setTooltipKey("gui.ae2powertools.crafter.page.next");
+        registerWidget(pageNextButton, PAGE_RIGHT_X, PAGE_RIGHT_Y);
+
         batchButton.setOnClick(this::openBatchDialog);
         batchButton.setTooltipProvider(this::buildBatchButtonTooltip);
+        registerWidget(batchButton, BATCH_BTN_X, BATCH_BTN_Y);
+
         speedButton.setOnClick(this::openSpeedDialog);
         speedButton.setTooltipProvider(this::buildSpeedButtonTooltip);
+        registerWidget(speedButton, SPEED_BTN_X, SPEED_BTN_Y);
 
         // Initialize synced overview arrays so the GUI renders cleanly before the first
         // packet arrives (it should arrive on the same tick the GUI opens, but be safe).
@@ -210,9 +213,27 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
             syncedOverviewErrorDetails.add(Collections.emptyList());
         }
 
-        for (int i = 0; i < syncedCatalystStacks.length; i++) {
-            syncedCatalystStacks[i] = ItemStack.EMPTY;
-        }
+        Arrays.fill(syncedCatalystStacks, ItemStack.EMPTY);
+    }
+
+    private List<String> buildBatchButtonTooltip() {
+        return Arrays.asList(
+            I18n.format("gui.ae2powertools.crafter.batch.title"),
+            TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.batch.desc", container.syncBatchSize),
+            "",
+            TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.batch.explanation")
+        );
+    }
+
+    private List<String> buildSpeedButtonTooltip() {
+        return Arrays.asList(
+            I18n.format("gui.ae2powertools.crafter.speed.title"),
+            TextFormatting.GRAY + I18n.format(
+                "gui.ae2powertools.crafter.speed.desc",
+                FormatUtil.formatTimeTicks(container.syncSpeedTicks)),
+            "",
+            TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.speed.explanation")
+        );
     }
 
     /**
@@ -240,15 +261,6 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
         return container.getCurrentEntryIndex();
     }
 
-    @Override
-    public void initGui() {
-        super.initGui();
-
-        buttonList.clear();
-
-        overviewOverlay.initGui(guiLeft, guiTop);
-    }
-
     /**
      * Sets the current page and syncs to server for persistence.
      * Updates local container state immediately for responsive UI; the next server sync
@@ -258,6 +270,9 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
         container.setCurrentEntryIndex(page);
         PowerToolsNetwork.INSTANCE.sendToServer(new PacketSetCrafterPage(
                 container.getTile().getPos(), page));
+
+        pagePrevButton.setEnabled(getCurrentPage() > 0);
+        pageNextButton.setEnabled(getCurrentPage() < TileAutoCrafter.ENTRY_COUNT - 1);
     }
 
     private void openBatchDialog() {
@@ -273,9 +288,7 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
-
+    protected void beforeWidgetGuiDrawScreen(int mouseX, int mouseY, float partialTicks) {
         // Detect when synced page changes from server and update container slots.
         // This handles the case where the GUI opens before the page sync arrives.
         int currentSyncedPage = container.getCurrentEntryIndex();
@@ -283,22 +296,19 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
             lastKnownPage = currentSyncedPage;
             container.setCurrentEntryIndex(currentSyncedPage);
         }
+    }
 
-        super.drawScreen(mouseX, mouseY, partialTicks);
-
+    @Override
+    protected void afterWidgetGuiDrawScreen(int mouseX, int mouseY, float partialTicks) {
         // Draw PMT slot hover highlights manually
         // Vanilla's drawScreen doesn't draw hover for disabled slots, so we need to handle it
         drawPMTSlotHovers(mouseX, mouseY);
+    }
 
-        if (overviewOverlay.isOpen()) {
-            overviewOverlay.draw(mouseX, mouseY, partialTicks);
-            overviewOverlay.drawTooltip(mouseX, mouseY);
-            return;  // Modal blocks other interactions
-        }
-
+    @Override
+    protected void drawWidgetGuiTooltips(int mouseX, int mouseY) {
         renderHoveredToolTipWithPatternWarning(mouseX, mouseY);
         drawRecipeTooltips(mouseX, mouseY);
-        drawAE2ButtonTooltips(mouseX, mouseY);
     }
 
     /**
@@ -329,7 +339,7 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
 
     /**
      * Draws hover highlights for PMT slots.
-     * 
+     * <p>
      * Vanilla's drawScreen skips hover highlighting for disabled slots, but we want
      * to show hover for both.
      */
@@ -367,7 +377,7 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
     }
 
     @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+    protected void drawWidgetGuiBackgroundContents(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         // Draw Pattern Multi-Tool panel (if player has PMT)
@@ -377,15 +387,13 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
         // Reset GL state after PMT drawing
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        // Always draw recipe texture as base
-        mc.getTextureManager().bindTexture(RECIPE_TEXTURE);
-        drawTexturedModalRect(guiLeft, guiTop, 0, 0, GUI_WIDTH, GUI_HEIGHT);
-
         // Draw PMT slot backgrounds (pattern icons for empty slots)
         PMTRenderer.drawSlotBackgrounds(this, pmtManager, guiLeft, guiTop);
 
         // Draw upgrade slot icons (for empty slots)
         drawUpgradeSlotIcons();
+
+        updateButtonsUnderModal();
 
         // Short circuit to skip drawing recipe/inventory if overview is open.
         // This avoids content underneath leaking GL state to the overview (eating item renders, etc).
@@ -396,15 +404,10 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
 
         // Draw recipe content (always visible, upgrade slots always accessible)
         drawRecipeContent(mouseX, mouseY);
-
-        // Draw AE2-style buttons (always visible)
-        drawAE2Buttons(mouseX, mouseY);
     }
 
     /**
      * Draws the upgrade slot background icons for empty slots.
-     * Uses AE2's states.png texture for the "insert upgrade" icon.
-     * Applies 0.4f opacity to match AE2's grayed-out style for empty slots.
      */
     private void drawUpgradeSlotIcons() {
         for (int i = 0; i < TileAutoCrafter.UPGRADE_SLOTS; i++) {
@@ -460,12 +463,12 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
      * For PMTSlots, we render the pattern OUTPUT instead of the encoded pattern item.
      * This is normally done by AEBaseGui, but since we extend GuiContainer directly,
      * we need to do it ourselves.
-     * 
+     * <p>
      * IMPORTANT: We must NOT call super.drawSlot for PMTSlots at all, as it may
      * trigger unexpected validation rendering from parent classes.
      */
     @Override
-    public void drawSlot(Slot slotIn) {
+    public void drawSlot(@Nonnull Slot slotIn) {
         // Refuse to render inventory slots when overview modal is open
         if (overviewOverlay.isOpen() && overviewOverlay.coversRelativeRegion(slotIn.xPos, slotIn.yPos, 16, 16)) {
             return;
@@ -509,40 +512,16 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
     }
 
     /**
-     * Draws custom buttons: Overview toggle, page navigation, batch and speed.
-     * All buttons are custom drawn (not GuiButton) for consistent styling.
+     * Updates the visibility of buttons that are under the modal overlay.
+     * When the overview modal is open, these buttons are hidden to prevent interaction.
      */
-    private void drawAE2Buttons(int mouseX, int mouseY) {
-        overviewButton.setPosition(guiLeft + OVERVIEW_BTN_X, guiTop + OVERVIEW_BTN_Y);
-        overviewButton.setEnabled(true);
-        overviewButton.draw(this, mouseX, mouseY);
+    private void updateButtonsUnderModal() {
+        boolean modalNotOpen = !overviewOverlay.isOpen();
 
-        if (!overviewOverlay.isOpen()) {
-            pagePrevButton.setPosition(guiLeft + PAGE_LEFT_X, guiTop + PAGE_LEFT_Y);
-            pagePrevButton.setEnabled(getCurrentPage() > 0);
-            pagePrevButton.draw(this, mouseX, mouseY);
-
-            pageNextButton.setPosition(guiLeft + PAGE_RIGHT_X, guiTop + PAGE_RIGHT_Y);
-            pageNextButton.setEnabled(getCurrentPage() < TileAutoCrafter.ENTRY_COUNT - 1);
-            pageNextButton.draw(this, mouseX, mouseY);
-
-            batchButton.setPosition(guiLeft + BATCH_BTN_X, guiTop + BATCH_BTN_Y);
-            batchButton.draw(this, mouseX, mouseY);
-
-            speedButton.setPosition(guiLeft + SPEED_BTN_X, guiTop + SPEED_BTN_Y);
-            speedButton.draw(this, mouseX, mouseY);
-        }
-    }
-
-    /**
-     * Draws tooltips for custom buttons.
-     */
-    private void drawAE2ButtonTooltips(int mouseX, int mouseY) {
-        overviewButton.drawTooltip(this, mouseX, mouseY);
-        pagePrevButton.drawTooltip(this, mouseX, mouseY);
-        pageNextButton.drawTooltip(this, mouseX, mouseY);
-        batchButton.drawTooltip(this, mouseX, mouseY);
-        speedButton.drawTooltip(this, mouseX, mouseY);
+        pagePrevButton.setVisible(modalNotOpen);
+        pageNextButton.setVisible(modalNotOpen);
+        batchButton.setVisible(modalNotOpen);
+        speedButton.setVisible(modalNotOpen);
     }
 
     // ==================== RECIPE VIEW ====================
@@ -769,47 +748,22 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
     // ==================== INPUT HANDLING ====================
 
     @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (overviewOverlay.keyTyped(typedChar, keyCode)) return;
-
-        super.keyTyped(typedChar, keyCode);
-    }
-
-    @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        if (overviewOverlay.mouseClicked(mouseX, mouseY, mouseButton)) return;
-
-        // Custom button handling (overview toggle, page navigation, batch/speed)
-        if (mouseButton == 0) {
-            if (overviewButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-            if (pagePrevButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-            if (pageNextButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-            if (batchButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-            if (speedButton.mouseClicked(mouseX, mouseY, mouseButton)) return;
-        }
-
+    protected boolean handleWidgetGuiMouseClicked(int mouseX, int mouseY, int mouseButton) {
         // Handle result right-click to disable
         if (mouseButton == 1 && hoveredResult) {
             CrafterEntry entry = container.getCurrentEntry();
             if (entry != null && entry.hasPattern()) {
                 PowerToolsNetwork.INSTANCE.sendToServer(new PacketToggleCrafterEntry(
                         container.getTile().getPos(), getCurrentPage()));
-                return;
+                return true;
             }
         }
 
-        super.mouseClicked(mouseX, mouseY, mouseButton);
+        return false;
     }
 
     @Override
-    public void handleMouseInput() throws IOException {
-        super.handleMouseInput();
-
-        int scroll = Mouse.getEventDWheel();
-        if (scroll == 0) return;
-
-        if (overviewOverlay.handleMouseWheel(scroll)) return;
-
+    protected void handleWidgetGuiMouseWheel(int mouseX, int mouseY, int scroll) {
         // In recipe mode, scroll through pages
         if (scroll > 0 && getCurrentPage() > 0) {
             setCurrentPage(getCurrentPage() - 1);
@@ -1048,26 +1002,6 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
             entryIndex));
     }
 
-    private List<String> buildBatchButtonTooltip() {
-        List<String> tooltip = new ArrayList<>();
-        tooltip.add(I18n.format("gui.ae2powertools.crafter.batch.title"));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.batch.desc", container.syncBatchSize));
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.batch.explanation"));
-        return tooltip;
-    }
-
-    private List<String> buildSpeedButtonTooltip() {
-        List<String> tooltip = new ArrayList<>();
-        tooltip.add(I18n.format("gui.ae2powertools.crafter.speed.title"));
-        tooltip.add(TextFormatting.GRAY + I18n.format(
-            "gui.ae2powertools.crafter.speed.desc",
-            FormatUtil.formatTimeTicks(container.syncSpeedTicks)));
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.speed.explanation"));
-        return tooltip;
-    }
-
     private void drawCrafterSlotItem(ItemStack stack, int x, int y) {
         if (stack == null || stack.isEmpty()) return;
 
@@ -1092,6 +1026,8 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
             context.getWidgetItemRenderer().renderItemAndEffectIntoGUI(stack, x, y);
             context.getWidgetItemRenderer().renderItemOverlayIntoGUI(context.getWidgetFontRenderer(), stack, x, y, null);
 
+            // TODO: We use a slot-wide effect to indicate ghost items because ItemStacks ignore the alpha channel in 1.12
+            //       Ideally, we should have a solution that does not involve the whole slot but just the item itself.
             RenderHelper.disableStandardItemLighting();
             GlStateManager.disableLighting();
             GlStateManager.disableDepth();
@@ -1105,30 +1041,4 @@ public class GuiAutoCrafter extends GuiContainer implements WidgetContext {
             RenderHelper.enableGUIStandardItemLighting();
         });
     }
-
-    @Override
-    public Minecraft getWidgetMinecraft() {
-        return mc;
-    }
-
-    @Override
-    public FontRenderer getWidgetFontRenderer() {
-        return fontRenderer;
-    }
-
-    @Override
-    public RenderItem getWidgetItemRenderer() {
-        return itemRender;
-    }
-
-    @Override
-    public int getWidgetWidth() {
-        return width;
-    }
-
-    @Override
-    public int getWidgetHeight() {
-        return height;
-    }
-
 }

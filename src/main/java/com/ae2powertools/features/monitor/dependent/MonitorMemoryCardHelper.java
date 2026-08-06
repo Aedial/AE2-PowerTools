@@ -79,7 +79,8 @@ public final class MonitorMemoryCardHelper {
         return true;
     }
 
-    private static void saveToMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard, IStorageMonitorHost host) {
+    private static void saveToMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard,
+            IStorageMonitorHost host) {
         NBTTagCompound data = new NBTTagCompound();
         data.setInteger(NBT_REFRESH_RATE, host.getRefreshRate());
         data.setInteger(NBT_MATCH_MODE, host.getMatchMode().getId());
@@ -95,7 +96,8 @@ public final class MonitorMemoryCardHelper {
         memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
     }
 
-    private static void loadFromMemoryCard(World world, EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard, IStorageMonitorHost host) {
+    private static void loadFromMemoryCard(World world, EntityPlayer player, ItemStack memCardStack,
+            IMemoryCard memoryCard, IStorageMonitorHost host) {
         String savedName = memoryCard.getSettingsName(memCardStack);
         NBTTagCompound data = memoryCard.getData(memCardStack);
 
@@ -296,7 +298,7 @@ public final class MonitorMemoryCardHelper {
         FluidStack fluid = Ae2FluidCraftingCompat.extractFluid(itemStack);
         if (fluid != null) {
             IAEFluidStack aeFluid = AEFluidStack.fromFluidStack(fluid);
-            return aeFluid != null ? MonitoredResource.ofFluid(aeFluid) : null;
+            return MonitoredResource.ofFluid(aeFluid);
         }
 
         if (Loader.isModLoaded("mekeng")) {

@@ -1,9 +1,10 @@
 package com.ae2powertools.integration.jei;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.awt.Rectangle;
 import java.util.List;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.IModRegistry;

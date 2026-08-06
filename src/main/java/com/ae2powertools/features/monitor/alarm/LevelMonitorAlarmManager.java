@@ -24,7 +24,7 @@ public final class LevelMonitorAlarmManager {
     private LevelMonitorAlarmManager() {}
 
     public static void register(TileLevelMonitorAlarm tile) {
-        if (tile == null || tile.getWorld() == null || tile.getWorld().isRemote) return;
+        if (tile == null || tile.getWorld().isRemote) return;
 
         LOADED_ALARMS.add(tile);
     }

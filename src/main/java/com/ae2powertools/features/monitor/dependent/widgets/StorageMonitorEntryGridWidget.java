@@ -309,7 +309,7 @@ public class StorageMonitorEntryGridWidget extends Gui {
         }
 
         if (quantity <= threshold) return 100;
-        if (quantity == 0 || threshold == 0) return 0;
+        if (threshold == 0) return 0;
         return calculatePercent(threshold, quantity);
     }
 
@@ -642,7 +642,7 @@ public class StorageMonitorEntryGridWidget extends Gui {
         int gridY = relativeY - GRID_Y;
         int col = gridX / CELL_W;
         int row = gridY / CELL_H;
-        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return null;
+        if (col >= GRID_COLS || row >= GRID_ROWS) return null;
 
         int localX = gridX - col * CELL_W;
         int localY = gridY - row * CELL_H;
@@ -671,7 +671,7 @@ public class StorageMonitorEntryGridWidget extends Gui {
 
         int col = gridX / CELL_W;
         int row = gridY / CELL_H;
-        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return ThresholdField.UPPER;
+        if (col >= GRID_COLS || row >= GRID_ROWS) return ThresholdField.UPPER;
 
         int localY = gridY - row * CELL_H;
         if (localY < 0 || localY >= INNER_H) return ThresholdField.UPPER;

@@ -3,6 +3,7 @@ package com.ae2powertools.features.monitor.alarm;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.block.properties.PropertyBool;
@@ -30,22 +31,25 @@ public class BlockLevelMonitorAlarm extends BlockStorageMonitorBase {
     }
 
     @Override
+    @Nonnull
     protected BlockStateContainer createBlockState() {
         return new BlockStateContainer(this, STATE);
     }
 
     @Override
-    public int getMetaFromState(IBlockState state) {
+    public int getMetaFromState(@Nonnull IBlockState state) {
         return 0;
     }
 
     @Override
+    @Nonnull
     public IBlockState getStateFromMeta(int meta) {
         return getDefaultState();
     }
 
     @Override
-    public IBlockState getActualState(IBlockState state, IBlockAccess world, BlockPos pos) {
+    @Nonnull
+    public IBlockState getActualState(@Nonnull IBlockState state, IBlockAccess world, @Nonnull BlockPos pos) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileLevelMonitorAlarm) {
             return state.withProperty(STATE, ((TileLevelMonitorAlarm) te).isOn());
@@ -71,7 +75,7 @@ public class BlockLevelMonitorAlarm extends BlockStorageMonitorBase {
 
     @Nullable
     @Override
-    public TileEntity createTileEntity(World world, IBlockState state) {
+    public TileEntity createTileEntity(@Nonnull World world, @Nonnull IBlockState state) {
         return new TileLevelMonitorAlarm();
     }
 }

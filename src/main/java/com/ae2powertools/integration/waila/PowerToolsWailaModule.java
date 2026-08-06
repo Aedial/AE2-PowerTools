@@ -3,6 +3,8 @@ package com.ae2powertools.integration.waila;
 import java.util.List;
 import java.util.Optional;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -63,6 +65,7 @@ public final class PowerToolsWailaModule {
     private static final class AutoCrafterWailaDataProvider extends BaseWailaDataProvider {
 
         @Override
+        @Nonnull
         public List<String> getWailaBody(ItemStack itemStack,
                                          List<String> currentToolTip,
                                          IWailaDataAccessor accessor,
@@ -96,6 +99,7 @@ public final class PowerToolsWailaModule {
         }
 
         @Override
+        @Nonnull
         public NBTTagCompound getNBTData(EntityPlayerMP player,
                                          TileEntity te,
                                          NBTTagCompound tag,
@@ -112,6 +116,7 @@ public final class PowerToolsWailaModule {
     private static final class MaintainerWailaDataProvider extends BaseWailaDataProvider {
 
         @Override
+        @Nonnull
         public List<String> getWailaBody(ItemStack itemStack,
                                          List<String> currentToolTip,
                                          IWailaDataAccessor accessor,
@@ -139,6 +144,7 @@ public final class PowerToolsWailaModule {
         }
 
         @Override
+        @Nonnull
         public NBTTagCompound getNBTData(EntityPlayerMP player,
                                          TileEntity te,
                                          NBTTagCompound tag,
@@ -158,6 +164,7 @@ public final class PowerToolsWailaModule {
         private final Tracer tracer = new Tracer();
 
         @Override
+        @Nonnull
         public List<String> getWailaBody(ItemStack itemStack,
                                          List<String> currentToolTip,
                                          IWailaDataAccessor accessor,
@@ -189,6 +196,7 @@ public final class PowerToolsWailaModule {
         }
 
         @Override
+        @Nonnull
         public NBTTagCompound getNBTData(EntityPlayerMP player,
                                          TileEntity te,
                                          NBTTagCompound tag,

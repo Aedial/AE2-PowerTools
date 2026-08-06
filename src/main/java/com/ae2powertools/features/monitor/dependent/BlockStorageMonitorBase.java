@@ -2,6 +2,7 @@ package com.ae2powertools.features.monitor.dependent;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.block.Block;
@@ -67,7 +68,8 @@ public abstract class BlockStorageMonitorBase extends Block {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
         tooltip.add(TextFormatting.AQUA + I18n.format(getTooltipKey()));
 
@@ -80,14 +82,14 @@ public abstract class BlockStorageMonitorBase extends Block {
     }
 
     @Override
-    public boolean hasTileEntity(IBlockState state) {
+    public boolean hasTileEntity(@Nonnull IBlockState state) {
         return true;
     }
 
     @Override
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state,
-                                     EntityPlayer player, EnumHand hand,
-                                     EnumFacing facing, float hitX, float hitY, float hitZ) {
+    public boolean onBlockActivated(@Nonnull World world, @Nonnull BlockPos pos, @Nonnull IBlockState state,
+                                    EntityPlayer player, @Nonnull EnumHand hand,
+                                    @Nonnull EnumFacing facing, float hitX, float hitY, float hitZ) {
         ItemStack heldItem = player.getHeldItem(hand);
         if (!heldItem.isEmpty() && heldItem.getItem() instanceof IMemoryCard) {
             if (world.isRemote) return true;

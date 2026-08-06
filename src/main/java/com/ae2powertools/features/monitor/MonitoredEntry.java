@@ -1,5 +1,6 @@
 package com.ae2powertools.features.monitor;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
@@ -13,10 +14,10 @@ import com.ae2powertools.features.monitor.dependent.ComparisonMode;
  * A single monitoring entry: a resource to watch, a comparison operator, and one or two thresholds.
  * Each entry independently evaluates to a boolean (quantity COMP threshold),
  * then AND/OR across all entries determines the overall condition.
- *
+ * <p>
  * Disabled entries are still polled (so the GUI can show their current quantity),
  * but they do NOT contribute to the AND/OR evaluation.
- *
+ * <p>
  * Also stores the last looked-up quantity (transient, not persisted) for display purposes.
  */
 public class MonitoredEntry {
@@ -56,7 +57,8 @@ public class MonitoredEntry {
         this(resource, comparison, threshold, threshold, enabled);
     }
 
-    public MonitoredEntry(@Nullable MonitoredResource resource, ComparisonMode comparison, long threshold, long lowerThreshold, boolean enabled) {
+    public MonitoredEntry(@Nullable MonitoredResource resource, ComparisonMode comparison, long threshold,
+            long lowerThreshold, boolean enabled) {
         this.resource = resource;
         this.comparison = comparison;
         this.enabled = enabled;
@@ -223,7 +225,7 @@ public class MonitoredEntry {
         return tag;
     }
 
-    @Nullable
+    @Nonnull
     public static MonitoredEntry readFromNBT(NBTTagCompound tag) {
         // A missing resource tag means this is a placeholder entry: still has comparator/threshold/enabled.
         MonitoredResource resource = null;

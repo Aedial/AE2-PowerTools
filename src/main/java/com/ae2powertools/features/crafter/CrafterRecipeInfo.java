@@ -16,7 +16,7 @@ import appeng.util.item.AEItemStack;
 /**
  * Holds the cached analysis of a crafting recipe.
  * Identifies which ingredients are reusable, consume durability, self-duplicate, or are consumed.
- * 
+ * <p>
  * This analysis is performed once when a pattern is inserted, and cached to avoid
  * expensive recipe simulation on every craft operation.
  */
@@ -135,7 +135,7 @@ public class CrafterRecipeInfo {
 
     /**
      * Type of ingredient behavior in a crafting recipe.
-     * 
+     * <p>
      * Determined by simulating the recipe once and checking what items remain in the crafting grid.
      */
     public enum IngredientType {
@@ -148,7 +148,8 @@ public class CrafterRecipeInfo {
         /**
          * Returned completely unchanged after crafting (e.g., Blood Magic Orbs).
          * These items are stored in internal inventory and reused indefinitely.
-         * No network request is ever needed for these items and their absence in the internal inventory is treated as a missing catalyst.
+         * No network request is ever needed for these items and their absence
+         * in the internal inventory is treated as a missing catalyst.
          */
         REUSABLE,
 
@@ -156,12 +157,12 @@ public class CrafterRecipeInfo {
          * Takes durability damage but is returned (e.g., tools in some recipes).
          * NOT stored in internal inventory - requested from network like CONSUMED items.
          * The damaged item is returned as an additional output to the network.
-         * 
+         * <p>
          * For batch crafting, we calculate how many items are needed based on:
          * - Total durability per item
          * - Number of crafts requested
          * - Expected items to break (requested as additional input)
-         * 
+         * <p>
          * Items that survive crafting (with remaining durability) are returned to the network.
          */
         DURABILITY,
@@ -251,10 +252,10 @@ public class CrafterRecipeInfo {
      * Gets items that need to be extracted from the network for each craft.
      * Does NOT include REUSABLE items (in internal inventory, never consumed).
      * Does NOT include DUPLICATION items (in internal inventory as catalysts).
-     * 
+     * <p>
      * DURABILITY items ARE consumed from the network - they are extracted, used,
      * and returned damaged. They are not catalysts stored in internal inventory.
-     * 
+     * <p>
      * TRANSFORMED items ARE consumed and must be extracted,
      * even though they produce different outputs. The outputs are handled separately.
      */

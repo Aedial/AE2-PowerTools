@@ -80,9 +80,6 @@ public final class ScannerTextHelper {
         }
 
         IGridHost host = node.getMachine();
-        if (host == null) {
-            return new TextComponentTranslation("ae2powertools.common.unknown");
-        }
 
         String className = host.getClass().getSimpleName();
 

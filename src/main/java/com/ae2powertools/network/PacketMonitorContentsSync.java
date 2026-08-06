@@ -57,9 +57,8 @@ public class PacketMonitorContentsSync implements IMessage {
         @Override
         public IMessage onMessage(PacketMonitorContentsSync message, MessageContext ctx) {
             // Handle on client thread
-            net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> {
-                GuiStorageMonitor.handleContentsSync(message.getResources());
-            });
+            net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(
+                () -> GuiStorageMonitor.handleContentsSync(message.getResources()));
 
             return null;
         }
