@@ -200,114 +200,41 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
     private DistributionResult distributeAccelerationCards(EntityPlayer player, IGrid grid, ItemStack distributorStack) {
         DistributionResult result = new DistributionResult();
 
-        // Get the acceleration card definition
         IItemDefinition cardSpeedDef = AEApi.instance().definitions().materials().cardSpeed();
         ItemStack cardSpeedTemplate = cardSpeedDef.maybeStack(1).orElse(ItemStack.EMPTY);
         if (cardSpeedTemplate.isEmpty()) return result;
 
-        // Find all assemblers that can accept more cards
-        List<AssemblerInfo> assemblersToUpgrade = new ArrayList<>();
-
-        // Get all Molecular Assemblers from the grid
-        for (IGridNode node : grid.getMachines(TileMolecularAssembler.class)) {
-            Object machine = node.getMachine();
-            if (!(machine instanceof TileMolecularAssembler)) continue;
-
-            TileMolecularAssembler assembler = (TileMolecularAssembler) machine;
-            IItemHandler upgradeInv = assembler.getInventoryByName("upgrades");
-            if (upgradeInv == null) continue;
-
-            // Derive max cards from upgrade inventory size
-            int maxCards = upgradeInv.getSlots();
-            int currentCards = assembler.getInstalledUpgrades(Upgrades.SPEED);
-            int slotsAvailable = maxCards - currentCards;
-
-            if (slotsAvailable > 0) {
-                assemblersToUpgrade.add(new AssemblerInfo(assembler, upgradeInv, maxCards, slotsAvailable));
-            }
-        }
-
+        List<AssemblerInfo> assemblersToUpgrade = collectAssemblersNeedingCards(grid);
         if (assemblersToUpgrade.isEmpty()) return result;
 
-        // Count available cards in player inventory
-        int availableCards = countAccelerationCards(player, cardSpeedTemplate);
+        result.cardsFromInventory = distributeCardsRoundRobin(
+            assemblersToUpgrade,
+            countAccelerationCards(player, cardSpeedTemplate),
+            info -> insertOneCard(player, info.upgradeInventory, cardSpeedTemplate)
+        );
+        result.cardsUsed += result.cardsFromInventory;
 
-        // Distribute cards from player inventory first (round-robin style)
-        while (availableCards > 0 && !assemblersToUpgrade.isEmpty()) {
-            List<AssemblerInfo> stillNeedCards = new ArrayList<>();
-
-            int cardsBeforeRound = availableCards;
-            for (AssemblerInfo info : assemblersToUpgrade) {
-                if (availableCards <= 0) break;
-                if (info.slotsRemaining <= 0) continue;
-
-                // Try to insert one card
-                if (insertOneCard(player, info.upgradeInventory, cardSpeedTemplate)) {
-                    availableCards--;
-                    info.slotsRemaining--;
-                    result.cardsUsed++;
-                    info.cardsInserted++;
-                    result.cardsFromInventory++;
-
-                    if (info.slotsRemaining > 0) stillNeedCards.add(info);
-                }
-            }
-
-            // If no cards were inserted in this round, break to avoid infinite loop
-            if (cardsBeforeRound == availableCards) break;
-
-            assemblersToUpgrade = stillNeedCards;
-        }
-
-        // If more cards are needed, pull from AE2 via wireless link
-        int remainingNeeded = 0;
-        for (AssemblerInfo info : assemblersToUpgrade) remainingNeeded += Math.max(0, info.slotsRemaining);
-
+        int remainingNeeded = countRemainingCards(assemblersToUpgrade);
         if (remainingNeeded > 0) {
             int pulled = pullCardsFromNetwork(player, distributorStack, remainingNeeded, cardSpeedTemplate);
-
-            while (pulled > 0 && !assemblersToUpgrade.isEmpty()) {
-                List<AssemblerInfo> stillNeedCards = new ArrayList<>();
-                int cardsBeforeRound = pulled;
-
-                for (AssemblerInfo info : assemblersToUpgrade) {
-                    if (pulled <= 0) break;
-                    if (info.slotsRemaining <= 0) continue;
-
-                    if (insertOneCardDirect(info.upgradeInventory, cardSpeedTemplate)) {
-                        pulled--;
-                        info.slotsRemaining--;
-                        result.cardsUsed++;
-                        result.cardsFromAE2++;
-                        info.cardsInserted++;
-
-                        if (info.slotsRemaining > 0) stillNeedCards.add(info);
-                    }
-                }
-
-                if (cardsBeforeRound == pulled) break;
-                assemblersToUpgrade = stillNeedCards;
-            }
+            result.cardsFromAE2 = distributeCardsRoundRobin(
+                assemblersToUpgrade,
+                pulled,
+                info -> insertOneCardDirect(info.upgradeInventory, cardSpeedTemplate)
+            );
+            result.cardsUsed += result.cardsFromAE2;
         }
 
-        // Count assemblers that received cards
-        for (AssemblerInfo info : assemblersToUpgrade) {
-            if (info.cardsInserted > 0) result.assemblersUpgraded++;
-        }
+        summarizeDistribution(result, assemblersToUpgrade);
+        return result;
+    }
 
-        // FIXME: clean this mess
+    /**
+     * Collect all assemblers that can still accept acceleration cards.
+     */
+    private List<AssemblerInfo> collectAssemblersNeedingCards(IGrid grid) {
+        List<AssemblerInfo> assemblersToUpgrade = new ArrayList<>();
 
-        // Also count assemblers we upgraded that are no longer in the list
-        result.assemblersUpgraded = (int) assemblersToUpgrade.stream()
-            .filter(i -> i.cardsInserted > 0 || i.slotsRemaining < (i.maxSlots - i.originalSlots))
-            .count();
-
-        // Actually, let's recalculate properly
-        result.assemblersUpgraded = 0;
-        result.cardsNeeded = 0;
-        result.assemblersNeedingCards = 0;
-
-        // Rescan to get accurate counts
         for (IGridNode node : grid.getMachines(TileMolecularAssembler.class)) {
             Object machine = node.getMachine();
             if (!(machine instanceof TileMolecularAssembler)) continue;
@@ -319,36 +246,81 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
             int maxCards = upgradeInv.getSlots();
             int currentCards = assembler.getInstalledUpgrades(Upgrades.SPEED);
             int slotsNeeded = maxCards - currentCards;
-
-            if (slotsNeeded > 0) {
-                result.cardsNeeded += slotsNeeded;
-                result.assemblersNeedingCards++;
-            }
+            if (slotsNeeded > 0) assemblersToUpgrade.add(new AssemblerInfo(upgradeInv, slotsNeeded));
         }
 
-        // Count how many assemblers we actually upgraded
-        result.assemblersUpgraded = result.cardsUsed > 0 ?
-            Math.min(result.cardsUsed, grid.getMachines(TileMolecularAssembler.class).size()) : 0;
+        return assemblersToUpgrade;
+    }
 
-        return result;
+    /**
+     * Count how many cards are still needed across all tracked assemblers.
+     */
+    private int countRemainingCards(List<AssemblerInfo> assemblersToUpgrade) {
+        int remainingNeeded = 0;
+
+        for (AssemblerInfo info : assemblersToUpgrade) {
+            remainingNeeded += Math.max(0, info.slotsRemaining);
+        }
+
+        return remainingNeeded;
+    }
+
+    /**
+     * Distribute cards one per assembler per round to keep upgrades spread evenly.
+     */
+    private int distributeCardsRoundRobin(List<AssemblerInfo> assemblersToUpgrade, int availableCards,
+            AssemblerCardInserter inserter) {
+        int insertedCards = 0;
+
+        while (availableCards > 0) {
+            int insertedThisRound = 0;
+
+            for (AssemblerInfo info : assemblersToUpgrade) {
+                if (availableCards <= 0) break;
+                if (info.slotsRemaining <= 0) continue;
+                if (!inserter.insert(info)) continue;
+
+                availableCards--;
+                insertedCards++;
+                insertedThisRound++;
+                info.slotsRemaining--;
+                info.cardsInserted++;
+            }
+
+            if (insertedThisRound == 0) return insertedCards;
+        }
+
+        return insertedCards;
+    }
+
+    /**
+     * Derive all user-visible counters from the tracked assembler state.
+     */
+    private void summarizeDistribution(DistributionResult result, List<AssemblerInfo> assemblersToUpgrade) {
+        for (AssemblerInfo info : assemblersToUpgrade) {
+            if (info.cardsInserted > 0) result.assemblersUpgraded++;
+            if (info.slotsRemaining <= 0) continue;
+
+            result.cardsNeeded += info.slotsRemaining;
+            result.assemblersNeedingCards++;
+        }
+    }
+
+    @FunctionalInterface
+    private interface AssemblerCardInserter {
+        boolean insert(AssemblerInfo info);
     }
 
     /**
      * Helper class to track assembler upgrade state.
      */
     private static class AssemblerInfo {
-        final TileMolecularAssembler assembler;
         final IItemHandler upgradeInventory;
-        final int maxSlots;
-        final int originalSlots;
         int slotsRemaining;
         int cardsInserted = 0;
 
-        AssemblerInfo(TileMolecularAssembler assembler, IItemHandler upgradeInv, int maxSlots, int slotsAvailable) {
-            this.assembler = assembler;
+        AssemblerInfo(IItemHandler upgradeInv, int slotsAvailable) {
             this.upgradeInventory = upgradeInv;
-            this.maxSlots = maxSlots;
-            this.originalSlots = slotsAvailable;
             this.slotsRemaining = slotsAvailable;
         }
     }
