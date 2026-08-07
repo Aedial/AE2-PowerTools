@@ -35,6 +35,15 @@ public class CrafterEntry {
     private CrafterRecipeInfo recipeInfo;
 
     /**
+     * Cached catalyst validation state.
+     * Recomputed only when a catalyst-bearing slot or the recipe changes.
+     */
+    private boolean catalystValidationDirty;
+
+    @Nullable
+    private CrafterState catalystValidationFailureState;
+
+    /**
      * Internal inventory for items stored between crafts (9 slots).
      * Mirrors the crafting grid 1:1: slot 0-8 corresponds to crafting slot 0-8.
      * <p>
@@ -141,6 +150,8 @@ public class CrafterEntry {
     public CrafterEntry() {
         this.patternStack = null;
         this.recipeInfo = null;
+        this.catalystValidationDirty = true;
+        this.catalystValidationFailureState = null;
         this.catalystInventory = new ItemStack[CATALYST_SLOTS];
         for (int i = 0; i < CATALYST_SLOTS; i++) this.catalystInventory[i] = ItemStack.EMPTY;
 
@@ -205,6 +216,8 @@ public class CrafterEntry {
 
     public void setPatternStack(@Nullable ItemStack patternStack) {
         this.patternStack = patternStack;
+        invalidateCatalystValidation();
+
         if (patternStack == null || patternStack.isEmpty()) {
             this.recipeInfo = null;
             this.state = CrafterState.NO_PATTERN;
@@ -220,6 +233,7 @@ public class CrafterEntry {
 
     public void setRecipeInfo(@Nullable CrafterRecipeInfo recipeInfo) {
         this.recipeInfo = recipeInfo;
+        invalidateCatalystValidation();
 
         if (recipeInfo == null || !recipeInfo.isValid()) this.state = CrafterState.SIMULATION_FAILED;
     }
@@ -236,10 +250,38 @@ public class CrafterEntry {
         if (slot < 0 || slot >= CATALYST_SLOTS) return;
 
         catalystInventory[slot] = stack == null ? ItemStack.EMPTY : stack;
+
+        if (recipeInfo != null && recipeInfo.isCatalystSlot(slot)) {
+            invalidateCatalystValidation();
+        }
     }
 
     public ItemStack[] getCatalystInventory() {
         return catalystInventory;
+    }
+
+    public void invalidateCatalystValidation() {
+        catalystValidationDirty = true;
+        catalystValidationFailureState = null;
+    }
+
+    public boolean needsCatalystValidation() {
+        return catalystValidationDirty;
+    }
+
+    public void clearCatalystValidationFailure() {
+        catalystValidationDirty = false;
+        catalystValidationFailureState = null;
+    }
+
+    public void setCatalystValidationFailure(CrafterState failureState) {
+        catalystValidationDirty = false;
+        catalystValidationFailureState = failureState;
+    }
+
+    @Nullable
+    public CrafterState getCatalystValidationFailureState() {
+        return catalystValidationFailureState;
     }
 
     // --- State ---
@@ -501,6 +543,9 @@ public class CrafterEntry {
     }
 
     public void readFromNBT(NBTTagCompound tag) {
+        catalystValidationDirty = true;
+        catalystValidationFailureState = null;
+
         if (tag.hasKey("pattern")) {
             patternStack = new ItemStack(tag.getCompoundTag("pattern"));
         } else {

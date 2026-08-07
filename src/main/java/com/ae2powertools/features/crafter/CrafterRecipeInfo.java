@@ -1,6 +1,7 @@
 package com.ae2powertools.features.crafter;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -30,6 +31,8 @@ public class CrafterRecipeInfo {
         private final int slotIndex;
         private final IngredientType type;
         private final int requiredCount;
+        @Nullable
+        private final ItemStackKey itemKey;
         
         /**
          * For TRANSFORMED items: the item that this ingredient becomes after crafting.
@@ -61,6 +64,7 @@ public class CrafterRecipeInfo {
             this.slotIndex = slotIndex;
             this.type = type;
             this.requiredCount = requiredCount;
+            this.itemKey = item != null ? new ItemStackKey(item) : null;
             this.remainingItem = remainingItem;
             this.durabilityPerCraft = Math.max(1, durabilityPerCraft);
         }
@@ -79,6 +83,11 @@ public class CrafterRecipeInfo {
 
         public int getRequiredCount() {
             return requiredCount;
+        }
+
+        @Nullable
+        public ItemStackKey getItemKey() {
+            return itemKey;
         }
 
         /**
@@ -186,6 +195,9 @@ public class CrafterRecipeInfo {
     private final List<IngredientInfo> ingredients;
     private final List<IAEItemStack> outputs;
     private final List<IngredientInfo> catalystSlots; // Items that need to be in internal inventory
+    private final List<IngredientInfo> consumedItems;
+    private final List<IngredientInfo> transformedItems;
+    private final boolean[] catalystSlotFlags;
     private final boolean valid;
     private final String errorKey; // Localization key for error message
 
@@ -196,6 +208,9 @@ public class CrafterRecipeInfo {
         this.ingredients = new ArrayList<>();
         this.outputs = new ArrayList<>();
         this.catalystSlots = new ArrayList<>();
+        this.consumedItems = Collections.emptyList();
+        this.transformedItems = Collections.emptyList();
+        this.catalystSlotFlags = new boolean[CrafterEntry.CATALYST_SLOTS];
         this.valid = false;
         this.errorKey = errorKey;
     }
@@ -207,6 +222,9 @@ public class CrafterRecipeInfo {
         this.ingredients = new ArrayList<>(ingredients);
         this.outputs = new ArrayList<>(outputs);
         this.catalystSlots = new ArrayList<>();
+        List<IngredientInfo> consumedItems = new ArrayList<>();
+        List<IngredientInfo> transformedItems = new ArrayList<>();
+        boolean[] catalystSlotFlags = new boolean[CrafterEntry.CATALYST_SLOTS];
         this.valid = true;
         this.errorKey = null;
 
@@ -215,10 +233,28 @@ public class CrafterRecipeInfo {
         // - DUPLICATION: item appears in output but must be present in internal inventory (e.g., seeds that duplicate)
         // Note: DURABILITY items are NOT catalysts - they are requested from network and returned when damaged
         for (IngredientInfo info : ingredients) {
+            if (info.type == IngredientType.CONSUMED
+                    || info.type == IngredientType.TRANSFORMED
+                    || info.type == IngredientType.DURABILITY) {
+                consumedItems.add(info);
+            }
+
+            if (info.type == IngredientType.TRANSFORMED || info.type == IngredientType.DUPLICATION) {
+                transformedItems.add(info);
+            }
+
             if (info.type == IngredientType.REUSABLE || info.type == IngredientType.DUPLICATION) {
                 catalystSlots.add(info);
+
+                if (info.slotIndex >= 0 && info.slotIndex < catalystSlotFlags.length) {
+                    catalystSlotFlags[info.slotIndex] = true;
+                }
             }
         }
+
+        this.consumedItems = Collections.unmodifiableList(consumedItems);
+        this.transformedItems = Collections.unmodifiableList(transformedItems);
+        this.catalystSlotFlags = catalystSlotFlags;
     }
 
     public List<IngredientInfo> getIngredients() {
@@ -248,6 +284,10 @@ public class CrafterRecipeInfo {
         return !catalystSlots.isEmpty();
     }
 
+    public boolean isCatalystSlot(int slotIndex) {
+        return slotIndex >= 0 && slotIndex < catalystSlotFlags.length && catalystSlotFlags[slotIndex];
+    }
+
     /**
      * Gets items that need to be extracted from the network for each craft.
      * Does NOT include REUSABLE items (in internal inventory, never consumed).
@@ -260,21 +300,7 @@ public class CrafterRecipeInfo {
      * even though they produce different outputs. The outputs are handled separately.
      */
     public List<IngredientInfo> getConsumedItems() {
-        List<IngredientInfo> consumed = new ArrayList<>();
-        for (IngredientInfo info : ingredients) {
-            switch (info.type) {
-                case CONSUMED:
-                case TRANSFORMED:
-                case DURABILITY:
-                    consumed.add(info);
-                    break;
-                case REUSABLE:
-                case DUPLICATION:
-                    // These are in internal inventory (catalysts), not consumed from network
-                    break;
-            }
-        }
-        return consumed;
+        return consumedItems;
     }
 
     /**
@@ -282,13 +308,7 @@ public class CrafterRecipeInfo {
      * These are TRANSFORMED and DUPLICATION items whose outputs go back to the network.
      */
     public List<IngredientInfo> getTransformedItems() {
-        List<IngredientInfo> transformed = new ArrayList<>();
-        for (IngredientInfo info : ingredients) {
-            if (info.type == IngredientType.TRANSFORMED || info.type == IngredientType.DUPLICATION) {
-                transformed.add(info);
-            }
-        }
-        return transformed;
+        return transformedItems;
     }
 
     public NBTTagCompound writeToNBT() {

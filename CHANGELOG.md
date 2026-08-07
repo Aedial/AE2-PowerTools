@@ -18,6 +18,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add AutoCrafter WAILA and The One Probe summary tooltips, including next-operation timing, error warnings, and active/full/disabled pattern counts.
 - Add support for the Crafting and Fuzzy card to the Storage Level Emitter, bringing it to feature parity with the AE2 Level Emitter, alongside a cards picker GUI to easily select the card to use.
 - Add AutoCrafter and Better Level Maintainer WAILA/The One Probe performance lines that report the block-side work time, including rolling last/average/max samples.
+- Optimize the AutoCrafter's performance. The majority of the time is now taken by the AE2 network (insertion, extraction), with little time spent in the AutoCrafter's own logic.
 - Add Better Level Maintainer, Storage Level Emitter, and Level Monitor Alarm WAILA/The One Probe lines for maintainer queue status, emitter card/redstone mode, and per-player alarm registration.
 - Add right-click insertion of catalyst items into the AutoCrafter block, in the same way as patterns.
 
