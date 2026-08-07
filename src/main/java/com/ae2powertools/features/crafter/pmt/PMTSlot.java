@@ -1,7 +1,5 @@
 package com.ae2powertools.features.crafter.pmt;
 
-import java.util.Arrays;
-
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 
@@ -9,11 +7,7 @@ import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
 import appeng.api.implementations.ICraftingPatternItem;
-import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.api.storage.data.IAEStack;
 import appeng.container.slot.SlotRestrictedInput;
-import appeng.items.misc.ItemEncodedPattern;
 import appeng.util.Platform;
 
 
@@ -73,31 +67,9 @@ public class PMTSlot extends SlotRestrictedInput {
     @Override
     public ItemStack getDisplayStack() {
         if (!Platform.isClient()) return super.getStack();
+        if (pmtManager == null) return super.getStack();
 
-        ItemStack patternStack = this.getItemHandler().getStackInSlot(this.getSlotIndex());
-        if (patternStack.isEmpty()) return patternStack;
-
-        if (!(patternStack.getItem() instanceof ICraftingPatternItem)) {
-            return patternStack;
-        }
-
-        // ItemEncodedPattern has a shortcut method
-        if (patternStack.getItem() instanceof ItemEncodedPattern) {
-            ItemEncodedPattern encodedPattern = (ItemEncodedPattern) patternStack.getItem();
-            ItemStack output = encodedPattern.getOutput(patternStack);
-            if (!output.isEmpty()) return output;
-        }
-
-        // Generic ICraftingPatternItem
-        ICraftingPatternItem patternItem = (ICraftingPatternItem) patternStack.getItem();
-        ICraftingPatternDetails details = patternItem.getPatternForItem(patternStack, null);
-        if (details == null) return patternStack;
-
-        // Return the first output
-        return Arrays.stream(details.getOutputs())
-                .findFirst()
-                .map(IAEItemStack::createItemStack)
-                .orElse(patternStack);
+        return pmtManager.getPatternRenderData(this.getSlotIndex()).getDisplayStack();
     }
 
     /**
@@ -105,21 +77,9 @@ public class PMTSlot extends SlotRestrictedInput {
      * Used to render the small number in the corner showing how many items the pattern produces.
      */
     public long getOutputCount() {
-        ItemStack patternStack = this.getItemHandler().getStackInSlot(this.getSlotIndex());
-        if (patternStack.isEmpty()) return 0;
+        if (pmtManager == null) return 0;
 
-        if (!(patternStack.getItem() instanceof ICraftingPatternItem)) {
-            return 0;
-        }
-
-        ICraftingPatternItem patternItem = (ICraftingPatternItem) patternStack.getItem();
-        ICraftingPatternDetails details = patternItem.getPatternForItem(patternStack, null);
-        if (details == null) return 0;
-
-        return Arrays.stream(details.getOutputs())
-                .findFirst()
-                .map(IAEStack::getStackSize)
-                .orElse(0L);
+        return pmtManager.getPatternRenderData(this.getSlotIndex()).getOutputCount();
     }
 
     @Override
