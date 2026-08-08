@@ -44,6 +44,10 @@ public class PartStorageDisplaySmallerer extends PartStorageDisplayBase {
         return MODEL;
     }
 
+    // TODO: The fluid being scaled down to 8px, the display has very little room
+    //       to show borders and quantity (only 1px on each side + 1px for the frame)
+    //       A solution may be scale down the fluid further to 4px,
+    //       but that may be too small.
     @Override
     public void getBoxes(IPartCollisionHelper bch) {
         bch.addBox(2, 2, 14, 14, 14, 16);

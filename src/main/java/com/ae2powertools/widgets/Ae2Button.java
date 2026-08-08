@@ -40,9 +40,10 @@ public class Ae2Button extends PressableWidget {
         FontRenderer fontRenderer = context.getWidgetFontRenderer();
 
         if (label != null) {
+            // TODO: Label text may be misaligned
             int labelWidth = fontRenderer.getStringWidth(label);
             int labelX = getX() + (getWidth() - labelWidth) / 2;
-            int labelY = getY() + (getHeight() - fontRenderer.FONT_HEIGHT) / 2;
+            int labelY = getY() + (getHeight() - 8) / 2;
             fontRenderer.drawString(label, labelX, labelY, labelColor);
         } else if (iconTexture != null) {
             context.getWidgetMinecraft().getTextureManager().bindTexture(iconTexture);

@@ -145,6 +145,7 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
     @Override
     protected void drawWidgetGuiTooltips(int mouseX, int mouseY) {
         renderHoveredToolTip(mouseX, mouseY);
+        entryViewport.drawTooltips(useTallView, guiLeft, guiTop, ySize, mouseX, mouseY);
     }
 
     @Override
@@ -188,9 +189,6 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         fontRenderer.drawString(I18n.format("gui.ae2powertools.maintainer.title"), 8, 6, 0x000000);
-        if (entryEditorOverlay.isOpen()) return;
-
-        entryViewport.drawTooltips(useTallView, guiLeft, guiTop, ySize, mouseX, mouseY);
     }
 
     @Override

@@ -306,6 +306,15 @@ public class GuiAutoCrafter extends WidgetGui {
     }
 
     @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        super.drawScreen(mouseX, mouseY, partialTicks);
+
+        if (!overviewOverlay.isOpen()) return;
+
+        renderHoveredToolTipWithPatternWarning(mouseX, mouseY);
+    }
+
+    @Override
     protected void drawWidgetGuiTooltips(int mouseX, int mouseY) {
         renderHoveredToolTipWithPatternWarning(mouseX, mouseY);
         drawRecipeTooltips(mouseX, mouseY);

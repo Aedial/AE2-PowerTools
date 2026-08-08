@@ -171,6 +171,8 @@ public class GuiStorageMonitor extends WidgetGui {
             },
             this::renderSelectorResourceTooltip,
             this::selectMonitorResource);
+        registerModal(selectorWidget, WidgetAnchor.SCREEN_CENTER, 0, 0);
+
         upgradePicker.configure(this, this::getSelectableUpgradeInventory, () -> mc.player.inventory, this::installUpgradeFromPlayerSlot);
         registerModal(upgradePicker, WidgetAnchor.SCREEN_CENTER, 0, 0);
 
@@ -535,7 +537,7 @@ public class GuiStorageMonitor extends WidgetGui {
 
             for (int x = -1; x < 2; x += 2) {  // -1, 1
                 int delta = x * y * 5;
-                BeveledButton button = new BeveledButton(0, 0, STRENGTH_BTN_WIDTH, formatDelta(delta));
+                BeveledButton button = new BeveledButton(0, 0, STRENGTH_BTN_WIDTH, STRENGTH_BTN_HEIGHT, formatDelta(delta));
                 button.setOnClick(() -> adjustEmitterStrength(delta));
                 registerWidget(button, btnX, btnY);
                 btnX += STRENGTH_BTN_X_OFFSET;
