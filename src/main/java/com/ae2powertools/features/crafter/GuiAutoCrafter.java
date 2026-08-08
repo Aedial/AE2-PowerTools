@@ -484,13 +484,14 @@ public class GuiAutoCrafter extends WidgetGui {
         }
 
         if (slotIn instanceof ContainerAutoCrafter.SlotPattern) {
-            drawCrafterSlotItem(getDisplayedPatternStack(getCurrentPage()), slotIn.xPos, slotIn.yPos);
+            drawVanillaSlotItem(getDisplayedPatternStack(getCurrentPage()), slotIn.xPos, slotIn.yPos, true);
             return;
         }
 
         if (slotIn instanceof ContainerAutoCrafter.SlotCatalyst) {
             ContainerAutoCrafter.SlotCatalyst catalystSlot = (ContainerAutoCrafter.SlotCatalyst) slotIn;
-            drawCrafterSlotItem(getDisplayedCatalystStack(getCurrentPage(), catalystSlot.getCatalystIndex()), slotIn.xPos, slotIn.yPos);
+            ItemStack catalystStack = getDisplayedCatalystStack(getCurrentPage(), catalystSlot.getCatalystIndex());
+            drawVanillaSlotItem(catalystStack, slotIn.xPos, slotIn.yPos, true);
             return;
         }
 
@@ -512,12 +513,9 @@ public class GuiAutoCrafter extends WidgetGui {
         // For empty enabled slots, we don't render anything (slot is just empty)
         if (displayStack.isEmpty()) return;
 
-        // Render the display stack (output item) at the slot position
-        GlStateManager.enableDepth();
-        RenderHelper.enableGUIStandardItemLighting();
-        this.itemRender.renderItemAndEffectIntoGUI(mc.player, displayStack, x, y);
-        // Don't render vanilla stack count - we do it ourselves in drawSlotOverlays
-        RenderHelper.disableStandardItemLighting();
+        drawVanillaSlotItem(displayStack, x, y, false);
+
+        // Don't render vanilla stack count, we do it ourselves in drawSlotOverlays
     }
 
     /**
@@ -1011,14 +1009,23 @@ public class GuiAutoCrafter extends WidgetGui {
             entryIndex));
     }
 
-    private void drawCrafterSlotItem(ItemStack stack, int x, int y) {
+    /**
+     * Mirrors GuiContainer.drawSlot's per-slot item render contract.
+     * <p>
+     * The surrounding slot loop already owns GUI standard item lighting and rescale-normal
+     * state, so custom slot branches must not disable that lighting on exit or later block-model
+     * stacks in the same inventory pass will render dark.
+     */
+    private void drawVanillaSlotItem(ItemStack stack, int x, int y, boolean renderOverlay) {
         if (stack == null || stack.isEmpty()) return;
 
+        this.zLevel = 100.0F;
+        this.itemRender.zLevel = 100.0F;
         GlStateManager.enableDepth();
-        RenderHelper.enableGUIStandardItemLighting();
         this.itemRender.renderItemAndEffectIntoGUI(mc.player, stack, x, y);
-        this.itemRender.renderItemOverlayIntoGUI(this.fontRenderer, stack, x, y, null);
-        RenderHelper.disableStandardItemLighting();
+        if (renderOverlay) this.itemRender.renderItemOverlayIntoGUI(this.fontRenderer, stack, x, y, null);
+        this.itemRender.zLevel = 0.0F;
+        this.zLevel = 0.0F;
     }
 
     private void queueItemStack(QueuedItemRenderer itemQueue, ItemStack stack, int x, int y) {

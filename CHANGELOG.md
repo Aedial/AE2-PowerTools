@@ -13,6 +13,13 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 
 
+## [1.6.7-hotfix] - 2026-08-08
+### Fixed
+- Fix Better Level Maintainer recipe settings being discarded when closing the entry editor.
+- Fix AutoCrafter catalyst rendering leaking GUI GL state into later inventory item renders.
+- Fix AutoCrafter duplication recipes crafting the full output instead of the net gain.
+
+
 ## [1.6.7] - 2026-08-08
 ### Added
 - Add AutoCrafter WAILA and The One Probe summary tooltips, including next-operation timing, error warnings, and active/full/disabled pattern counts.

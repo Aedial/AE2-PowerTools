@@ -1359,7 +1359,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         List<IAEItemStack> outputs = new ArrayList<>();
 
         IAEItemStack[] inputs = details.getInputs();
-        IAEItemStack[] patternOutputs = details.getOutputs();
 
         // Set up crafting grid with inputs (no catalyst substitution for initial analysis)
         InventoryCrafting craftMatrix = buildCraftingMatrix(details, null, null);
@@ -1379,15 +1378,17 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         IAEItemStack mainOutput = AEItemStack.fromItemStack(recipeOutput);
         if (mainOutput != null) outputs.add(mainOutput);
 
-        // Collect pattern outputs for duplication detection
-        // Pattern outputs may differ from recipe output if the pattern was created differently
-        Map<String, Long> outputItemMap = new HashMap<>();
-        for (IAEItemStack output : patternOutputs) {
-            if (output != null) {
-                String key = getItemKey(output.createItemStack());
-                outputItemMap.merge(key, output.getStackSize(), CrafterMath::saturatingAdd);
-            }
+        // Track how many copies of each output type can stay in catalyst inventory.
+        // Any matching input beyond this allowance remains a normal consumed ingredient.
+        Map<String, Long> duplicationAllowanceByKey = new HashMap<>();
+        if (mainOutput != null) {
+            String key = getItemKey(mainOutput.createItemStack());
+            duplicationAllowanceByKey.put(key, mainOutput.getStackSize());
         }
+
+        // Track how many output items are retained internally so the synced recipe output and
+        // actual network insertion only expose the net gain beyond the preserved catalyst copy.
+        Map<String, Long> duplicatedInputsByKey = new HashMap<>();
 
         // Get remaining items after crafting (getRemainingItems returns what each input slot becomes)
         NonNullList<ItemStack> remainingItems = recipe.getRemainingItems(craftMatrix);
@@ -1406,11 +1407,14 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             int durabilityPerCraft = 1; // Default for non-durability items
 
             if (remaining.isEmpty()) {
-                // Nothing remains - check if this item appears in outputs (duplication)
+                // Nothing remains - treat matching outputs as duplication only while there is
+                // still enough output count left to replenish that catalyst slot.
                 String inputKey = getItemKey(inputStack);
-                Long outputCount = outputItemMap.get(inputKey);
+                Long outputCount = duplicationAllowanceByKey.get(inputKey);
                 if (outputCount != null && outputCount >= 1) {
                     type = CrafterRecipeInfo.IngredientType.DUPLICATION;
+                    duplicationAllowanceByKey.put(inputKey, outputCount - 1);
+                    duplicatedInputsByKey.merge(inputKey, 1L, CrafterMath::saturatingAdd);
                 } else {
                     type = CrafterRecipeInfo.IngredientType.CONSUMED;
                 }
@@ -1442,7 +1446,37 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                     input.copy(), i, type, 1, remainingAE, durabilityPerCraft));
         }
 
+        subtractDuplicatedInputsFromOutputs(outputs, duplicatedInputsByKey);
+
         return new CrafterRecipeInfo(ingredients, outputs);
+    }
+
+    private void subtractDuplicatedInputsFromOutputs(List<IAEItemStack> outputs, Map<String, Long> duplicatedInputsByKey) {
+        if (duplicatedInputsByKey.isEmpty()) return;
+
+        for (int i = 0; i < outputs.size(); i++) {
+            IAEItemStack output = outputs.get(i);
+            if (output == null) continue;
+
+            String outputKey = getItemKey(output.createItemStack());
+            long toSubtract = duplicatedInputsByKey.getOrDefault(outputKey, 0L);
+            if (toSubtract <= 0L) continue;
+
+            long remainingCount = output.getStackSize() - toSubtract;
+            if (remainingCount > 0L) {
+                output.setStackSize(remainingCount);
+                duplicatedInputsByKey.remove(outputKey);
+                continue;
+            }
+
+            outputs.remove(i--);
+
+            if (remainingCount < 0L) {
+                duplicatedInputsByKey.put(outputKey, -remainingCount);
+            } else {
+                duplicatedInputsByKey.remove(outputKey);
+            }
+        }
     }
 
     /**

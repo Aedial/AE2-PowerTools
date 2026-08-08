@@ -151,7 +151,7 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
 
     @Override
     public void close() {
-        close(false);
+        close(true);
     }
 
     public void draw(int mouseX, int mouseY, float partialTicks) {
