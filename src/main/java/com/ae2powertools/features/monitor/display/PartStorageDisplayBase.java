@@ -99,8 +99,12 @@ abstract public class PartStorageDisplayBase extends PartStorageMonitorBase {
         // Match the block display's baked front overlays instead of letting the part's static
         // model pick up cable-bus AO and skip vanilla face-diffuse shading.
         int packedLight = world.getCombinedLight(getHostPos(), 0);
-        DisplayRenderHelper.drawScreenCenter(packedLight, facing, modelIndex);
         DisplayRenderHelper.drawCornerIndicators(displayLogic.getCornerColor(), packedLight, facing, modelIndex);
+
+        // The center is drawn in the baked model, as it is a fixed white color
+        // It would be a different matter if we wanted to tint it
+        // DisplayRenderHelper.drawScreenCenter(packedLight, facing, modelIndex);
+
 
         if (renderContent) DisplayRenderHelper.renderResourceWithAmount(content, quantity);
 

@@ -19,6 +19,14 @@
                 "north": { "texture": "#front" },
                 "south": { "texture": "#back" }
             }
+        },
+        {
+            "__comment": "background of the content drawn.",
+            "from": [0, 0, 0],
+            "to": [16, 16, 1],
+            "faces": {
+                "north": { "texture": "#center" }
+            }
         }
     ]
 }
