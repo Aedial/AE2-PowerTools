@@ -103,6 +103,21 @@ public class TileStorageDisplay extends TileStorageMonitorBase {
     }
 
     @Override
+    public void triggerManualPoll() {
+        if (world == null) return;
+
+        monitorLogic.refresh();
+        boolean colorChanged = displayLogic.evaluate();
+
+        if (colorChanged) {
+            IBlockState state = world.getBlockState(pos);
+            world.notifyBlockUpdate(pos, state, state, 3);
+        }
+
+        if (displayLogic.pollSyncDirty()) markForUpdate();
+    }
+
+    @Override
     public MonitorHostType getHostType() {
         return MonitorHostType.DISPLAY;
     }

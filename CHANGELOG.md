@@ -14,6 +14,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [1.6.8] - 2026-08-???
+### Added
+- Add a manual poll button to the Storage Monitor and Remote Storage Monitor polling screens, so their current network sample can be refreshed on demand.
+
 ### Fixed
 - Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
 

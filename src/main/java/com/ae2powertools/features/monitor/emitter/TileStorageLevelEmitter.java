@@ -128,6 +128,15 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     }
 
     @Override
+    public void triggerManualPoll() {
+        if (world == null) return;
+
+        monitorLogic.refresh();
+
+        if (emitterLogic.evaluate()) notifyOutputChanged();
+    }
+
+    @Override
     public MonitorHostType getHostType() {
         return MonitorHostType.EMITTER;
     }

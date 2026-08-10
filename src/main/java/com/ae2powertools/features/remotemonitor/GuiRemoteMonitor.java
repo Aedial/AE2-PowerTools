@@ -1,6 +1,8 @@
 package com.ae2powertools.features.remotemonitor;
 
+import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.renderer.GlStateManager;
@@ -19,10 +21,12 @@ import com.ae2powertools.Tags;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
 import com.ae2powertools.integration.jei.JeiTooltipBridge;
+import com.ae2powertools.network.PacketRemoteMonitorPollNow;
 import com.ae2powertools.network.PacketRemoteMonitorRequestContents;
 import com.ae2powertools.network.PacketRemoteMonitorSelectSlot;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.FormatUtil;
+import com.ae2powertools.widgets.Ae2Button;
 import com.ae2powertools.widgets.SearchableGridSelectorWidget;
 import com.ae2powertools.widgets.TabButton;
 import com.ae2powertools.widgets.WidgetAnchor;
@@ -46,6 +50,9 @@ public class GuiRemoteMonitor extends WidgetGui {
     private static final int SLOT_SIZE = 18;
     private static final int GRID_X = 8;
     private static final int GRID_Y = 18;
+    private static final int SIDE_BTN_SIZE = 16;
+    private static final int SIDE_BTN_X = -SIDE_BTN_SIZE - 2;
+    private static final int SIDE_BTN_Y = 4;
     private static final int REFRESH_INTERVAL_ICON = 5 * 16 + 2;
     private static final int SLIDING_WINDOW_ICON = 4 * 16 + 2;
     private static final int TIMING_TAB_X = GUI_WIDTH - 22 - 1;
@@ -57,6 +64,7 @@ public class GuiRemoteMonitor extends WidgetGui {
     // The shared selector widget keeps its own search term, so switching slots preserves
     // the current filter.
     private final SearchableGridSelectorWidget<MonitoredResource> selectorWidget;
+    private final Ae2Button manualPollBtn = new Ae2Button(0, 0, SIDE_BTN_SIZE);
 
     private final TabButton refreshIntervalBtn = new TabButton(0, 0, REFRESH_INTERVAL_ICON,
                                                                I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.title"));
@@ -80,6 +88,12 @@ public class GuiRemoteMonitor extends WidgetGui {
             this::renderSelectorResourceTooltip,
             this::selectMonitorResource);
         registerModal( this.selectorWidget, WidgetAnchor.SCREEN_CENTER, 0, 0);
+
+        this.manualPollBtn.setTextureIcon(Ae2Button.ICON.REFRESH);
+        this.manualPollBtn.setOnClick(
+            () -> PowerToolsNetwork.INSTANCE.sendToServer(new PacketRemoteMonitorPollNow(this.deviceId)));
+        this.manualPollBtn.setTooltipProvider(this::buildManualPollTooltip);
+        registerWidget(manualPollBtn, SIDE_BTN_X, SIDE_BTN_Y);
 
         this.refreshIntervalBtn.setTooltipProvider(this::buildRefreshIntervalTooltip);
         this.refreshIntervalBtn.setOnClick(
@@ -109,6 +123,13 @@ public class GuiRemoteMonitor extends WidgetGui {
     private List<String> buildSlidingWindowTooltip() {
         int interval = RemoteMonitorClientState.getOrCreateState(this.deviceId).getSlidingWindow();
         return buildTimingTooltip("gui.ae2powertools.remote_monitor.sliding_window", interval);
+    }
+
+    private List<String> buildManualPollTooltip() {
+        List<String> tooltip = new ArrayList<>();
+        tooltip.add(I18n.format("gui.ae2powertools.poll_now.title"));
+        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.poll_now.description"));
+        return tooltip;
     }
 
     public static void receiveSelectorResources(long deviceId, List<MonitoredResource> resources) {
@@ -262,5 +283,9 @@ public class GuiRemoteMonitor extends WidgetGui {
             this.deviceId,
             this.selectorTargetIndex,
             resource));
+    }
+
+    public List<Rectangle> getJEIExclusionArea() {
+        return Collections.singletonList(manualPollBtn.getBounds());
     }
 }

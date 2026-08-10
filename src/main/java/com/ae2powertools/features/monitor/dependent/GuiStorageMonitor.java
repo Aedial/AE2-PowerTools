@@ -31,6 +31,7 @@ import com.ae2powertools.network.PacketModifyStorageMonitorUpgradeSlot;
 import com.ae2powertools.network.PacketOpenStorageMonitorPollingRate;
 import com.ae2powertools.network.PacketRequestMonitorContents;
 import com.ae2powertools.network.PacketSelectMonitorContent;
+import com.ae2powertools.network.PacketStorageMonitorPollNow;
 import com.ae2powertools.network.PacketSetEmitterRedstonePower;
 import com.ae2powertools.network.PacketSetEmitterRedstoneStrength;
 import com.ae2powertools.network.PacketSetHysteresisMode;
@@ -93,8 +94,6 @@ public class GuiStorageMonitor extends WidgetGui {
 
     private static final ResourceLocation BACKGROUND = new ResourceLocation(
         Tags.MODID, "textures/guis/emitter_gui.png");
-    private static final ResourceLocation HYSTERESIS_ICON = new ResourceLocation(
-        Tags.MODID, "textures/guis/hysteresis_icon.png");
     private static final ResourceLocation REDSTONE_STRENGTH_PANEL = new ResourceLocation(
         Tags.MODID, "textures/guis/redstone_strength_panel.png");
 
@@ -141,6 +140,9 @@ public class GuiStorageMonitor extends WidgetGui {
     /** Hysteresis-mode button shown below the match-mode button. */
     private final Ae2Button hysteresisButton = new Ae2Button(0, 0, SIDE_BTN_SIZE);
 
+    /** Manual poll button shown on the left side of the GUI. */
+    private final Ae2Button manualPollButton = new Ae2Button(0, 0, SIDE_BTN_SIZE);
+
     /** Compact strength controls drawn in the right-side panel. */
     private int emitterStrengthPanelX;
     private int emitterStrengthPanelY;
@@ -186,6 +188,7 @@ public class GuiStorageMonitor extends WidgetGui {
         matchModeButton.setOnClick(this::cycleMatchMode);
         matchModeButton.setTooltipProvider(this::buildMatchModeTooltip);
 
+        hysteresisButton.setTextureIcon(Ae2Button.ICON.HYSTERESIS);
         hysteresisButton.setVisible(container.getHost().supportsHysteresis());
         hysteresisButton.setOnClick(this::toggleHysteresisMode);
         hysteresisButton.setTooltipProvider(this::buildHysteresisTooltip);
@@ -197,33 +200,41 @@ public class GuiStorageMonitor extends WidgetGui {
         pollingRateBtn.setOnClick(this::openPollingRateGui);
         pollingRateBtn.setTooltipProvider(this::buildPollingRateTooltip);
 
-        int nextSideButtonY = MATCH_MODE_BTN_Y;
+        manualPollButton.setTextureIcon(Ae2Button.ICON.REFRESH);
+        manualPollButton.setOnClick(this::triggerManualPoll);
+        manualPollButton.setTooltipProvider(this::buildManualPollTooltip);
+
+        // Polling rate at the top right corner
+        registerWidget(pollingRateBtn, GUI_WIDTH - TAB_BTN_SIZE + 1, 0);
+
+        // Left side buttons at the left of the GUI
+        int nextLeftSideButtonY = MATCH_MODE_BTN_Y;
 
         if (matchModeButton.isVisible()) {
-            registerWidget(matchModeButton, SIDE_BTN_X_OFFSET, nextSideButtonY);
-            nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+            registerWidget(matchModeButton, SIDE_BTN_X_OFFSET, nextLeftSideButtonY);
+            nextLeftSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
         if (redstoneSignalBtn.isVisible()) {
             registerEmitterStrengthButtons();
 
-            registerWidget(redstoneSignalBtn, SIDE_BTN_X_OFFSET, nextSideButtonY);
-            nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+            registerWidget(redstoneSignalBtn, SIDE_BTN_X_OFFSET, nextLeftSideButtonY);
+            nextLeftSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
         if (hysteresisButton.isVisible()) {
-            registerWidget(hysteresisButton, SIDE_BTN_X_OFFSET, nextSideButtonY);
-            nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+            registerWidget(hysteresisButton, SIDE_BTN_X_OFFSET, nextLeftSideButtonY);
+            nextLeftSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
         if (alarmRegistrationBtn.isVisible()) {
             registerWidget(alarmRegistrationBtn, GUI_WIDTH - TAB_BTN_SIZE + 1 - SIDE_BTN_SIZE - TOP_BUTTON_GAP, 1);
-            nextSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
+            nextLeftSideButtonY += SIDE_BTN_SIZE + SIDE_BTN_SPACING;
         }
 
-        // ... and any further side button can be added here, using the same pattern
+        registerWidget(manualPollButton, SIDE_BTN_X_OFFSET, nextLeftSideButtonY);
 
-        registerWidget(pollingRateBtn, GUI_WIDTH - TAB_BTN_SIZE + 1, 0);
+        // ... and any further side button can be added here, using the same pattern
     }
 
     @Override
@@ -331,7 +342,7 @@ public class GuiStorageMonitor extends WidgetGui {
         if (hysteresisButton.isVisible()) {
             int iconX = (container.isSyncHysteresisEnabled() ? 0 : 1) * SIDE_BTN_SIZE;
             int iconY = (hysteresisButton.contains(mouseX, mouseY) ? 1 : 0) * SIDE_BTN_SIZE;
-            hysteresisButton.setScaledTextureIcon(HYSTERESIS_ICON, iconX, iconY, SIDE_BTN_SIZE * 2, SIDE_BTN_SIZE * 2);
+            hysteresisButton.setTextureOffset(iconX, iconY);
         }
     }
 
@@ -513,6 +524,10 @@ public class GuiStorageMonitor extends WidgetGui {
             new PacketOpenStorageMonitorPollingRate(container.getHost()));
     }
 
+    private void triggerManualPoll() {
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketStorageMonitorPollNow(container.getHost()));
+    }
+
     private void toggleAlarmRegistration() {
         PowerToolsNetwork.INSTANCE.sendToServer(
             new PacketToggleAlarmRegistration(container.getHost()));
@@ -593,6 +608,7 @@ public class GuiStorageMonitor extends WidgetGui {
         if (matchModeButton.isVisible()) areas.add(matchModeButton.getBounds());
         if (hysteresisButton.isVisible()) areas.add(hysteresisButton.getBounds());
         if (redstoneSignalBtn.isVisible()) areas.add(redstoneSignalBtn.getBounds());
+        if (manualPollButton.isVisible()) areas.add(manualPollButton.getBounds());
 
         if (container.supportsEmitterRedstone()) {
             areas.add(new Rectangle(emitterStrengthPanelX, emitterStrengthPanelY,
@@ -645,6 +661,13 @@ public class GuiStorageMonitor extends WidgetGui {
         tooltip.add("§e" + I18n.format("gui.ae2powertools.storage_emitter.polling_rate.tooltip", interval));
         tooltip.add("");
         tooltip.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.polling_rate.description"));
+        return tooltip;
+    }
+
+    private List<String> buildManualPollTooltip() {
+        List<String> tooltip = new ArrayList<>();
+        tooltip.add(I18n.format("gui.ae2powertools.poll_now.title"));
+        tooltip.add("§7" + I18n.format("gui.ae2powertools.poll_now.description"));
         return tooltip;
     }
 

@@ -139,6 +139,16 @@ abstract public class PartStorageDisplayBase extends PartStorageMonitorBase {
     }
 
     @Override
+    public void triggerManualPoll() {
+        if (getHostWorld() == null || getHost() == null) return;
+
+        monitorLogic.refresh();
+        displayLogic.evaluate();
+
+        if (displayLogic.pollSyncDirty()) getHost().markForUpdate();
+    }
+
+    @Override
     public MonitorHostType getHostType() {
         return MonitorHostType.DISPLAY;
     }

@@ -63,6 +63,11 @@ public interface IStorageMonitorHost {
      */
     long getFirstEntryQuantity();
 
+    /**
+     * Performs the host's poll action immediately, including any host-specific side effects.
+     */
+    void triggerManualPoll();
+
     // --- Host type ---
 
     MonitorHostType getHostType();

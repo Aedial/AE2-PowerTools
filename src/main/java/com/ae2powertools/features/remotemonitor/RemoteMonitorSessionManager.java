@@ -222,6 +222,15 @@ public final class RemoteMonitorSessionManager {
             pollNow(handler, player, monitorStack, player.world.getTotalWorldTime());
         }
 
+        /**
+         * Manual refreshes should reuse the exact same flow as the scheduled tick path,
+         * including retuning checks, access gating, and baseline handling.
+         */
+        public void triggerManualPoll(IWirelessTermHandler handler, EntityPlayer player, ItemStack monitorStack) {
+            this.ticksUntilPoll = 1;
+            tick(handler, player, monitorStack);
+        }
+
         public boolean shouldExpireMissingMonitor(long worldTick) {
             if (this.monitorMissingSinceTick < 0L) {
                 this.monitorMissingSinceTick = worldTick;
@@ -318,6 +327,15 @@ public final class RemoteMonitorSessionManager {
         }
 
         private void addHistorySample(long worldTick) {
+            HistorySample latestSample = this.quantityHistory.peekLast();
+            if (latestSample != null && latestSample.worldTick == worldTick) {
+                // Manual polls can happen faster than the configured rate. Replacing the
+                // same-tick sample keeps the sliding window bounded under rapid clicks.
+                System.arraycopy(this.currentQuantities, 0, latestSample.quantities, 0, this.currentQuantities.length);
+                pruneHistory(worldTick);
+                return;
+            }
+
             this.quantityHistory.addLast(new HistorySample(
                 worldTick,
                 Arrays.copyOf(this.currentQuantities, this.currentQuantities.length)));

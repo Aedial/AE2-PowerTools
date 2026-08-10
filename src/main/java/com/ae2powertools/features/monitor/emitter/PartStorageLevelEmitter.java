@@ -167,6 +167,15 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     }
 
     @Override
+    public void triggerManualPoll() {
+        if (getHostWorld() == null) return;
+
+        monitorLogic.refresh();
+
+        if (emitterLogic.evaluate()) notifyOutputChanged();
+    }
+
+    @Override
     public MonitorHostType getHostType() {
         return MonitorHostType.EMITTER;
     }

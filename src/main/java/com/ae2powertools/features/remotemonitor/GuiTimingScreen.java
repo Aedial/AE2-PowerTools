@@ -1,7 +1,7 @@
 package com.ae2powertools.features.remotemonitor;
 
-import java.util.Collections;
 import java.io.IOException;
+import java.util.Collections;
 
 import javax.annotation.Nonnull;
 

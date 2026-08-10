@@ -102,6 +102,11 @@ public class TileLevelMonitorAlarm extends TileStorageMonitorBase {
     }
 
     @Override
+    public void triggerManualPoll() {
+        refreshAndUpdateAlarming(true);
+    }
+
+    @Override
     public MonitorHostType getHostType() {
         return MonitorHostType.ALARM;
     }
