@@ -14,11 +14,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [1.6.8] - 2026-08-???
+### Fixed
+- Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
+
+
+## [1.6.7-hotfix2] - 2026-08-11
 ### Added
 - Add a manual poll button to the Storage Monitor and Remote Storage Monitor polling screens, so their current network sample can be refreshed on demand.
 
 ### Fixed
-- Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
+- Fix TOP integration crashing on dedicated servers due to TOP only being registered client-side.
 
 
 ## [1.6.7-hotfix] - 2026-08-08
