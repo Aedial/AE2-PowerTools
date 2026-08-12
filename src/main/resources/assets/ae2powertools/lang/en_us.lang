@@ -335,10 +335,10 @@ tile.ae2powertools.auto_crafter.memory_card.no_blanks= - Missing %d blank patter
 tile.ae2powertools.auto_crafter.memory_card.no_slots= - Missing %d free slot(s) in the AutoCrafter.
 
 # Items - Speed Upgrades
-item.ae2powertools.crafter_speed_upgrade_i.name=Speed Upgrade I
-item.ae2powertools.crafter_speed_upgrade_ii.name=Speed Upgrade II
-item.ae2powertools.crafter_speed_upgrade_iii.name=Speed Upgrade III
-item.ae2powertools.crafter_speed_upgrade_iv.name=Speed Upgrade IV
+item.ae2powertools.crafter_speed_upgrade_i.name=Speed Upgrade I Card
+item.ae2powertools.crafter_speed_upgrade_ii.name=Speed Upgrade II Card
+item.ae2powertools.crafter_speed_upgrade_iii.name=Speed Upgrade III Card
+item.ae2powertools.crafter_speed_upgrade_iv.name=Speed Upgrade IV Card
 item.ae2powertools.crafter_speed_upgrade.tooltip=x%d batch size multiplier. Place in an AutoCrafter to increase throughput.
 
 # Config
