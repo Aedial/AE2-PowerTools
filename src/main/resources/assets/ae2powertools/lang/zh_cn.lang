@@ -284,6 +284,8 @@ gui.ae2powertools.remote_monitor.polling_rate.description=设置用于衡量数�
 gui.ae2powertools.remote_monitor.refresh_interval.title=刷新间隔
 gui.ae2powertools.remote_monitor.refresh_interval.tooltip=每隔%s刷新一次采样数量
 gui.ae2powertools.remote_monitor.refresh_interval.description=设置远程监控器轮询网络的频率
+gui.ae2powertools.poll_now.title=立即刷新
+gui.ae2powertools.poll_now.description=立即触发一次该监控器的网络轮询
 gui.ae2powertools.remote_monitor.sliding_window.title=滑动窗口
 gui.ae2powertools.remote_monitor.sliding_window.tooltip=与最近%s进行对比
 gui.ae2powertools.remote_monitor.sliding_window.description=设置用于衡量数量变化的时间跨度
@@ -333,10 +335,10 @@ tile.ae2powertools.auto_crafter.memory_card.no_blanks= - 物品栏中缺少%d个
 tile.ae2powertools.auto_crafter.memory_card.no_slots= - 自动合成器中缺少%d个空闲槽位。
 
 # Items - Speed Upgrades
-item.ae2powertools.crafter_speed_upgrade_i.name=速度升级 I
-item.ae2powertools.crafter_speed_upgrade_ii.name=速度升级 II
-item.ae2powertools.crafter_speed_upgrade_iii.name=速度升级 III
-item.ae2powertools.crafter_speed_upgrade_iv.name=速度升级 IV
+item.ae2powertools.crafter_speed_upgrade_i.name=速度升级卡 I
+item.ae2powertools.crafter_speed_upgrade_ii.name=速度升级卡 II
+item.ae2powertools.crafter_speed_upgrade_iii.name=速度升级卡 III
+item.ae2powertools.crafter_speed_upgrade_iv.name=速度升级卡 IV
 item.ae2powertools.crafter_speed_upgrade.tooltip=批量大小x%d。放入自动合成器以增加吞吐量。
 
 # Config
