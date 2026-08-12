@@ -284,6 +284,8 @@ gui.ae2powertools.remote_monitor.polling_rate.description=Set the time span used
 gui.ae2powertools.remote_monitor.refresh_interval.title=Refresh Interval
 gui.ae2powertools.remote_monitor.refresh_interval.tooltip=Refresh the sampled quantities every %s
 gui.ae2powertools.remote_monitor.refresh_interval.description=Set how often the remote monitor polls the network
+gui.ae2powertools.poll_now.title=Refresh now
+gui.ae2powertools.poll_now.description=Trigger an immediate network poll for this monitor
 gui.ae2powertools.remote_monitor.sliding_window.title=Sliding Window
 gui.ae2powertools.remote_monitor.sliding_window.tooltip=Compare against the last %s
 gui.ae2powertools.remote_monitor.sliding_window.description=Set the time span used to measure quantity changes
@@ -333,10 +335,10 @@ tile.ae2powertools.auto_crafter.memory_card.no_blanks= - Missing %d blank patter
 tile.ae2powertools.auto_crafter.memory_card.no_slots= - Missing %d free slot(s) in the AutoCrafter.
 
 # Items - Speed Upgrades
-item.ae2powertools.crafter_speed_upgrade_i.name=Speed Upgrade I
-item.ae2powertools.crafter_speed_upgrade_ii.name=Speed Upgrade II
-item.ae2powertools.crafter_speed_upgrade_iii.name=Speed Upgrade III
-item.ae2powertools.crafter_speed_upgrade_iv.name=Speed Upgrade IV
+item.ae2powertools.crafter_speed_upgrade_i.name=Speed Upgrade I Card
+item.ae2powertools.crafter_speed_upgrade_ii.name=Speed Upgrade II Card
+item.ae2powertools.crafter_speed_upgrade_iii.name=Speed Upgrade III Card
+item.ae2powertools.crafter_speed_upgrade_iv.name=Speed Upgrade IV Card
 item.ae2powertools.crafter_speed_upgrade.tooltip=x%d batch size multiplier. Place in an AutoCrafter to increase throughput.
 
 # Config

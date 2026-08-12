@@ -2,6 +2,8 @@ package com.ae2powertools.features.tuner;
 
 import java.io.IOException;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -71,7 +73,7 @@ public class GuiPriorityTuner extends GuiContainer {
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
+    protected void actionPerformed(@Nonnull GuiButton button) throws IOException {
         super.actionPerformed(button);
 
         if (!this.priorityButtons.manages(button)) return;

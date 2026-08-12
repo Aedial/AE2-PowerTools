@@ -1,7 +1,6 @@
 package com.ae2powertools.client;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.lwjgl.opengl.GL11;
@@ -178,10 +177,7 @@ public class BlockHighlightRenderer {
         long now = System.currentTimeMillis();
 
         // Remove expired highlights
-        Iterator<Map.Entry<BlockPos, HighlightEntry>> iter = highlights.entrySet().iterator();
-        while (iter.hasNext()) {
-            if (iter.next().getValue().isExpired(now)) iter.remove();
-        }
+        highlights.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
 
         if (highlights.isEmpty()) return;
 

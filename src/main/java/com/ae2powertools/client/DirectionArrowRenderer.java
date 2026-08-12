@@ -16,7 +16,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /**
  * Shared utility for drawing directional arrows pointing to distant targets.
  * Used by both ScannerRenderer and LocatorRenderer to avoid code duplication.
- *
+ * <p>
  * The arrow appears in front of the player's view, oriented towards the target.
  * Supports config-based scaling and adaptive text sizing.
  */

@@ -179,8 +179,8 @@ public final class CrafterRecipeSnapshot {
         }
 
         ByteBufUtils.writeItemStack(buf, patternStack);
-        for (int i = 0; i < catalystStacks.length; i++) {
-            ByteBufUtils.writeItemStack(buf, catalystStacks[i]);
+        for (ItemStack catalystStack : catalystStacks) {
+            ByteBufUtils.writeItemStack(buf, catalystStack);
         }
 
         // Error details are serialized as JSON-encoded ITextComponents so the receiving
@@ -190,7 +190,7 @@ public final class CrafterRecipeSnapshot {
         for (ITextComponent comp : errorDetails) writeString(buf, ITextComponent.Serializer.componentToJson(comp));
     }
 
-    public static CrafterRecipeSnapshot readFromBuf(ByteBuf buf) throws IOException {
+    public static CrafterRecipeSnapshot readFromBuf(ByteBuf buf) {
         boolean hasDisplay = buf.readBoolean();
 
         IAEItemStack[] grid = new IAEItemStack[9];

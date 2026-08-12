@@ -59,18 +59,14 @@ public class PacketMaintainerEntrySync implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        try {
-            this.openRows = buf.readInt();
-            int count = buf.readShort() & 0xFFFF;
-            this.snapshots = new HashMap<>(count);
-            for (int i = 0; i < count; i++) {
-                int entryIndex = buf.readShort() & 0xFFFF;
-                this.snapshots.put(entryIndex, MaintainerEntrySnapshot.readFromBuf(buf));
-            }
-        } catch (IOException e) {
-            // Corrupted packet: leave snapshots empty so the GUI keeps its previous state
-            this.snapshots = new HashMap<>();
+        this.openRows = buf.readInt();
+        int count = buf.readShort() & 0xFFFF;
+        this.snapshots = new HashMap<>(count);
+        for (int i = 0; i < count; i++) {
+            int entryIndex = buf.readShort() & 0xFFFF;
+            this.snapshots.put(entryIndex, MaintainerEntrySnapshot.readFromBuf(buf));
         }
+
     }
 
     @Override

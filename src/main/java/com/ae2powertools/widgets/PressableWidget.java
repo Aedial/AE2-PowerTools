@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -129,6 +130,17 @@ public abstract class PressableWidget extends Gui {
 
     public void setTooltipProvider(Supplier<List<String>> tooltipProvider) {
         this.tooltipProvider = tooltipProvider == null ? Collections::emptyList : tooltipProvider;
+    }
+
+    public void setTooltip(List<String> tooltip) {
+        this.tooltipProvider = () -> tooltip == null ? Collections.emptyList() : tooltip;
+    }
+
+    public void setTooltipKey(String tooltipKey, Object... formatArgs) {
+        this.tooltipProvider = () -> {
+            if (tooltipKey == null || tooltipKey.isEmpty()) return Collections.emptyList();
+            return Collections.singletonList(I18n.format(tooltipKey, formatArgs));
+        };
     }
 
     public void drawTooltip(WidgetContext context, int mouseX, int mouseY) {

@@ -102,7 +102,7 @@ public final class CrafterOverviewSnapshot {
         buf.writeLong(metricsTotalMaxPossible);
     }
 
-    public static CrafterOverviewSnapshot readFromBuf(ByteBuf buf) throws IOException {
+    public static CrafterOverviewSnapshot readFromBuf(ByteBuf buf) {
         int stateOrdinal = buf.readByte() & 0xFF;
         boolean enabled = buf.readBoolean();
         boolean hasDisplayData = buf.readBoolean();

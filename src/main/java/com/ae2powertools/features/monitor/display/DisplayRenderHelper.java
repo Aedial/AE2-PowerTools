@@ -121,7 +121,8 @@ public final class DisplayRenderHelper {
      * that manually so the same ARGB values do not read noticeably brighter on a cable part
      * than they do on the block variant.
      *
-     * @param argb packed 0xAARRGGBB color from {@link DisplayLogic#getCornerColor()}
+     * @param argb packed 0xAARRGGBB color from
+     *             {@link com.ae2powertools.features.monitor.dependent.DisplayLogic#getCornerColor()}
      * @param packedLight host block light from {@code World#getCombinedLight}
      * @param modelIndex index of the model variant to use
      */
@@ -147,7 +148,6 @@ public final class DisplayRenderHelper {
 
     private static void drawFaceOverlay(String spriteName, int argb, int packedLight, EnumFacing facing, float z) {
         TextureAtlasSprite sprite = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(spriteName);
-        if (sprite == null) return;
 
         boolean lightingEnabled = GL11.glIsEnabled(GL11.GL_LIGHTING);
         boolean alphaEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
@@ -211,14 +211,13 @@ public final class DisplayRenderHelper {
         switch (facing) {
             case DOWN:
                 return 0.5F;
-            case UP:
-                return 1.0F;
             case NORTH:
             case SOUTH:
                 return 0.8F;
             case WEST:
             case EAST:
                 return 0.6F;
+            case UP:
             default:
                 return 1.0F;
         }
@@ -279,7 +278,6 @@ public final class DisplayRenderHelper {
 
         TextureAtlasSprite sprite = Minecraft.getMinecraft().getTextureMapBlocks()
             .getAtlasSprite(fluid.getStill(fluidStack).toString());
-        if (sprite == null) return;
 
         int color = fluid.getColor(fluidStack);
         float red = (color >> 16 & 0xFF) / 255.0F;

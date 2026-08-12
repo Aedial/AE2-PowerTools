@@ -8,6 +8,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import com.google.common.collect.ImmutableCollection;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -83,7 +85,7 @@ public class ContainerBetterLevelMaintainer extends Container {
     }
 
     @Override
-    public boolean canInteractWith(EntityPlayer player) {
+    public boolean canInteractWith(@Nonnull EntityPlayer player) {
         return maintainer.getWorld().getTileEntity(maintainer.getPos()) == maintainer
                 && player.getDistanceSq(maintainer.getPos()) <= 64.0;
     }
@@ -191,7 +193,7 @@ public class ContainerBetterLevelMaintainer extends Container {
     }
 
     @Override
-    public void addListener(IContainerListener listener) {
+    public void addListener(@Nonnull IContainerListener listener) {
         super.addListener(listener);
 
         // Force a full snapshot send to the new listener on the next detectAndSendChanges tick.
@@ -306,7 +308,8 @@ public class ContainerBetterLevelMaintainer extends Container {
     }
 
     @Override
-    public ItemStack transferStackInSlot(EntityPlayer player, int index) {
+    @Nonnull
+    public ItemStack transferStackInSlot(@Nonnull EntityPlayer player, int index) {
         return ItemStack.EMPTY;
     }
 

@@ -52,7 +52,7 @@ public final class HudOverlayManager {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
 
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.fontRenderer == null) return;
+        if (mc.fontRenderer == null) return;
 
         for (HudOverlayProvider provider : this.providers) provider.onOverlayRendered(0);
 

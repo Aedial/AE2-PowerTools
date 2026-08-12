@@ -1,9 +1,10 @@
 package com.ae2powertools.integration.jei;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.awt.Rectangle;
 import java.util.List;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.IModRegistry;
@@ -17,6 +18,7 @@ import mezz.jei.api.recipe.VanillaRecipeCategoryUid;
 import com.ae2powertools.features.crafter.GuiAutoCrafter;
 import com.ae2powertools.features.maintainer.GuiBetterLevelMaintainer;
 import com.ae2powertools.features.monitor.dependent.GuiStorageMonitor;
+import com.ae2powertools.features.remotemonitor.GuiRemoteMonitor;
 import com.ae2powertools.recipes.ShapelessReusableIngredientRecipe;
 
 
@@ -39,6 +41,9 @@ public class PowerToolsJEIPlugin implements IModPlugin {
         // Storage Emitter / Display: the AND/OR side button sits outside guiLeft
         // and would otherwise be hidden under JEI's overlay panel.
         registry.addAdvancedGuiHandlers(new StorageMonitorGuiHandler());
+        // Remote Monitor: the manual poll button sits outside guiLeft
+        registry.addAdvancedGuiHandlers(new RemoteMonitorGuiHandler());
+
         registry.handleRecipes(
             ShapelessReusableIngredientRecipe.class,
             recipe -> new ReusableCraftingRecipeWrapper(craftingGridHelper, recipe),
@@ -144,6 +149,31 @@ public class PowerToolsJEIPlugin implements IModPlugin {
         @Nullable
         @Override
         public Object getIngredientUnderMouse(@Nonnull GuiStorageMonitor gui, int mouseX, int mouseY) {
+            return null;
+        }
+    }
+
+    /**
+     * GUI handler for the Remote Monitor GUI.
+     * Provides JEI with the exclusion zone for the manual poll button.
+     */
+    public static class RemoteMonitorGuiHandler implements IAdvancedGuiHandler<GuiRemoteMonitor> {
+
+        @Override
+        @Nonnull
+        public Class<GuiRemoteMonitor> getGuiContainerClass() {
+            return GuiRemoteMonitor.class;
+        }
+
+        @Nullable
+        @Override
+        public List<Rectangle> getGuiExtraAreas(@Nonnull GuiRemoteMonitor gui) {
+            return gui.getJEIExclusionArea();
+        }
+
+        @Nullable
+        @Override
+        public Object getIngredientUnderMouse(@Nonnull GuiRemoteMonitor gui, int mouseX, int mouseY) {
             return null;
         }
     }

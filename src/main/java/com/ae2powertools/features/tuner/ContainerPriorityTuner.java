@@ -15,14 +15,12 @@ import com.ae2powertools.items.ItemPriorityTuner;
  */
 public class ContainerPriorityTuner extends Container {
 
-    private final EntityPlayer player;
     private final EnumHand hand;
     private final ItemStack tunerStack;
 
     public ContainerPriorityTuner(InventoryPlayer playerInventory, EnumHand hand) {
-        this.player = playerInventory.player;
         this.hand = hand;
-        this.tunerStack = player.getHeldItem(hand);
+        this.tunerStack = playerInventory.player.getHeldItem(hand);
     }
 
     @Override

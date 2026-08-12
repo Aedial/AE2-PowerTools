@@ -167,23 +167,6 @@ public class ScanSessionManager {
 
             return sortedChunkResults;
         }
-
-        /**
-         * Group sorted loop results by dimension for tree display.
-         */
-        /*
-        public Map<String, List<IssueLocation>> getGroupedLoopResults(BlockPos playerPos, int playerDimension) {
-            Map<String, List<IssueLocation>> grouped = new HashMap<>();
-
-            for (IssueLocation loc : getSortedLoopResults(playerPos, playerDimension)) {
-                // NOTE: This helper is currently unused. If a caller is added, swap I18n for
-                // TextComponentTranslation so the dimension key localizes per-client.
-                String dimKey = I18n.translateToLocalFormatted("gui.ae2powertools.scanner.dimension_format", loc.getDimensionName(), loc.getDimension());
-                grouped.computeIfAbsent(dimKey, k -> new ArrayList<>()).add(loc);
-            }
-
-            return grouped;
-        } */
     }
 
     /**

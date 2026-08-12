@@ -41,10 +41,10 @@ import com.ae2powertools.util.FormatUtil;
  * Shared composition class for all storage monitoring dependents (emitters, displays).
  * Contains the refresh logic, configured entries (each with resource + comparison + threshold),
  * and the overall condition result (AND/OR across all entry evaluations).
- *
+ * <p>
  * This class is NOT a tile entity -- it is composed into tile entities and parts
  * to share behavior without inheritance.
- *
+ * <p>
  * Queries the AE2 network grid directly via findPrecise() for O(1) lookups,
  * rather than going through an intermediary cache.
  */
@@ -104,7 +104,7 @@ public class MonitorLogic {
     /**
      * Performs a single refresh cycle: query the AE2 grid for each entry's resource,
      * evaluate each entry's condition (quantity COMP threshold), then AND/OR across all.
-     *
+     * <p>
      * Called directly from IGridTickable hosts, the grid tick manager controls the rate.
      */
     public boolean refresh() {
@@ -138,7 +138,7 @@ public class MonitorLogic {
      * Evaluates the overall condition across all entries.
      * Each entry independently checks (quantity COMP threshold) -> boolean,
      * then AND requires all true (of the enabled entries), OR requires any true.
-     *
+     * <p>
      * Disabled entries are still polled and have their lastQuantity / lastConditionMet
      * updated for client-side GUI feedback, but they are excluded from the AND/OR.
      */

@@ -151,7 +151,7 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
 
     @Override
     public void close() {
-        close(false);
+        close(true);
     }
 
     public void draw(int mouseX, int mouseY, float partialTicks) {
@@ -203,7 +203,9 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
             0x404040);
 
         // Draw item in slot with proper GL state.
-        if (workingEntry != null && workingEntry.getTargetItem() != null) {
+        if (workingEntry != null && workingEntry.getTargetItem() != null
+                && workingEntry.getTargetItemStack() != null
+                && !workingEntry.getTargetItemStack().isEmpty()) {
             ItemStack stack = workingEntry.getTargetItemStack();
 
             GlStateManager.enableDepth();
@@ -247,7 +249,9 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
         List<String> tooltip = new ArrayList<>();
 
         if (localX >= 5 && localX < 23 && localY >= 5 && localY < 23) {
-            if (workingEntry != null && workingEntry.getTargetItem() != null) {
+            if (workingEntry != null && workingEntry.getTargetItem() != null
+                    && workingEntry.getTargetItemStack() != null
+                    && !workingEntry.getTargetItemStack().isEmpty()) {
                 ITooltipFlag flag = context.getWidgetMinecraft().gameSettings.advancedItemTooltips
                     ? ITooltipFlag.TooltipFlags.ADVANCED
                     : ITooltipFlag.TooltipFlags.NORMAL;
@@ -390,14 +394,32 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
     private void handleFrequencyButton(GuiButton button) {
         int delta = 0;
         String label = button.displayString;
-        if (label.equals("-1s")) delta = -1;
-        else if (label.equals("+1s")) delta = 1;
-        else if (label.equals("-1m")) delta = -60;
-        else if (label.equals("+1m")) delta = 60;
-        else if (label.equals("-1h")) delta = -3600;
-        else if (label.equals("+1h")) delta = 3600;
-        else if (label.equals("-1d")) delta = -86400;
-        else if (label.equals("+1d")) delta = 86400;
+        switch (label) {
+            case "-1s":
+                delta = -1;
+                break;
+            case "+1s":
+                delta = 1;
+                break;
+            case "-1m":
+                delta = -60;
+                break;
+            case "+1m":
+                delta = 60;
+                break;
+            case "-1h":
+                delta = -3600;
+                break;
+            case "+1h":
+                delta = 3600;
+                break;
+            case "-1d":
+                delta = -86400;
+                break;
+            case "+1d":
+                delta = 86400;
+                break;
+        }
 
         if (delta == 0) return;
 

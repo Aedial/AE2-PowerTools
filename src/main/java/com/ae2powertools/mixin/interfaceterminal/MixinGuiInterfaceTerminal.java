@@ -10,13 +10,11 @@ import com.google.common.collect.HashMultimap;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import net.minecraft.client.resources.I18n;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.inventory.Container;
 import net.minecraft.nbt.NBTTagCompound;
@@ -63,8 +61,7 @@ public abstract class MixinGuiInterfaceTerminal extends AEBaseGui {
     private void ae2powertools$captureAutoCrafterMetadata(NBTTagCompound in, CallbackInfo ci) {
         if (in.getBoolean("clear")) AutoCrafterTerminalClientState.clear();
 
-        for (Object rawKey : in.getKeySet()) {
-            String key = (String) rawKey;
+        for (String key : in.getKeySet()) {
             if (!key.startsWith("=")) continue;
 
             try {
@@ -200,7 +197,7 @@ public abstract class MixinGuiInterfaceTerminal extends AEBaseGui {
                 int disabledFrom = Math.max(0, activeSlotCount - rowStartSlot);
 
                 if (AutoCrafterTerminalClientState.isAutoCrafter(inventory.getId()) && disabledFrom < 9) {
-                    for (int slot = Math.max(disabledFrom, 0); slot < 9; slot++) {
+                    for (int slot = disabledFrom; slot < 9; slot++) {
                         int x = 20 + slot * 18;
                         Gui.drawRect(x + 1, y, x + 18, y + 17, 0xDC242424);
                     }

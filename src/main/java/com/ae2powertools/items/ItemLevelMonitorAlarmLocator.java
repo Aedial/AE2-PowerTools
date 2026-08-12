@@ -2,6 +2,8 @@ package com.ae2powertools.items;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.item.Item;
@@ -29,7 +31,8 @@ public class ItemLevelMonitorAlarmLocator extends Item {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
         tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.level_monitor_alarm_locator.tip1"));

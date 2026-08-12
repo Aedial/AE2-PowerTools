@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.mojang.authlib.GameProfile;
@@ -300,8 +301,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Phase 0: Filter to craftable entries and collect candidates
         List<CraftCandidate> candidates = new ArrayList<>();
 
-        for (int i = 0; i < entries.size(); i++) {
-            CrafterEntry entry = entries.get(i);
+        for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++) {
+            CrafterEntry entry = entries.get(entryIndex);
 
             // Skip empty entries (no pattern) - distinct from disabled
             if (entry.isEmpty()) {
@@ -331,25 +332,17 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             }
 
             // Check target quantity
-            CrafterRecipeInfo info = entry.getRecipeInfo();
             if (isEntryAtTarget(entry, storageList)) {
                 entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.IDLE);
                 continue;
             }
 
+            CrafterRecipeInfo info = entry.getRecipeInfo();
+            if (info != null && !ensureCatalystsValid(entryIndex, entry, info)) continue;
+
             // Clear previous error details
             entry.clearErrorDetails();
-
-            // Check catalysts
-            if (info.requiresCatalysts()) {
-                List<ITextComponent> catalystErrors = new ArrayList<>();
-                if (!hasSufficientCatalysts(entry, info, catalystErrors)) {
-                    for (ITextComponent error : catalystErrors) entry.addErrorDetail(error);
-                    updateEntryState(entry, CrafterState.MISSING_CATALYST);
-                    continue;
-                }
-            }
 
             candidates.add(new CraftCandidate(entry, info));
         }
@@ -419,7 +412,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Validate all entries without crafting.
-     * 
+     * <p>
      * This is a "dry run" that updates entry states based on current network conditions:
      * - DISABLED: Entry is disabled or has no pattern
      * - HOLDING_OUTPUT: Entry has pending outputs waiting to be inserted
@@ -428,7 +421,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * - MISSING_CATALYST: Missing required catalyst items
      * - MISSING_INPUT: Not enough items in network (checked via simulation)
      * - IDLE: Entry can craft (has all inputs and catalysts)
-     * 
+     * <p>
      * Called on world load to show correct states immediately.
      */
     private void validateAllEntries() {
@@ -437,8 +430,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Collect candidates (same filtering as processAllEntries Phase 0)
         List<CraftCandidate> candidates = new ArrayList<>();
 
-        for (int i = 0; i < entries.size(); i++) {
-            CrafterEntry entry = entries.get(i);
+        for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++) {
+            CrafterEntry entry = entries.get(entryIndex);
 
             // Skip disabled or empty entries
             if (entry.isEmpty()) {
@@ -466,25 +459,17 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             }
 
             // Check target quantity
-            CrafterRecipeInfo info = entry.getRecipeInfo();
             if (isEntryAtTarget(entry, storageList)) {
                 entry.clearErrorDetails();
                 updateEntryState(entry, CrafterState.IDLE);
                 continue;
             }
 
+            CrafterRecipeInfo info = entry.getRecipeInfo();
+            if (info != null && !ensureCatalystsValid(entryIndex, entry, info)) continue;
+
             // Clear previous error details
             entry.clearErrorDetails();
-
-            // Check catalysts
-            if (info.requiresCatalysts()) {
-                List<ITextComponent> catalystErrors = new ArrayList<>();
-                if (!hasSufficientCatalysts(entry, info, catalystErrors)) {
-                    for (ITextComponent error : catalystErrors) entry.addErrorDetail(error);
-                    updateEntryState(entry, CrafterState.MISSING_CATALYST);
-                    continue;
-                }
-            }
 
             candidates.add(new CraftCandidate(entry, info));
         }
@@ -506,7 +491,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 IAEItemStack item = ingredient.getItem();
                 if (item == null) continue;
 
-                ItemStackKey key = new ItemStackKey(item);
+                ItemStackKey key = ingredient.getItemKey();
+                if (key == null) continue;
+
                 long available = sharedPool.getOrDefault(key, 0L);
                 long needed = calculateItemsNeededForCrafts(ingredient, 1); // At least 1 craft
 
@@ -601,9 +588,11 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 IAEItemStack item = ingredient.getItem();
                 if (item == null) continue;
 
-                ItemStackKey key = new ItemStackKey(item);
+                ItemStackKey key = ingredient.getItemKey();
+                if (key == null) continue;
+
                 if (!pool.containsKey(key)) {
-                    IAEItemStack found = storageList.findPrecise(item);
+                    IAEItemStack found = findPreciseInStorage(storageList, item);
                     pool.put(key, found != null ? found.getStackSize() : 0L);
                 }
             }
@@ -614,12 +603,12 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Allocate resources fairly among competing entries.
-     * 
+     * <p>
      * Fair allocation algorithm:
      * 1. For each contested resource, divide available items equally among candidates that need it
      * 2. Each candidate converts their item share to crafts (share ÷ items_per_craft)
      * 3. A candidate's final crafts is the minimum across all its required resources
-     * 
+     * <p>
      * This ensures that if two entries fight for the same resource, each gets an equal
      * share of items.
      * 
@@ -641,7 +630,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 IAEItemStack item = ingredient.getItem();
                 if (item == null) continue;
 
-                ItemStackKey key = new ItemStackKey(item);
+                ItemStackKey key = ingredient.getItemKey();
+                if (key == null) continue;
+
                 resourceUsers.computeIfAbsent(key, k -> new ArrayList<>()).add(candidate);
                 long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
                 totalDemand.merge(key, needed, CrafterMath::saturatingAdd);
@@ -689,7 +680,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 IAEItemStack item = ingredient.getItem();
                 if (item == null) continue;
 
-                ItemStackKey key = new ItemStackKey(item);
+                ItemStackKey key = ingredient.getItemKey();
+                if (key == null) continue;
+
                 Map<CraftCandidate, Long> allocations = itemAllocations.get(key);
                 if (allocations == null) continue;
 
@@ -743,7 +736,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                             "gui.ae2powertools.crafter.error.limited_by",
                             stack.getDisplayName(), counts[0], counts[1]));
                 }
-                if (limitingFactors.isEmpty()) candidate.entry.addErrorDetail(new TextComponentTranslation("gui.ae2powertools.crafter.error.no_items_in_network"));
+                if (limitingFactors.isEmpty()) candidate.entry.addErrorDetail(
+                    new TextComponentTranslation("gui.ae2powertools.crafter.error.no_items_in_network"));
                 updateEntryState(candidate.entry, CrafterState.MISSING_INPUT);
                 // Record as error (no crafts possible)
                 candidate.entry.recordMetrics(true, 0, 0);
@@ -759,10 +753,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     @Nullable
     private CrafterRecipeInfo.IngredientInfo findIngredient(CrafterRecipeInfo info, ItemStackKey key) {
         for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
-            IAEItemStack item = ingredient.getItem();
-            if (item == null) continue;
+            ItemStackKey ingredientKey = ingredient.getItemKey();
+            if (ingredientKey == null) continue;
 
-            if (new ItemStackKey(item).equals(key)) return ingredient;
+            if (ingredientKey.equals(key)) return ingredient;
         }
 
         return null;
@@ -771,7 +765,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     /**
      * Calculate how many crafts can be performed given a number of allocated items.
      * Inverse of calculateItemsNeededForCrafts.
-     * 
+     * <p>
      * For most items: 1 craft per item.
      * For DURABILITY items: multiple crafts per item based on durability.
      */
@@ -800,7 +794,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Calculate how many items are needed for a given number of crafts.
-     * 
+     * <p>
      * For most items: 1 item per craft.
      * For DURABILITY items: depends on durability per craft and max durability.
      */
@@ -857,7 +851,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Deduct items from the shared pool after allocating crafts to an entry.
-     * 
+     * <p>
      * For most items: deduct 1 item per craft.
      * For DURABILITY items: deduct based on how many items are actually needed.
      */
@@ -866,7 +860,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             IAEItemStack item = ingredient.getItem();
             if (item == null) continue;
 
-            ItemStackKey key = new ItemStackKey(item);
+            ItemStackKey key = ingredient.getItemKey();
+            if (key == null) continue;
+
             long current = pool.getOrDefault(key, 0L);
 
             long itemsToDeduct;
@@ -893,38 +889,24 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         }
     }
 
-    /**
-     * Key for ItemStack identity in maps, using including NBT matching.
-     */
-    private static class ItemStackKey {
-        private final IAEItemStack item;
+    private boolean ensureCatalystsValid(int entryIndex, CrafterEntry entry, CrafterRecipeInfo info) {
+        if (!info.requiresCatalysts()) return true;
 
-        ItemStackKey(IAEItemStack item) {
-            this.item = item;
-        }
+        if (entry.needsCatalystValidation()) validateCatalysts(entryIndex);
 
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (!(obj instanceof ItemStackKey)) return false;
-            ItemStackKey other = (ItemStackKey) obj;
-            return item.isSameType(other.item);
-        }
+        CrafterState failureState = entry.getCatalystValidationFailureState();
+        if (failureState == null) return true;
 
-        @Override
-        public int hashCode() {
-            // Use item + meta for hash, NBT comparison in equals
-            ItemStack stack = item.createItemStack();
-            return stack.getItem().hashCode() ^ (stack.getMetadata() * 31);
-        }
+        updateEntryState(entry, failureState);
+        return false;
     }
 
     /**
      * Check if the entry has sufficient catalyst items in its internal inventory.
-     * 
+     * <p>
      * Uses 1:1 slot mapping: each recipe slot that requires a catalyst (REUSABLE or DUPLICATION)
      * must have the corresponding item in the same slot of the internal inventory.
-     * 
+     * <p>
      * Uses inclusive NBT matching: the actual item can have additional NBT tags beyond
      * what the recipe requires.
      * 
@@ -991,7 +973,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Extract required inputs from the network.
-     * 
+     * <p>
      * For most items: 1 item per slot per craft.
      * For DURABILITY items: 
      * - First check for leftover durability in catalyst slots
@@ -1059,15 +1041,15 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Perform the craft operation using cached recipe info.
-     * 
+     * <p>
      * This method does NOT re-simulate the recipe. All ingredient types and outputs
      * are determined from the cached CrafterRecipeInfo which was computed once
      * when the pattern was inserted.
      * 
      * @param crafts Number of individual crafts to perform
-     * @return List of all outputs (main output + transformed items), or null on failure
+     * @return List of all outputs (main output + transformed items)
      */
-    @Nullable
+    @Nonnull
     private List<IAEItemStack> performCraftInternal(CrafterEntry entry, CrafterRecipeInfo info, long crafts) {
         List<IAEItemStack> outputs = new ArrayList<>();
 
@@ -1133,7 +1115,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     /**
      * Process durability items: use leftover from internal inventory first, then extracted items.
      * Stores the single surviving item (if any) back in the internal inventory slot.
-     * 
+     * <p>
      * Internal inventory mirrors the crafting grid 1:1 (slot 0-8 = crafting slot 0-8).
      * A durability item's leftover goes in the same slot as its recipe position.
      * 
@@ -1141,7 +1123,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * @param info The recipe info
      * @param ingredient The durability ingredient being processed
      * @param crafts Number of individual crafts being performed
-     * @return Empty list (survivor is stored in internal inventory, not returned to network)
      */
     private void processDurabilityItems(CrafterEntry entry, CrafterRecipeInfo info,
                                         CrafterRecipeInfo.IngredientInfo ingredient,
@@ -1174,9 +1155,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // - Fresh items extracted from network (each has maxDurability)
         // extractInputs already calculated how many network items we needed
         long durabilityFromNetwork = Math.max(0, totalDurabilityNeeded - leftoverDurability);
-        long itemsFromNetwork = (durabilityFromNetwork > 0 && maxDurability > 0)
-                             ? CrafterMath.ceilDivPositive(durabilityFromNetwork, maxDurability)
-                             : 0;
+        long itemsFromNetwork = durabilityFromNetwork > 0
+                              ? CrafterMath.ceilDivPositive(durabilityFromNetwork, maxDurability)
+                              : 0;
         long totalDurabilityAvailable = CrafterMath.saturatingAdd(
                 leftoverDurability,
                 CrafterMath.saturatingMultiply(itemsFromNetwork, maxDurability));
@@ -1223,7 +1204,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             if (grid == null) return null;
 
             IStorageGrid storage = grid.getCache(IStorageGrid.class);
-            if (storage == null) return null;
 
             return storage.getInventory(AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
         } catch (GridAccessException e) {
@@ -1249,16 +1229,23 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         return itemStorage.getStorageList();
     }
 
+    @Nullable
+    private IAEItemStack findPreciseInStorage(@Nullable IItemList<IAEItemStack> storageList, IAEItemStack item) {
+        if (storageList == null) return null;
+
+        return storageList.findPrecise(item);
+    }
+
     /**
      * Get the quantity of an item available in the network.
-     * 
+     * <p>
      * Note: For performance when processing multiple items, use getNetworkStorageList()
      * once and call findPrecise() on it directly. This method is for one-off queries.
      */
     private long getNetworkQuantity(@Nullable IItemList<IAEItemStack> storageList, IAEItemStack item) {
         if (storageList == null) return 0;
 
-        IAEItemStack found = storageList.findPrecise(item);
+        IAEItemStack found = findPreciseInStorage(storageList, item);
         return found != null ? found.getStackSize() : 0;
     }
 
@@ -1341,6 +1328,13 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             // Only reset to IDLE when inserting a new pattern, not on world load
             entry.setState(CrafterState.IDLE);
         }
+
+        if (info.isValid() && info.requiresCatalysts()) {
+            if (resetState) validateCatalysts(entryIndex);
+        } else if (info.isValid()) {
+            entry.clearCatalystValidationFailure();
+        }
+
         // If !resetState and info.isValid(), keep the existing state (e.g., MISSING_INPUT from NBT)
 
         markDirty();
@@ -1348,10 +1342,10 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Analyze a crafting pattern to determine ingredient types.
-     * 
+     * <p>
      * This is the ONLY place where recipe simulation happens. The results are cached
      * in CrafterRecipeInfo to avoid expensive simulation on every craft operation.
-     * 
+     * <p>
      * Ingredient types are determined by actually simulating the recipe and checking
      * what items remain in each slot after crafting:
      * - CONSUMED: Slot is empty after crafting
@@ -1365,7 +1359,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         List<IAEItemStack> outputs = new ArrayList<>();
 
         IAEItemStack[] inputs = details.getInputs();
-        IAEItemStack[] patternOutputs = details.getOutputs();
 
         // Set up crafting grid with inputs (no catalyst substitution for initial analysis)
         InventoryCrafting craftMatrix = buildCraftingMatrix(details, null, null);
@@ -1385,15 +1378,17 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         IAEItemStack mainOutput = AEItemStack.fromItemStack(recipeOutput);
         if (mainOutput != null) outputs.add(mainOutput);
 
-        // Collect pattern outputs for duplication detection
-        // Pattern outputs may differ from recipe output if the pattern was created differently
-        Map<String, Long> outputItemMap = new HashMap<>();
-        for (IAEItemStack output : patternOutputs) {
-            if (output != null) {
-                String key = getItemKey(output.createItemStack());
-                outputItemMap.merge(key, output.getStackSize(), CrafterMath::saturatingAdd);
-            }
+        // Track how many copies of each output type can stay in catalyst inventory.
+        // Any matching input beyond this allowance remains a normal consumed ingredient.
+        Map<String, Long> duplicationAllowanceByKey = new HashMap<>();
+        if (mainOutput != null) {
+            String key = getItemKey(mainOutput.createItemStack());
+            duplicationAllowanceByKey.put(key, mainOutput.getStackSize());
         }
+
+        // Track how many output items are retained internally so the synced recipe output and
+        // actual network insertion only expose the net gain beyond the preserved catalyst copy.
+        Map<String, Long> duplicatedInputsByKey = new HashMap<>();
 
         // Get remaining items after crafting (getRemainingItems returns what each input slot becomes)
         NonNullList<ItemStack> remainingItems = recipe.getRemainingItems(craftMatrix);
@@ -1412,11 +1407,14 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             int durabilityPerCraft = 1; // Default for non-durability items
 
             if (remaining.isEmpty()) {
-                // Nothing remains - check if this item appears in outputs (duplication)
+                // Nothing remains - treat matching outputs as duplication only while there is
+                // still enough output count left to replenish that catalyst slot.
                 String inputKey = getItemKey(inputStack);
-                Long outputCount = outputItemMap.get(inputKey);
+                Long outputCount = duplicationAllowanceByKey.get(inputKey);
                 if (outputCount != null && outputCount >= 1) {
                     type = CrafterRecipeInfo.IngredientType.DUPLICATION;
+                    duplicationAllowanceByKey.put(inputKey, outputCount - 1);
+                    duplicatedInputsByKey.merge(inputKey, 1L, CrafterMath::saturatingAdd);
                 } else {
                     type = CrafterRecipeInfo.IngredientType.CONSUMED;
                 }
@@ -1448,7 +1446,37 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                     input.copy(), i, type, 1, remainingAE, durabilityPerCraft));
         }
 
+        subtractDuplicatedInputsFromOutputs(outputs, duplicatedInputsByKey);
+
         return new CrafterRecipeInfo(ingredients, outputs);
+    }
+
+    private void subtractDuplicatedInputsFromOutputs(List<IAEItemStack> outputs, Map<String, Long> duplicatedInputsByKey) {
+        if (duplicatedInputsByKey.isEmpty()) return;
+
+        for (int i = 0; i < outputs.size(); i++) {
+            IAEItemStack output = outputs.get(i);
+            if (output == null) continue;
+
+            String outputKey = getItemKey(output.createItemStack());
+            long toSubtract = duplicatedInputsByKey.getOrDefault(outputKey, 0L);
+            if (toSubtract <= 0L) continue;
+
+            long remainingCount = output.getStackSize() - toSubtract;
+            if (remainingCount > 0L) {
+                output.setStackSize(remainingCount);
+                duplicatedInputsByKey.remove(outputKey);
+                continue;
+            }
+
+            outputs.remove(i--);
+
+            if (remainingCount < 0L) {
+                duplicatedInputsByKey.put(outputKey, -remainingCount);
+            } else {
+                duplicatedInputsByKey.remove(outputKey);
+            }
+        }
     }
 
     /**
@@ -1692,7 +1720,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     /**
      * Gets the effective max batch size (base config * user batch size * upgrade multiplier).
      * This is the max batch size that can be requested in allocateResourcesFairly.
-     * 
+     * <p>
      * Formula: baseCraftsPerOperation (config) * batchSize (user) * upgradeMultiplier
      */
     public long getEffectiveMaxBatchSize() {
@@ -1733,30 +1761,84 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     /**
+     * Inserts one held item into the first empty catalyst slot that expects it.
+     * Uses the same inclusive NBT matching as catalyst validation so in-world
+     * quick insert follows the GUI's acceptance rules.
+     */
+    public boolean tryQuickInsertCatalyst(ItemStack heldItem) {
+        if (heldItem.isEmpty()) return false;
+
+        for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++) {
+            CrafterEntry entry = entries.get(entryIndex);
+            if (!entry.hasValidRecipeInfo()) continue;
+
+            CrafterRecipeInfo info = entry.getRecipeInfo();
+            if (info == null || !info.requiresCatalysts()) continue;
+
+            for (CrafterRecipeInfo.IngredientInfo catalyst : info.getCatalystSlots()) {
+                int catalystIndex = catalyst.getSlotIndex();
+                if (catalystIndex < 0 || catalystIndex >= CrafterEntry.CATALYST_SLOTS) continue;
+                if (!entry.getCatalystStack(catalystIndex).isEmpty()) continue;
+
+                ItemStack expectedItem = catalyst.getItem() != null
+                        ? catalyst.getItem().createItemStack()
+                        : ItemStack.EMPTY;
+                if (expectedItem.isEmpty()) continue;
+                if (!areItemStacksMatchingIncludingNbt(expectedItem, heldItem)) continue;
+
+                ItemStack toInsert = heldItem.copy();
+                toInsert.setCount(1);
+
+                entry.setCatalystStack(catalystIndex, toInsert);
+                heldItem.shrink(1);
+                validateCatalysts(entryIndex);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Validate that the current catalysts are still valid for the recipe.
-     * 
+     * <p>
      * This is called when a catalyst is changed (inserted/removed) to ensure the player
      * cannot swap in a cheaper item. If the recipe still works with the current catalysts,
      * the state is updated. If the recipe would fail, the state is set to SIMULATION_FAILED.
-     * 
+     * <p>
      * Reuses the recipe simulation logic from analyzeRecipe, substituting actual catalyst items.
      */
     public void validateCatalysts(int entryIndex) {
         if (entryIndex < 0 || entryIndex >= entries.size()) return;
 
         CrafterEntry entry = entries.get(entryIndex);
-        if (!entry.hasPattern() || !entry.hasValidRecipeInfo()) return;
+        if (!entry.hasPattern() || !entry.hasValidRecipeInfo()) {
+            entry.clearCatalystValidationFailure();
+            return;
+        }
 
         CrafterRecipeInfo info = entry.getRecipeInfo();
-        if (info == null || !info.requiresCatalysts()) return;
+        if (info == null || !info.requiresCatalysts()) {
+            entry.clearCatalystValidationFailure();
+            return;
+        }
 
         ItemStack patternStack = entry.getPatternStack();
-        if (patternStack == null || patternStack.isEmpty()) return;
-        if (!(patternStack.getItem() instanceof ICraftingPatternItem)) return;
+        if (patternStack == null || patternStack.isEmpty()) {
+            entry.clearCatalystValidationFailure();
+            return;
+        }
+        if (!(patternStack.getItem() instanceof ICraftingPatternItem)) {
+            entry.clearCatalystValidationFailure();
+            return;
+        }
 
         ICraftingPatternItem patternItem = (ICraftingPatternItem) patternStack.getItem();
         ICraftingPatternDetails details = patternItem.getPatternForItem(patternStack, world);
-        if (details == null || !details.isCraftable()) return;
+        if (details == null || !details.isCraftable()) {
+            entry.clearCatalystValidationFailure();
+            return;
+        }
 
         entry.clearErrorDetails();
 
@@ -1767,6 +1849,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             List<ITextComponent> catalystErrors = new ArrayList<>();
             hasSufficientCatalysts(entry, info, catalystErrors);
             for (ITextComponent error : catalystErrors) entry.addErrorDetail(error);
+            entry.setCatalystValidationFailure(CrafterState.MISSING_CATALYST);
             entry.setState(CrafterState.MISSING_CATALYST);
             markDirty();
             return;
@@ -1776,6 +1859,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         IRecipe recipe = CraftingManager.findMatchingRecipe(craftMatrix, world);
         if (recipe == null) {
             replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.catalyst_recipe_mismatch");
+            entry.setCatalystValidationFailure(CrafterState.SIMULATION_FAILED);
             entry.setState(CrafterState.SIMULATION_FAILED);
             markDirty();
             return;
@@ -1787,6 +1871,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         
         if (expectedOutput == null || newOutput.isEmpty()) {
             replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.output_mismatch");
+            entry.setCatalystValidationFailure(CrafterState.SIMULATION_FAILED);
             entry.setState(CrafterState.SIMULATION_FAILED);
             markDirty();
             return;
@@ -1796,12 +1881,14 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (expectedStack.getItem() != newOutput.getItem() 
             || expectedStack.getMetadata() != newOutput.getMetadata()) {
             replaceErrorDetail(entry, "gui.ae2powertools.crafter.error.output_mismatch");
+            entry.setCatalystValidationFailure(CrafterState.SIMULATION_FAILED);
             entry.setState(CrafterState.SIMULATION_FAILED);
             markDirty();
             return;
         }
 
         // Recipe is still valid
+        entry.clearCatalystValidationFailure();
         if (entry.isEnabled()) entry.setState(CrafterState.IDLE);
 
         markDirty();
@@ -1857,6 +1944,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     // ==================== NBT ====================
 
     @Override
+    @Nonnull
     public NBTTagCompound writeToNBT(NBTTagCompound data) {
         super.writeToNBT(data);
 
@@ -1933,12 +2021,13 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     @Override
-    public IGridNode getGridNode(AEPartLocation dir) {
+    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
         return gridProxy.getNode();
     }
 
     @Override
-    public AECableType getCableConnectionType(AEPartLocation dir) {
+    @Nonnull
+    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
         return AECableType.SMART;
     }
 
@@ -1948,6 +2037,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     @Override
+    @Nonnull
     public IGridNode getActionableNode() {
         return gridProxy.getNode();
     }

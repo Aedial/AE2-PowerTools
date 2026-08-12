@@ -3,6 +3,7 @@ package com.ae2powertools.features.monitor.dependent;
 import java.io.IOException;
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
@@ -26,7 +27,6 @@ import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.parts.PartItemStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
-import appeng.me.helpers.AENetworkProxy;
 import appeng.parts.AEBasePart;
 import appeng.util.Platform;
 
@@ -41,7 +41,7 @@ import com.ae2powertools.util.TickManagerHelper;
 /**
  * Abstract base cable part for storage monitoring dependents (Storage Display, Storage Level Emitter).
  * Provides AE2 grid proxy lifecycle, grid-managed ticking, and delegates to {@link MonitorLogic}.
- *
+ * <p>
  * Queries the AE2 network directly for resource quantities via the grid proxy.
  * Uses 0.5 AE/t idle power and requires a channel (matching AE2's reporting parts).
  */
@@ -61,7 +61,8 @@ public abstract class PartStorageMonitorBase extends AEBasePart
     }
 
     @Override
-    public TickingRequest getTickingRequest(IGridNode node) {
+    @Nonnull
+    public TickingRequest getTickingRequest(@Nonnull IGridNode node) {
         int rate = monitorLogic.getRefreshRate();
         return new TickingRequest(rate, rate, false, false);
     }
@@ -124,11 +125,6 @@ public abstract class PartStorageMonitorBase extends AEBasePart
     }
 
     @Override
-    public AENetworkProxy getProxy() {
-        return super.getProxy();
-    }
-
-    @Override
     public boolean isPowered() {
         if (Platform.isServer()) return getProxy().isPowered();
 
@@ -180,7 +176,9 @@ public abstract class PartStorageMonitorBase extends AEBasePart
     @Override public void setMatchMode(MatchMode mode) { monitorLogic.setMatchMode(mode); }
 
     @Override public boolean isHysteresisEnabled() { return monitorLogic.isHysteresisEnabled(); }
-    @Override public void setHysteresisEnabled(boolean hysteresisEnabled) { monitorLogic.setHysteresisEnabled(hysteresisEnabled); }
+    @Override public void setHysteresisEnabled(boolean hysteresisEnabled) {
+        monitorLogic.setHysteresisEnabled(hysteresisEnabled);
+    }
 
     @Override public boolean isConditionMet() { return monitorLogic.isConditionMet(); }
     @Override public long getFirstEntryQuantity() { return monitorLogic.getFirstEntryQuantity(); }

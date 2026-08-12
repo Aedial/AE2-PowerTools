@@ -16,7 +16,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /**
  * Server -> Client packet carrying the recipe data for one entry, scoped to the
  * page that the server believes the client is currently viewing.
- *
+ * <p>
  * Only sent when the snapshot for the current entry actually changes. The packet
  * is tagged with the entryIndex it describes so a stale packet for a previously
  * selected page is detected and discarded by the client.
@@ -38,13 +38,8 @@ public class PacketCrafterRecipeSync implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        try {
-            this.entryIndex = buf.readByte() & 0xFF;
-            this.snapshot = CrafterRecipeSnapshot.readFromBuf(buf);
-        } catch (IOException e) {
-            this.entryIndex = -1;
-            this.snapshot = CrafterRecipeSnapshot.EMPTY;
-        }
+        this.entryIndex = buf.readByte() & 0xFF;
+        this.snapshot = CrafterRecipeSnapshot.readFromBuf(buf);
     }
 
     @Override

@@ -56,7 +56,7 @@ public final class RemoteMonitorNetworkHelper {
         WirelessTerminalGuiObject wireless = createWirelessObject(handler, player, monitorStack);
         if (wireless == null || !wireless.rangeCheck()) return false;
 
-        return wireless.getActionableNode() != null && wireless.getActionableNode().getGrid() != null;
+        return true;
     }
 
     public static long lookupQuantity(IWirelessTermHandler handler, EntityPlayer player, ItemStack monitorStack,

@@ -13,16 +13,39 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 
 
-## [1.6.7] - 2026-08-666
+## [1.6.8] - 2026-08-???
+### Fixed
+- Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
+
+
+## [1.6.7-hotfix2] - 2026-08-11
+### Added
+- Add a manual poll button to the Storage Monitor and Remote Storage Monitor polling screens, so their current network sample can be refreshed on demand.
+
+### Fixed
+- Fix TOP integration crashing on dedicated servers due to TOP only being registered client-side.
+
+
+## [1.6.7-hotfix] - 2026-08-08
+### Fixed
+- Fix Better Level Maintainer recipe settings being discarded when closing the entry editor.
+- Fix AutoCrafter catalyst rendering leaking GUI GL state into later inventory item renders.
+- Fix AutoCrafter duplication recipes crafting the full output instead of the net gain.
+
+
+## [1.6.7] - 2026-08-08
 ### Added
 - Add AutoCrafter WAILA and The One Probe summary tooltips, including next-operation timing, error warnings, and active/full/disabled pattern counts.
 - Add support for the Crafting and Fuzzy card to the Storage Level Emitter, bringing it to feature parity with the AE2 Level Emitter, alongside a cards picker GUI to easily select the card to use.
 - Add AutoCrafter and Better Level Maintainer WAILA/The One Probe performance lines that report the block-side work time, including rolling last/average/max samples.
+- Optimize the AutoCrafter's performance. The majority of the time is now taken by the AE2 network (insertion, extraction), with little time spent in the AutoCrafter's own logic.
 - Add Better Level Maintainer, Storage Level Emitter, and Level Monitor Alarm WAILA/The One Probe lines for maintainer queue status, emitter card/redstone mode, and per-player alarm registration.
+- Add right-click insertion of catalyst items into the AutoCrafter block, in the same way as patterns.
 
 ### Fixed
 - Fix AutoCrafter crafting instantly when batch * speed (in ticks) goes above max int, which happens when batch is at max int / 20 at default speed.
 - Tighten the Network Health Scanner's conflicting-pattern detection to match AE2's per-output-item craftable index, so patterns that share any output item now conflict even when it is not the exact same pattern identity (e.g. different counts or secondary outputs).
+- Maybe fix AutoCrafter GUI lag when an attached Pattern Multi-Tool contains many patterns by caching the rendered item.
 
 
 ## [1.6.6] - 2026-07-30

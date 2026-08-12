@@ -1,5 +1,7 @@
 package com.ae2powertools.features.crafter.pmt;
 
+import java.util.Arrays;
+
 import javax.annotation.Nullable;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -15,6 +17,9 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.implementations.items.IUpgradeModule;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.items.misc.ItemEncodedPattern;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
 import appeng.util.inv.IAEAppEngInventory;
@@ -24,11 +29,11 @@ import appeng.util.inv.filter.IAEItemFilter;
 
 /**
  * Manages Pattern Multi-Tool inventory for the AutoCrafter GUI.
- * 
+ * <p>
  * This class provides a self-contained PMT implementation that doesn't rely on NAE2's mixins.
  * It finds the PMT in the player's inventory, manages its pattern storage, and handles
  * capacity upgrades.
- * 
+ * <p>
  * The PMT has:
  * - 36 pattern slots (4 columns x 9 rows)
  * - Column 0 is always enabled
@@ -54,6 +59,11 @@ public class PMTManager implements IAEAppEngInventory {
     private final AppEngInternalInventory patternInventory;
     private final AppEngInternalInventory upgradeInventory;
 
+    // The PMT has a fixed 36-slot inventory, so a bounded per-slot cache is enough to
+    // avoid reparsing encoded pattern NBT on every GUI frame.
+    private final ItemStack[] cachedPatternKeys = new ItemStack[PATTERN_SLOTS];
+    private final PatternRenderData[] cachedPatternRenderData = new PatternRenderData[PATTERN_SLOTS];
+
     // Cached upgrade count
     private int installedCapacityUpgrades = 0;
 
@@ -66,6 +76,9 @@ public class PMTManager implements IAEAppEngInventory {
         this.patternInventory = new AppEngInternalInventory(this, PATTERN_SLOTS);
         this.patternInventory.setFilter(new PatternFilter());
         this.upgradeInventory = new AppEngInternalInventory(this, UPGRADE_SLOTS);
+
+        Arrays.fill(this.cachedPatternKeys, ItemStack.EMPTY);
+        Arrays.fill(this.cachedPatternRenderData, PatternRenderData.EMPTY);
 
         // Load data from NBT
         loadFromNBT();
@@ -123,7 +136,6 @@ public class PMTManager implements IAEAppEngInventory {
     private static ItemStack findPMTInBaubles(EntityPlayer player) {
         try {
             IInventory baublesInv = getBaublesInventory(player);
-            if (baublesInv == null) return null;
 
             for (int i = 0; i < baublesInv.getSizeInventory(); i++) {
                 ItemStack stack = baublesInv.getStackInSlot(i);
@@ -261,10 +273,70 @@ public class PMTManager implements IAEAppEngInventory {
         return pmtStack;
     }
 
+    PatternRenderData getPatternRenderData(int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= PATTERN_SLOTS) return PatternRenderData.EMPTY;
+
+        ItemStack patternStack = patternInventory.getStackInSlot(slotIndex);
+        if (!isPatternRenderCacheValid(slotIndex, patternStack)) {
+            cachedPatternKeys[slotIndex] = patternStack.isEmpty() ? ItemStack.EMPTY : patternStack.copy();
+            cachedPatternRenderData[slotIndex] = buildPatternRenderData(patternStack);
+        }
+
+        return cachedPatternRenderData[slotIndex];
+    }
+
+    private boolean isPatternRenderCacheValid(int slotIndex, ItemStack patternStack) {
+        return arePatternStacksEqual(cachedPatternKeys[slotIndex], patternStack);
+    }
+
+    private void invalidatePatternRenderCache(int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= PATTERN_SLOTS) return;
+
+        cachedPatternKeys[slotIndex] = ItemStack.EMPTY;
+        cachedPatternRenderData[slotIndex] = PatternRenderData.EMPTY;
+    }
+
+    private static boolean arePatternStacksEqual(ItemStack left, ItemStack right) {
+        if (left.isEmpty() || right.isEmpty()) return left.isEmpty() && right.isEmpty();
+
+        return ItemStack.areItemsEqual(left, right)
+            && ItemStack.areItemStackTagsEqual(left, right)
+            && left.getCount() == right.getCount();
+    }
+
+    private static PatternRenderData buildPatternRenderData(ItemStack patternStack) {
+        if (patternStack.isEmpty()) return PatternRenderData.EMPTY;
+        if (!(patternStack.getItem() instanceof ICraftingPatternItem)) {
+            return new PatternRenderData(patternStack, 0L);
+        }
+
+        if (patternStack.getItem() instanceof ItemEncodedPattern) {
+            ItemEncodedPattern encodedPattern = (ItemEncodedPattern) patternStack.getItem();
+            ItemStack output = encodedPattern.getOutput(patternStack);
+            if (!output.isEmpty()) return new PatternRenderData(output, output.getCount());
+        }
+
+        ICraftingPatternItem patternItem = (ICraftingPatternItem) patternStack.getItem();
+        ICraftingPatternDetails details = patternItem.getPatternForItem(patternStack, null);
+        if (details == null) return new PatternRenderData(patternStack, 0L);
+
+        IAEItemStack[] outputs = details.getOutputs();
+        if (outputs.length == 0 || outputs[0] == null) {
+            return new PatternRenderData(patternStack, 0L);
+        }
+
+        ItemStack output = outputs[0].createItemStack();
+        if (output.isEmpty()) return new PatternRenderData(patternStack, 0L);
+
+        return new PatternRenderData(output, outputs[0].getStackSize());
+    }
+
     // ==================== IAEAppEngInventory ====================
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removedStack, ItemStack newStack) {
+        if (inv == patternInventory) invalidatePatternRenderCache(slot);
+
         // Update upgrade count when upgrade inventory changes
         if (inv == upgradeInventory) updateCapacityUpgradeCount();
 
@@ -286,6 +358,26 @@ public class PMTManager implements IAEAppEngInventory {
         @Override
         public boolean allowInsert(IItemHandler inv, int slot, ItemStack stack) {
             return stack.getItem() instanceof ICraftingPatternItem;
+        }
+    }
+
+    static class PatternRenderData {
+        static final PatternRenderData EMPTY = new PatternRenderData(ItemStack.EMPTY, 0L);
+
+        private final ItemStack displayStack;
+        private final long outputCount;
+
+        PatternRenderData(ItemStack displayStack, long outputCount) {
+            this.displayStack = displayStack;
+            this.outputCount = outputCount;
+        }
+
+        ItemStack getDisplayStack() {
+            return displayStack;
+        }
+
+        long getOutputCount() {
+            return outputCount;
         }
     }
 }

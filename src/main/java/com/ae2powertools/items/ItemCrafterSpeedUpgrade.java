@@ -2,6 +2,8 @@ package com.ae2powertools.items;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
@@ -19,13 +21,13 @@ import com.ae2powertools.Tags;
 
 /**
  * Speed Upgrade for the AE2 AutoCrafter.
- * 
+ * <p>
  * Tiers I-IV provide multiplicative batch size bonuses:
  * - Tier I:   x8 batch size
  * - Tier II:  x64 batch size
  * - Tier III: x512 batch size
  * - Tier IV:  x4096 batch size
- * 
+ * <p>
  * Speed upgrades are NOT compatible with each other (only one can be active).
  */
 public class ItemCrafterSpeedUpgrade extends Item {
@@ -50,13 +52,14 @@ public class ItemCrafterSpeedUpgrade extends Item {
     }
 
     @Override
-    public String getTranslationKey(ItemStack stack) {
+    @Nonnull
+    public String getTranslationKey(@Nonnull ItemStack stack) {
         int tier = getTier(stack);
         return super.getTranslationKey() + "_" + TIER_NAMES[tier].toLowerCase();
     }
 
     @Override
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
+    public void getSubItems(@Nonnull CreativeTabs tab, @Nonnull NonNullList<ItemStack> items) {
         if (!this.isInCreativeTab(tab)) return;
 
         for (int tier = 0; tier < TIER_MULTIPLIERS.length; tier++) {
@@ -66,7 +69,7 @@ public class ItemCrafterSpeedUpgrade extends Item {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, List<String> tooltip, @Nonnull ITooltipFlag flag) {
         int tier = getTier(stack);
         int multiplier = getMultiplier(stack);
 

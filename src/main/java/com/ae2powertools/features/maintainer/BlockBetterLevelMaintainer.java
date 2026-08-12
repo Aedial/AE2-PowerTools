@@ -2,6 +2,7 @@ package com.ae2powertools.features.maintainer;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.nbt.NBTTagCompound;
@@ -52,7 +53,8 @@ public class BlockBetterLevelMaintainer extends Block {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
         tooltip.add(TextFormatting.AQUA + I18n.format("tile.ae2powertools.better_level_maintainer.tooltip"));
@@ -60,20 +62,20 @@ public class BlockBetterLevelMaintainer extends Block {
     }
 
     @Override
-    public boolean hasTileEntity(IBlockState state) {
+    public boolean hasTileEntity(@Nonnull IBlockState state) {
         return true;
     }
 
     @Nullable
     @Override
-    public TileEntity createTileEntity(World world, IBlockState state) {
+    public TileEntity createTileEntity(@Nonnull World world, @Nonnull IBlockState state) {
         return new TileBetterLevelMaintainer();
     }
 
     @Override
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state,
-                                     EntityPlayer player, EnumHand hand,
-                                     EnumFacing facing, float hitX, float hitY, float hitZ) {
+    public boolean onBlockActivated(@Nonnull World world, @Nonnull BlockPos pos, @Nonnull IBlockState state,
+                                    EntityPlayer player, @Nonnull EnumHand hand,
+                                    @Nonnull EnumFacing facing, float hitX, float hitY, float hitZ) {
         ItemStack heldItem = player.getHeldItem(hand);
         if (!heldItem.isEmpty() && heldItem.getItem() instanceof IMemoryCard) {
             if (world.isRemote) return true;
@@ -97,7 +99,8 @@ public class BlockBetterLevelMaintainer extends Block {
         return false;
     }
 
-    private void handleMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard, TileBetterLevelMaintainer maintainer) {
+    private void handleMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard,
+            TileBetterLevelMaintainer maintainer) {
         if (player.isSneaking()) {
             saveToMemoryCard(player, memCardStack, memoryCard, maintainer);
             return;
@@ -106,7 +109,8 @@ public class BlockBetterLevelMaintainer extends Block {
         loadFromMemoryCard(player, memCardStack, memoryCard, maintainer);
     }
 
-    private void saveToMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard, TileBetterLevelMaintainer maintainer) {
+    private void saveToMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard,
+            TileBetterLevelMaintainer maintainer) {
         NBTTagCompound data = new NBTTagCompound();
         data.setInteger("openRows", maintainer.getOpenRows());
         data.setString("tooltip", "tile.ae2powertools.better_level_maintainer.memory_card.tooltip");
@@ -124,7 +128,8 @@ public class BlockBetterLevelMaintainer extends Block {
         memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
     }
 
-    private void loadFromMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard, TileBetterLevelMaintainer maintainer) {
+    private void loadFromMemoryCard(EntityPlayer player, ItemStack memCardStack, IMemoryCard memoryCard,
+            TileBetterLevelMaintainer maintainer) {
         String savedName = memoryCard.getSettingsName(memCardStack);
         if (!getTranslationKey().equals(savedName)) {
             memoryCard.notifyUser(player, MemoryCardMessages.INVALID_MACHINE);

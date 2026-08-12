@@ -1,5 +1,6 @@
 package com.ae2powertools.features.monitor.display;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.block.properties.PropertyDirection;
@@ -46,22 +47,23 @@ public class BlockStorageDisplay extends BlockStorageMonitorBase {
 
     @Nullable
     @Override
-    public TileEntity createTileEntity(World world, IBlockState state) {
+    public TileEntity createTileEntity(@Nonnull World world, @Nonnull IBlockState state) {
         return new TileStorageDisplay();
     }
 
     // --- Directional block ---
 
     @Override
-    public IBlockState getStateForPlacement(World world, BlockPos pos, EnumFacing facing,
-                                             float hitX, float hitY, float hitZ,
-                                             int meta, EntityLivingBase placer) {
+    @Nonnull
+    public IBlockState getStateForPlacement(@Nonnull World world, @Nonnull BlockPos pos, @Nonnull EnumFacing facing,
+                                            float hitX, float hitY, float hitZ,
+                                            int meta, @Nonnull EntityLivingBase placer) {
         return this.getDefaultState().withProperty(FACING, EnumFacing.getDirectionFromEntityLiving(pos, placer));
     }
 
     @Override
-    public void onBlockPlacedBy(World world, BlockPos pos, IBlockState state,
-                                 EntityLivingBase placer, ItemStack stack) {
+    public void onBlockPlacedBy(World world, @Nonnull BlockPos pos, @Nonnull IBlockState state,
+                                @Nonnull EntityLivingBase placer, @Nonnull ItemStack stack) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileStorageDisplay) {
             ((TileStorageDisplay) te).setFacing(state.getValue(FACING));
@@ -69,6 +71,7 @@ public class BlockStorageDisplay extends BlockStorageMonitorBase {
     }
 
     @Override
+    @Nonnull
     protected BlockStateContainer createBlockState() {
         return new BlockStateContainer(this, FACING);
     }
@@ -79,6 +82,7 @@ public class BlockStorageDisplay extends BlockStorageMonitorBase {
     }
 
     @Override
+    @Nonnull
     public IBlockState getStateFromMeta(int meta) {
         EnumFacing facing = EnumFacing.byIndex(meta);
         return this.getDefaultState().withProperty(FACING, facing);
@@ -90,18 +94,19 @@ public class BlockStorageDisplay extends BlockStorageMonitorBase {
     // the corner and center pieces correctly show through one another.
 
     @Override
+    @Nonnull
     @SideOnly(Side.CLIENT)
     public BlockRenderLayer getRenderLayer() {
         return BlockRenderLayer.CUTOUT_MIPPED;
     }
 
     @Override
-    public boolean isOpaqueCube(IBlockState state) {
+    public boolean isOpaqueCube(@Nonnull IBlockState state) {
         return false;
     }
 
     @Override
-    public boolean isFullCube(IBlockState state) {
+    public boolean isFullCube(@Nonnull IBlockState state) {
         return true;
     }
 }

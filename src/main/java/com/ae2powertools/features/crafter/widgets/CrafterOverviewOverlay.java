@@ -62,7 +62,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
     private final Function<CrafterState, String> stateTextProvider;
     private final IntConsumer pageSelectionHandler;
     private final IntConsumer toggleEntryHandler;
-    private final BeveledButton closeButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, PAGE_BTN_SIZE, ">");
+    private final BeveledButton closeButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, ">");
 
     private int overviewLeft;
     private int overviewTop;
@@ -98,11 +98,16 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
         closeButton.setOnClick(this::close);
     }
 
-    public void initGui(int guiLeft, int guiTop) {
-        overviewLeft = guiLeft;
-        overviewTop = guiTop;
+    @Override
+    public void initGui() {
+        overviewLeft = getX();
+        overviewTop = getY();
         closeButton.setPosition(overviewLeft + OVERVIEW_BTN_X, overviewTop + OVERVIEW_BTN_Y);
-        super.setPosition(overviewLeft, overviewTop);
+    }
+
+    public void initGui(int guiLeft, int guiTop) {
+        super.setPosition(guiLeft, guiTop);
+        initGui();
     }
 
     @Override

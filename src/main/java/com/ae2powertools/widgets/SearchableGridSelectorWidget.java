@@ -342,10 +342,6 @@ public class SearchableGridSelectorWidget<T> extends AbstractModalGui {
 
         int scrollY = top + SCROLL_Y;
         int thumbRange = SCROLL_TRACK_H - SCROLL_THUMB_H;
-        if (thumbRange <= 0) {
-            scrollOffset = 0;
-            return;
-        }
 
         // Keep thumb dragging anchored to the point the user grabbed, while track clicks still jump.
         float ratio = (float) (mouseY - scrollY - scrollbarDragOffset) / thumbRange;

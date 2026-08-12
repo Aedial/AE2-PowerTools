@@ -1,5 +1,6 @@
 package com.ae2powertools.client;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.block.state.IBlockState;
@@ -43,7 +44,8 @@ public class DisplayBlockColor implements IBlockColor, IItemColor {
     }
 
     @Override
-    public int colorMultiplier(IBlockState state, @Nullable IBlockAccess world, @Nullable BlockPos pos, int tintIndex) {
+    public int colorMultiplier(@Nonnull IBlockState state, @Nullable IBlockAccess world,
+            @Nullable BlockPos pos, int tintIndex) {
         if (tintIndex == 1) return CENTER;
         if (tintIndex != 0) return NO_TINT;
 
@@ -51,7 +53,7 @@ public class DisplayBlockColor implements IBlockColor, IItemColor {
     }
 
     @Override
-    public int colorMultiplier(ItemStack stack, int tintIndex) {
+    public int colorMultiplier(@Nonnull ItemStack stack, int tintIndex) {
         if (tintIndex == 1) return CENTER;
         if (tintIndex != 0) return NO_TINT;
 

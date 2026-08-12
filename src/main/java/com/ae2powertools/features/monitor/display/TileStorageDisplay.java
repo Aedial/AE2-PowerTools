@@ -2,6 +2,8 @@ package com.ae2powertools.features.monitor.display;
 
 import java.io.IOException;
 
+import javax.annotation.Nonnull;
+
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.block.state.IBlockState;
@@ -35,7 +37,8 @@ public class TileStorageDisplay extends TileStorageMonitorBase {
     // --- AE2 Grid ticking ---
 
     @Override
-    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+    @Nonnull
+    public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
         if (world == null) return TickRateModulation.IDLE;
 
         monitorLogic.refresh();
@@ -100,6 +103,21 @@ public class TileStorageDisplay extends TileStorageMonitorBase {
     }
 
     @Override
+    public void triggerManualPoll() {
+        if (world == null) return;
+
+        monitorLogic.refresh();
+        boolean colorChanged = displayLogic.evaluate();
+
+        if (colorChanged) {
+            IBlockState state = world.getBlockState(pos);
+            world.notifyBlockUpdate(pos, state, state, 3);
+        }
+
+        if (displayLogic.pollSyncDirty()) markForUpdate();
+    }
+
+    @Override
     public MonitorHostType getHostType() {
         return MonitorHostType.DISPLAY;
     }
@@ -116,6 +134,7 @@ public class TileStorageDisplay extends TileStorageMonitorBase {
     }
 
     @Override
+    @Nonnull
     public NBTTagCompound writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
         displayLogic.writeToNBT(tag);

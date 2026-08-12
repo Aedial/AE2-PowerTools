@@ -1,17 +1,11 @@
 package com.ae2powertools.features.remotemonitor;
 
-import java.io.IOException;
+import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-import org.lwjgl.input.Mouse;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
@@ -22,18 +16,21 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
-import appeng.client.gui.widgets.GuiTabButton;
 
 import com.ae2powertools.Tags;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
 import com.ae2powertools.integration.jei.JeiTooltipBridge;
+import com.ae2powertools.network.PacketRemoteMonitorPollNow;
 import com.ae2powertools.network.PacketRemoteMonitorRequestContents;
 import com.ae2powertools.network.PacketRemoteMonitorSelectSlot;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.FormatUtil;
+import com.ae2powertools.widgets.Ae2Button;
 import com.ae2powertools.widgets.SearchableGridSelectorWidget;
-import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.TabButton;
+import com.ae2powertools.widgets.WidgetAnchor;
+import com.ae2powertools.widgets.WidgetGui;
 
 
 /**
@@ -41,7 +38,7 @@ import com.ae2powertools.widgets.WidgetContext;
  * Uses a fixed 9x9 slot grid and a modal selector overlay for choosing resources.
  */
 @SideOnly(Side.CLIENT)
-public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
+public class GuiRemoteMonitor extends WidgetGui {
 
     private static final ResourceLocation BACKGROUND = new ResourceLocation(
         Tags.MODID, "textures/guis/remote_monitor_gui.png");
@@ -53,6 +50,9 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
     private static final int SLOT_SIZE = 18;
     private static final int GRID_X = 8;
     private static final int GRID_Y = 18;
+    private static final int SIDE_BTN_SIZE = 16;
+    private static final int SIDE_BTN_X = -SIDE_BTN_SIZE - 2;
+    private static final int SIDE_BTN_Y = 4;
     private static final int REFRESH_INTERVAL_ICON = 5 * 16 + 2;
     private static final int SLIDING_WINDOW_ICON = 4 * 16 + 2;
     private static final int TIMING_TAB_X = GUI_WIDTH - 22 - 1;
@@ -64,16 +64,18 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
     // The shared selector widget keeps its own search term, so switching slots preserves
     // the current filter.
     private final SearchableGridSelectorWidget<MonitoredResource> selectorWidget;
+    private final Ae2Button manualPollBtn = new Ae2Button(0, 0, SIDE_BTN_SIZE);
 
-    private int guiLeft;
-    private int guiTop;
-
-    private GuiTabButton refreshIntervalBtn;
-    private GuiTabButton slidingWindowBtn;
+    private final TabButton refreshIntervalBtn = new TabButton(0, 0, REFRESH_INTERVAL_ICON,
+                                                               I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.title"));
+    private final TabButton slidingWindowBtn = new TabButton(0, 0, SLIDING_WINDOW_ICON,
+                                                             I18n.format("gui.ae2powertools.remote_monitor.sliding_window.title"));
 
     private int selectorTargetIndex = -1;
 
     public GuiRemoteMonitor(long deviceId) {
+        super(GUI_WIDTH, GUI_HEIGHT, BACKGROUND);
+
         this.deviceId = deviceId;
         this.selectorWidget = new SearchableGridSelectorWidget<>(
             this,
@@ -85,6 +87,49 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
             },
             this::renderSelectorResourceTooltip,
             this::selectMonitorResource);
+        registerModal( this.selectorWidget, WidgetAnchor.SCREEN_CENTER, 0, 0);
+
+        this.manualPollBtn.setTextureIcon(Ae2Button.ICON.REFRESH);
+        this.manualPollBtn.setOnClick(
+            () -> PowerToolsNetwork.INSTANCE.sendToServer(new PacketRemoteMonitorPollNow(this.deviceId)));
+        this.manualPollBtn.setTooltipProvider(this::buildManualPollTooltip);
+        registerWidget(manualPollBtn, SIDE_BTN_X, SIDE_BTN_Y);
+
+        this.refreshIntervalBtn.setTooltipProvider(this::buildRefreshIntervalTooltip);
+        this.refreshIntervalBtn.setOnClick(
+            () -> this.mc.displayGuiScreen(new GuiRemoteMonitorPollingRate(this.deviceId)));
+        registerWidget(refreshIntervalBtn, TIMING_TAB_X, 0);
+
+        this.slidingWindowBtn.setTooltipProvider(this::buildSlidingWindowTooltip);
+        this.slidingWindowBtn.setOnClick(
+            () -> this.mc.displayGuiScreen(new GuiRemoteMonitorSlidingWindow(this.deviceId)));
+        registerWidget(slidingWindowBtn, TIMING_TAB_X - TIMING_TAB_SPACING, 0);
+    }
+
+    private List<String> buildTimingTooltip(String prefix, int value) {
+        String formattedValue = FormatUtil.formatTimeTicks(value);
+
+        List<String> tooltip = new ArrayList<>();
+        tooltip.add(TextFormatting.AQUA + I18n.format(prefix + ".tooltip", formattedValue));
+        tooltip.add(TextFormatting.GRAY + I18n.format(prefix + ".description"));
+        return tooltip;
+    }
+
+    private List<String> buildRefreshIntervalTooltip() {
+        int interval = RemoteMonitorClientState.getOrCreateState(this.deviceId).getRefreshRate();
+        return buildTimingTooltip("gui.ae2powertools.remote_monitor.refresh_interval", interval);
+    }
+
+    private List<String> buildSlidingWindowTooltip() {
+        int interval = RemoteMonitorClientState.getOrCreateState(this.deviceId).getSlidingWindow();
+        return buildTimingTooltip("gui.ae2powertools.remote_monitor.sliding_window", interval);
+    }
+
+    private List<String> buildManualPollTooltip() {
+        List<String> tooltip = new ArrayList<>();
+        tooltip.add(I18n.format("gui.ae2powertools.poll_now.title"));
+        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.poll_now.description"));
+        return tooltip;
     }
 
     public static void receiveSelectorResources(long deviceId, List<MonitoredResource> resources) {
@@ -97,30 +142,9 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
     }
 
     @Override
-    public void initGui() {
-        super.initGui();
-
+    protected void afterWidgetGuiInit() {
         RemoteMonitorClientState.setActiveDeviceId(this.deviceId);
         activeInstance = this;
-
-        this.guiLeft = (this.width - GUI_WIDTH) / 2;
-        this.guiTop = (this.height - GUI_HEIGHT) / 2;
-
-        this.buttonList.clear();
-        this.buttonList.add(this.refreshIntervalBtn = new GuiTabButton(
-            this.guiLeft + TIMING_TAB_X,
-            this.guiTop,
-            REFRESH_INTERVAL_ICON,
-            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.title"),
-            this.itemRender));
-        this.buttonList.add(this.slidingWindowBtn = new GuiTabButton(
-            this.guiLeft + TIMING_TAB_X - TIMING_TAB_SPACING,
-            this.guiTop,
-            SLIDING_WINDOW_ICON,
-            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.title"),
-            this.itemRender));
-
-        selectorWidget.initGui();
     }
 
     @Override
@@ -130,49 +154,25 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
     }
 
     @Override
-    public void updateScreen() {
-        super.updateScreen();
+    protected void updateWidgetGuiScreen() {
         RemoteMonitorClientState.requestSyncIfNeeded(this.deviceId, !RemoteMonitorClientState.hasState(this.deviceId));
-        selectorWidget.updateScreen();
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        super.actionPerformed(button);
-
-        if (button == this.refreshIntervalBtn) {
-            this.mc.displayGuiScreen(new GuiRemoteMonitorPollingRate(this.deviceId));
-            return;
-        }
-
-        if (button == this.slidingWindowBtn) {
-            this.mc.displayGuiScreen(new GuiRemoteMonitorSlidingWindow(this.deviceId));
-        }
+    protected void prepareWidgetGuiBackground() {
+        resetGuiRenderState();
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        this.drawDefaultBackground();
+    protected void drawWidgetGuiBackgroundContents(float partialTicks, int mouseX, int mouseY) {
+        if (!isManagedModalOpen()) drawSlots(mouseX, mouseY);
 
         resetGuiRenderState();
-        this.mc.getTextureManager().bindTexture(BACKGROUND);
-        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_WIDTH, GUI_HEIGHT);
+    }
 
-        // Only draw slots when they are not covered. This avoid GL leaks from overlapping items.
-        if (!selectorWidget.isOpen()) drawSlots(mouseX, mouseY);
-
-        resetGuiRenderState();
-        super.drawScreen(mouseX, mouseY, partialTicks);
-
-        if (selectorWidget.isOpen()) {
-            selectorWidget.draw(mouseX, mouseY, partialTicks);
-            selectorWidget.drawTooltip(mouseX, mouseY);
-            return;
-        }
-
+    @Override
+    protected void drawWidgetGuiTooltips(int mouseX, int mouseY) {
         drawSlotTooltip(mouseX, mouseY);
-        drawRefreshIntervalTooltip(mouseX, mouseY);
-        drawSlidingWindowTooltip(mouseX, mouseY);
     }
 
     private void drawSlots(int mouseX, int mouseY) {
@@ -227,39 +227,6 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, this.width, this.height, -1, this.fontRenderer);
     }
 
-    private void drawRefreshIntervalTooltip(int mouseX, int mouseY) {
-        String interval = FormatUtil.formatTimeTicks(RemoteMonitorClientState.getOrCreateState(this.deviceId).getRefreshRate());
-        drawTimingTooltip(
-            this.refreshIntervalBtn,
-            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.tooltip", interval),
-            I18n.format("gui.ae2powertools.remote_monitor.refresh_interval.description"),
-            mouseX,
-            mouseY);
-    }
-
-    private void drawSlidingWindowTooltip(int mouseX, int mouseY) {
-        String interval = FormatUtil.formatTimeTicks(RemoteMonitorClientState.getOrCreateState(this.deviceId).getSlidingWindow());
-        drawTimingTooltip(
-            this.slidingWindowBtn,
-            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.tooltip", interval),
-            I18n.format("gui.ae2powertools.remote_monitor.sliding_window.description"),
-            mouseX,
-            mouseY);
-    }
-
-    private void drawTimingTooltip(GuiTabButton button, String title, String description, int mouseX, int mouseY) {
-        if (button == null || !button.visible) return;
-        if (mouseX < button.x || mouseX >= button.x + button.width) return;
-        if (mouseY < button.y || mouseY >= button.y + button.height) return;
-
-        List<String> tooltip = new ArrayList<>();
-        tooltip.add(TextFormatting.AQUA + title);
-        tooltip.add(TextFormatting.GRAY + description);
-
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, this.width, this.height, -1, this.fontRenderer);
-    }
-
     private int getHoveredGridIndex(int mouseX, int mouseY) {
         int relX = mouseX - this.guiLeft - GRID_X;
         int relY = mouseY - this.guiTop - GRID_Y;
@@ -267,17 +234,13 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
 
         int col = relX / SLOT_SIZE;
         int row = relY / SLOT_SIZE;
-        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return -1;
+        if (col >= GRID_COLS || row >= GRID_ROWS) return -1;
 
         return row * GRID_COLS + col;
     }
 
     @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        if (selectorWidget.mouseClicked(mouseX, mouseY, mouseButton)) return;
-
-        super.mouseClicked(mouseX, mouseY, mouseButton);
-
+    protected void afterWidgetGuiMouseClicked(int mouseX, int mouseY, int mouseButton) {
         int index = getHoveredGridIndex(mouseX, mouseY);
         if (index < 0) return;
 
@@ -290,40 +253,6 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
         if (mouseButton == 1) {
             PowerToolsNetwork.INSTANCE.sendToServer(new PacketRemoteMonitorSelectSlot(this.deviceId, index, null));
         }
-    }
-
-    @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (selectorWidget.keyTyped(typedChar, keyCode)) return;
-
-        super.keyTyped(typedChar, keyCode);
-    }
-
-    @Override
-    public void handleMouseInput() throws IOException {
-        super.handleMouseInput();
-
-        int scroll = Mouse.getEventDWheel();
-        if (selectorWidget.handleMouseWheel(scroll)) return;
-    }
-
-    @Override
-    protected void mouseReleased(int mouseX, int mouseY, int state) {
-        if (selectorWidget.isOpen()) {
-            selectorWidget.mouseReleased(mouseX, mouseY, state);
-            return;
-        }
-
-        super.mouseReleased(mouseX, mouseY, state);
-    }
-
-    @Override
-    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
-        if (selectorWidget.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick)) {
-            return;
-        }
-
-        super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
     }
 
     private void openSelector(int targetIndex) {
@@ -356,28 +285,7 @@ public class GuiRemoteMonitor extends GuiScreen implements WidgetContext {
             resource));
     }
 
-    @Override
-    public Minecraft getWidgetMinecraft() {
-        return mc;
-    }
-
-    @Override
-    public FontRenderer getWidgetFontRenderer() {
-        return fontRenderer;
-    }
-
-    @Override
-    public RenderItem getWidgetItemRenderer() {
-        return itemRender;
-    }
-
-    @Override
-    public int getWidgetWidth() {
-        return width;
-    }
-
-    @Override
-    public int getWidgetHeight() {
-        return height;
+    public List<Rectangle> getJEIExclusionArea() {
+        return Collections.singletonList(manualPollBtn.getBounds());
     }
 }

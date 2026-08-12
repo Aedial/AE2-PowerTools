@@ -17,7 +17,7 @@ import com.ae2powertools.features.monitor.dependent.StorageMonitorHostResolver;
 /**
  * Client -> server packet to update an existing monitored entry's settings
  * (comparison mode, thresholds, enabled flag) without changing its resource.
- *
+ * <p>
  * If the index is out of range, the packet is ignored.
  */
 public class PacketUpdateMonitorEntry implements IMessage {
@@ -33,7 +33,8 @@ public class PacketUpdateMonitorEntry implements IMessage {
 
     public PacketUpdateMonitorEntry() {}
 
-    public PacketUpdateMonitorEntry(IStorageMonitorHost host, int index, ComparisonMode comparison, long threshold, long lowerThreshold, boolean enabled) {
+    public PacketUpdateMonitorEntry(IStorageMonitorHost host, int index, ComparisonMode comparison,
+            long threshold, long lowerThreshold, boolean enabled) {
         this.pos = host.getHostPos();
         this.side = StorageMonitorHostResolver.encodeSide(host.getHostSide());
         this.index = index;

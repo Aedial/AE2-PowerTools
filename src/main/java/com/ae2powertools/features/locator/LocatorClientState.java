@@ -2,6 +2,7 @@ package com.ae2powertools.features.locator;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -420,7 +421,7 @@ public class LocatorClientState {
         BlockPos playerPos = mc.player.getPosition();
 
         List<ComponentLocationClient> sorted = new ArrayList<>(type.locations);
-        sorted.sort((a, b) -> Double.compare(a.getDistanceFrom(playerPos), b.getDistanceFrom(playerPos)));
+        sorted.sort(Comparator.comparingDouble(a -> a.getDistanceFrom(playerPos)));
 
         return sorted;
     }

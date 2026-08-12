@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Future;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableSet;
@@ -473,7 +474,13 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             ICraftingGrid craftingGrid = gridProxy.getCrafting();
             IGrid grid = gridProxy.getGrid();
 
-            IAEItemStack targetItem = entry.getTargetItem().copy();
+            IAEItemStack target = entry.getTargetItem();
+            if (target == null) {
+                entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_recipe");
+                return;
+            }
+
+            IAEItemStack targetItem = target.copy();
             targetItem.setStackSize(entry.getBatchSize());
 
             // Check if any CPU is free before calculating the job (avoid unnecessary load)
@@ -618,7 +625,6 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 // else: Task remains in activeTasks (either waiting for CPU, or running with link)
 
             } catch (Exception e) {
-                didWork = true;
                 AE2PowerTools.LOGGER.error("Error processing crafting job", e);
                 MaintainerEntry entry = entries.get(task.getEntryIndex());
                 entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
@@ -713,7 +719,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     /**
      * Retries submitting tasks that are waiting for a free CPU.
      * Tasks waiting for CPU are in activeTasks with waitingForCpu flag set.
-     *
+     * <p>
      * Only processes ONE task per tick to avoid flooding the system with calculations.
      * Uses cached job if available to avoid expensive recalculation.
      * @return true if a waiting task was retried or rescheduled this tick
@@ -1070,12 +1076,13 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     }
 
     @Override
-    public IGridNode getGridNode(AEPartLocation dir) {
+    public IGridNode getGridNode(@Nonnull AEPartLocation dir) {
         return gridProxy.getNode();
     }
 
     @Override
-    public AECableType getCableConnectionType(AEPartLocation dir) {
+    @Nonnull
+    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) {
         return AECableType.SMART;
     }
 
@@ -1085,6 +1092,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     }
 
     @Override
+    @Nonnull
     public IGridNode getActionableNode() {
         return gridProxy.getNode();
     }
@@ -1213,6 +1221,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     }
 
     @Override
+    @Nonnull
     public NBTTagCompound writeToNBT(NBTTagCompound data) {
         super.writeToNBT(data);
         gridProxy.writeToNBT(data);

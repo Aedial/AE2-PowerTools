@@ -2,6 +2,7 @@ package com.ae2powertools.features.monitor;
 
 import java.util.Objects;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
@@ -27,7 +28,7 @@ import appeng.util.item.AEItemStack;
 /**
  * Universal wrapper for any AE2 resource (item, fluid, gas, essentia).
  * Handles serialization, display name, equality, and working with optional mod channels.
- *
+ * <p>
  * The wrapper stores the resource type and serialized NBT data, so it can be reconstructed
  * even when the original mod (gas/essentia) isn't loaded (i.e., only display/name
  * data is preserved but the stack cannot be resolved).
@@ -143,7 +144,7 @@ public class MonitoredResource {
         return tag;
     }
 
-    @Nullable
+    @Nonnull
     public static MonitoredResource readFromNBT(NBTTagCompound tag) {
         ResourceType type = ResourceType.fromId(tag.getInteger(NBT_TYPE));
         String name = tag.hasKey(NBT_NAME) ? tag.getString(NBT_NAME) : null;

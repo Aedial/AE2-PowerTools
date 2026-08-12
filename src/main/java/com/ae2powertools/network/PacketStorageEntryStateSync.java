@@ -14,7 +14,7 @@ import com.ae2powertools.features.monitor.dependent.GuiStorageMonitor;
  * Server -> client packet pushing the live per-entry state for an open
  * Storage Emitter / Display GUI: each entry's last-looked-up quantity and
  * whether its individual condition is currently met.
- *
+ * <p>
  * Sent by {@link com.ae2powertools.features.monitor.dependent.ContainerStorageMonitor}
  * inside detectAndSendChanges() whenever any entry's quantity or condition
  * state has changed since the last sync.
@@ -69,9 +69,8 @@ public class PacketStorageEntryStateSync implements IMessage {
         @Override
         public IMessage onMessage(PacketStorageEntryStateSync message, MessageContext ctx) {
             // Hand off to the client thread; the open GUI (if any) consumes the data.
-            Minecraft.getMinecraft().addScheduledTask(() -> {
-                GuiStorageMonitor.handleEntryStateSync(message.getQuantities(), message.getConditionsMet());
-            });
+            Minecraft.getMinecraft().addScheduledTask(
+                () -> GuiStorageMonitor.handleEntryStateSync(message.getQuantities(), message.getConditionsMet()));
 
             return null;
         }

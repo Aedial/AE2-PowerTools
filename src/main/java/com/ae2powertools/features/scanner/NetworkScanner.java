@@ -71,7 +71,7 @@ import com.ae2powertools.util.SubnetGridHelper;
 /**
  * Detects loops and unloaded chunks in AE2 networks by performing BFS from the controller and tracking paths.
  * A loop is detected when a node is reached through two different paths.
- *
+ * <p>
  * Note: getConnections() only returns same-grid connections. Quartz fibers create separate grids
  * and won't appear here. P2P tunnels create INTERNAL connections between proxies.
  */
@@ -262,13 +262,6 @@ public class NetworkScanner {
     private void initialize() {
         try {
             IPathingGrid pathingGrid = grid.getCache(IPathingGrid.class);
-
-            if (pathingGrid == null) {
-                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_pathing_grid");
-                isComplete = true;
-
-                return;
-            }
 
             ControllerState state = pathingGrid.getControllerState();
             hasController = (state == ControllerState.CONTROLLER_ONLINE);
@@ -939,7 +932,6 @@ public class NetworkScanner {
 
         for (IGridConnection connection : node.getConnections()) {
             IGridNode neighbor = connection.getOtherSide(node);
-            if (neighbor == null) continue;
 
             // Skip the connection we came from (the edge to our parent)
             if (connection == current.connectionFromParent) continue;
@@ -1198,10 +1190,9 @@ public class NetworkScanner {
     private Map<BlockPos, SavedTileData> loadSavedChunkTileData(WorldServer nodeWorld, ChunkPos chunkPos) {
         try (DataInputStream inputStream = RegionFileCache.getChunkInputStream(nodeWorld.getChunkSaveLocation(),
             chunkPos.x, chunkPos.z)) {
-            if (inputStream == null) return Collections.emptyMap();
 
             NBTTagCompound chunkData = CompressedStreamTools.read(inputStream);
-            if (chunkData == null || !chunkData.hasKey("Level", Constants.NBT.TAG_COMPOUND)) {
+            if (!chunkData.hasKey("Level", Constants.NBT.TAG_COMPOUND)) {
                 return Collections.emptyMap();
             }
 
@@ -1322,7 +1313,7 @@ public class NetworkScanner {
         // For parts and other non-tile hosts, use the grid block location
         try {
             DimensionalCoord coord = node.getGridBlock().getLocation();
-            if (coord != null) return coord.getPos();
+            return coord.getPos();
         } catch (Exception e) {
             // Fall through
         }
@@ -1341,7 +1332,7 @@ public class NetworkScanner {
 
         try {
             DimensionalCoord coord = node.getGridBlock().getLocation();
-            if (coord != null) return coord.getWorld();
+            return coord.getWorld();
         } catch (Exception e) {
             // Fall through
         }

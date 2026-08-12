@@ -2,6 +2,8 @@ package com.ae2powertools.features.crafter;
 
 import java.io.IOException;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
@@ -69,7 +71,7 @@ public class GuiCrafterSpeed extends AEBaseGui {
     }
 
     @Override
-    protected void actionPerformed(GuiButton btn) throws IOException {
+    protected void actionPerformed(@Nonnull GuiButton btn) throws IOException {
         super.actionPerformed(btn);
 
         if (btn == this.backBtn) {

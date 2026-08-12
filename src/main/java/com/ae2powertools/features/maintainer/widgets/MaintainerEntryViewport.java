@@ -24,7 +24,7 @@ import com.ae2powertools.widgets.WidgetDrawHelper;
 
 /**
  * Feature-local viewport for the maintainer's scrollable entry list and status bar.
- *
+ * <p>
  * Small mode is the baseline layout. Tall mode tiles the texture to match the screen height,
  * without cutting entries in the middle. As the tall mode has more space, it also shows more
  * information about each entry.
@@ -237,7 +237,10 @@ public class MaintainerEntryViewport extends Gui {
             if (entry == null) continue;
 
             if (!loweredSearchTerm.isEmpty() && entry.hasRecipe()) {
-                String name = entry.getTargetItemStack().getDisplayName().toLowerCase();
+                ItemStack targetStack = entry.getTargetItemStack();
+                if (targetStack == null || targetStack.isEmpty()) continue;
+
+                String name = targetStack.getDisplayName().toLowerCase();
                 if (!name.contains(loweredSearchTerm)) continue;
             }
 
@@ -308,6 +311,8 @@ public class MaintainerEntryViewport extends Gui {
 
         if (!suppressItemRendering) {
             ItemStack stack = visibleEntry.entry.getTargetItemStack();
+            if (stack == null || stack.isEmpty()) return;
+
             itemQueue.queue(widgetContext -> {
                 GlStateManager.pushMatrix();
                 float scale = 0.75F;
@@ -358,6 +363,8 @@ public class MaintainerEntryViewport extends Gui {
         }
 
         ItemStack stack = visibleEntry.entry.getTargetItemStack();
+        if (stack == null || stack.isEmpty()) return;
+
         if (!suppressItemRendering) {
             itemQueue.queue(widgetContext -> widgetContext.getWidgetItemRenderer().renderItemAndEffectIntoGUI(
                 stack,
@@ -437,7 +444,7 @@ public class MaintainerEntryViewport extends Gui {
         if (entry == null) return;
 
         List<String> tooltip = new ArrayList<>();
-        if (entry.hasRecipe()) {
+        if (entry.hasRecipe() && entry.getTargetItemStack() != null && !entry.getTargetItemStack().isEmpty()) {
             tooltip.add(entry.getTargetItemStack().getDisplayName());
 
             tooltip.add("§a" + String.format("%s / %s", entry.getCurrentQuantity(), entry.getTargetQuantity()));

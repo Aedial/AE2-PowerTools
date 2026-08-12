@@ -3,6 +3,7 @@ package com.ae2powertools.items;
 import java.util.List;
 import java.util.UUID;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.resources.I18n;
@@ -179,8 +180,7 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
             MonitoredResource resource = resources[slotIndex];
             if (resource == null) continue;
 
-            NBTTagCompound slotTag = new NBTTagCompound();
-            slotTag = resource.writeToNBT();
+            NBTTagCompound slotTag = resource.writeToNBT();
             resourcesTag.setTag(Integer.toString(slotIndex), slotTag);
         }
 
@@ -193,12 +193,13 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
     }
 
     @Override
-    public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean isHeld) {
+    public void onUpdate(@Nonnull ItemStack stack, World world, @Nonnull Entity entity, int slot, boolean isHeld) {
         if (!world.isRemote && !stack.isEmpty()) getDeviceId(stack);
     }
 
     @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
+    @Nonnull
+    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, @Nonnull EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
 
         if (world.isRemote) return new ActionResult<>(EnumActionResult.SUCCESS, stack);
@@ -287,7 +288,7 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
     }
 
     @Override
-    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+    public boolean shouldCauseReequipAnimation(@Nonnull ItemStack oldStack, @Nonnull ItemStack newStack, boolean slotChanged) {
         return slotChanged;
     }
 
@@ -305,7 +306,8 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
         String encryptionKey = null;

@@ -36,6 +36,7 @@ import com.ae2powertools.network.PowerToolsNetwork;
 
 /**
  * GUI for displaying network health scan results with tabs and grouped categories.
+ * TODO: Scanner state rewrite should allow this GUI to be rewritten too.
  */
 @SideOnly(Side.CLIENT)
 public class GuiNetworkHealthScanner extends GuiScreen {
@@ -103,7 +104,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
     // Dynamic footer
     private int footerHeight = MIN_FOOTER_HEIGHT;
-    private List<String> footerLines = new ArrayList<>();
+    private final List<String> footerLines = new ArrayList<>();
 
     // Buttons
     private GuiButton selectAllButton;
@@ -260,7 +261,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
+    protected void actionPerformed(GuiButton button) {
         switch (button.id) {
             case 0: // Select All
                 ScannerClientState.selectAll();
@@ -800,24 +801,6 @@ public class GuiNetworkHealthScanner extends GuiScreen {
                 selected ? COLOR_CATEGORY_TEXT : COLOR_TEXT_DIM);
 
             int textX = x + 28;
-            // For missing device entries, draw the item icon
-            // TODO: Needs to be connected inventory, not AE2 part item
-            //       Also needs to be ajusted to fit properly
-            /*
-            if (row.type == DisplayRow.Type.MISSING_ENTRY && row.missingDevice != null) {
-                ItemStack itemStack = row.missingDevice.itemStack;
-                if (!itemStack.isEmpty()) {
-                    // Draw small item icon (8x8 scaled from 16x16)
-                    GlStateManager.pushMatrix();
-                    RenderHelper.enableGUIStandardItemLighting();
-                    GlStateManager.translate(x + 28, y - 1, 0);
-                    GlStateManager.scale(0.5f, 0.5f, 1.0f);
-                    mc.getRenderItem().renderItemIntoGUI(itemStack, 0, 0);
-                    RenderHelper.disableStandardItemLighting();
-                    GlStateManager.popMatrix();
-                    textX = x + 38;  // Offset text past the icon
-                }
-            }*/
 
             // Entry text
             fontRenderer.drawString(row.text, textX, y + (ROW_HEIGHT - fontRenderer.FONT_HEIGHT) / 2, COLOR_TEXT);

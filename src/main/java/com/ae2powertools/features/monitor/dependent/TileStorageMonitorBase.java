@@ -3,6 +3,7 @@ package com.ae2powertools.features.monitor.dependent;
 import java.io.IOException;
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
@@ -38,7 +39,7 @@ import com.ae2powertools.util.TickManagerHelper;
 /**
  * Abstract base tile for block-based storage monitoring dependents (Storage Display, Storage Level Emitter).
  * Provides AE2 grid proxy lifecycle, grid-managed ticking, and delegates to {@link MonitorLogic}.
- *
+ * <p>
  * Queries the AE2 network directly for resource quantities via the grid proxy.
  * Uses 0.5 AE/t idle power and requires a channel (matching AE2's reporting parts).
  */
@@ -60,7 +61,8 @@ public abstract class TileStorageMonitorBase extends AEBaseTile
     }
 
     @Override
-    public TickingRequest getTickingRequest(IGridNode node) {
+    @Nonnull
+    public TickingRequest getTickingRequest(@Nonnull IGridNode node) {
         int rate = monitorLogic.getRefreshRate();
         return new TickingRequest(rate, rate, false, false);
     }
@@ -73,8 +75,6 @@ public abstract class TileStorageMonitorBase extends AEBaseTile
 
     @Override
     public ItemStack getBackButtonStack() {
-        if (getBlockType() == null) return ItemStack.EMPTY;
-
         return new ItemStack(getBlockType());
     }
 
@@ -169,15 +169,17 @@ public abstract class TileStorageMonitorBase extends AEBaseTile
     }
 
     @Override
-    public IGridNode getGridNode(AEPartLocation dir) { return gridProxy.getNode(); }
+    public IGridNode getGridNode(@Nonnull AEPartLocation dir) { return gridProxy.getNode(); }
 
     @Override
-    public AECableType getCableConnectionType(AEPartLocation dir) { return AECableType.SMART; }
+    @Nonnull
+    public AECableType getCableConnectionType(@Nonnull AEPartLocation dir) { return AECableType.SMART; }
 
     @Override
     public void securityBreak() { world.destroyBlock(pos, true); }
 
     @Override
+    @Nonnull
     public IGridNode getActionableNode() { return gridProxy.getNode(); }
 
     @Override
@@ -210,5 +212,6 @@ public abstract class TileStorageMonitorBase extends AEBaseTile
     public void readFromNBT(NBTTagCompound tag) { super.readFromNBT(tag); gridProxy.readFromNBT(tag); }
 
     @Override
+    @Nonnull
     public NBTTagCompound writeToNBT(NBTTagCompound tag) { super.writeToNBT(tag); gridProxy.writeToNBT(tag); return tag; }
 }

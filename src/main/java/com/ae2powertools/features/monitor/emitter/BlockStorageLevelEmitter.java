@@ -1,5 +1,6 @@
 package com.ae2powertools.features.monitor.emitter;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.block.properties.PropertyBool;
@@ -37,23 +38,26 @@ public class BlockStorageLevelEmitter extends BlockStorageMonitorBase {
     }
 
     @Override
+    @Nonnull
     protected BlockStateContainer createBlockState() {
         return new BlockStateContainer(this, STATE);
     }
 
     @Override
-    public int getMetaFromState(IBlockState state) {
+    public int getMetaFromState(@Nonnull IBlockState state) {
         // State is stored in TileEntity, not in metadata
         return 0;
     }
 
     @Override
+    @Nonnull
     public IBlockState getStateFromMeta(int meta) {
         return getDefaultState();
     }
 
     @Override
-    public IBlockState getActualState(IBlockState state, IBlockAccess world, BlockPos pos) {
+    @Nonnull
+    public IBlockState getActualState(@Nonnull IBlockState state, IBlockAccess world, @Nonnull BlockPos pos) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileStorageLevelEmitter) {
             boolean isOn = ((TileStorageLevelEmitter) te).isOn();
@@ -75,19 +79,19 @@ public class BlockStorageLevelEmitter extends BlockStorageMonitorBase {
 
     @Nullable
     @Override
-    public TileEntity createTileEntity(World world, IBlockState state) {
+    public TileEntity createTileEntity(@Nonnull World world, @Nonnull IBlockState state) {
         return new TileStorageLevelEmitter();
     }
 
     // --- Redstone output ---
 
     @Override
-    public boolean canProvidePower(IBlockState state) {
+    public boolean canProvidePower(@Nonnull IBlockState state) {
         return true;
     }
 
     @Override
-    public int getWeakPower(IBlockState state, IBlockAccess world, BlockPos pos, EnumFacing side) {
+    public int getWeakPower(@Nonnull IBlockState state, IBlockAccess world, @Nonnull BlockPos pos, @Nonnull EnumFacing side) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileStorageLevelEmitter) {
             return ((TileStorageLevelEmitter) te).getWeakRedstoneSignal();
@@ -97,7 +101,7 @@ public class BlockStorageLevelEmitter extends BlockStorageMonitorBase {
     }
 
     @Override
-    public int getStrongPower(IBlockState state, IBlockAccess world, BlockPos pos, EnumFacing side) {
+    public int getStrongPower(@Nonnull IBlockState state, IBlockAccess world, @Nonnull BlockPos pos, @Nonnull EnumFacing side) {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileStorageLevelEmitter) {
             return ((TileStorageLevelEmitter) te).getStrongRedstoneSignal();
@@ -107,7 +111,7 @@ public class BlockStorageLevelEmitter extends BlockStorageMonitorBase {
     }
 
     @Override
-    public void breakBlock(World world, BlockPos pos, IBlockState state) {
+    public void breakBlock(World world, @Nonnull BlockPos pos, @Nonnull IBlockState state) {
         TileEntity te = world.getTileEntity(pos);
 
         // Drop any installed upgrade cards when the block is broken

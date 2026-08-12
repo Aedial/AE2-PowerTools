@@ -13,7 +13,7 @@ import net.minecraft.nbt.NBTTagCompound;
  * Lightweight, immutable key wrapper for hashing/comparing ItemStacks by
  * item, metadata (damage), and NBT. Useful for maps/sets where full
  * ItemStack semantics are desired but stack counts are irrelevant.
- *
+ * <p>
  * Based on DiskTerminal's ItemStackKey, duplicated here to avoid a compile dependency.
  */
 public final class ItemStackKey {

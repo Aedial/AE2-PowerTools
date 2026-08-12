@@ -3,6 +3,8 @@ package com.ae2powertools.features.monitor.emitter;
 import java.io.IOException;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import com.google.common.collect.ImmutableList;
 
 import io.netty.buffer.ByteBuf;
@@ -84,7 +86,8 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     // --- Grid ticking ---
 
     @Override
-    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+    @Nonnull
+    public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
         World world = getHostWorld();
         if (world == null) return TickRateModulation.IDLE;
 
@@ -143,6 +146,7 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     // --- Part model ---
 
     @Override
+    @Nonnull
     public IPartModel getStaticModels() {
         // TODO: should show a model with has channels and power / on / off.
         return emitterLogic.isEmitting() ? MODEL_ON : MODEL_OFF;
@@ -160,6 +164,15 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     @Override
     public void onConditionChanged(boolean oldMet, boolean newMet) {
         if (emitterLogic.evaluate()) notifyOutputChanged(emitterLogic.emitsStrongSignal());
+    }
+
+    @Override
+    public void triggerManualPoll() {
+        if (getHostWorld() == null) return;
+
+        monitorLogic.refresh();
+
+        if (emitterLogic.evaluate()) notifyOutputChanged();
     }
 
     @Override

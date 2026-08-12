@@ -30,14 +30,11 @@ import com.ae2powertools.features.scanner.ScannerRenderer;
  */
 public class ClientProxy extends CommonProxy {
 
-    private static final String TOP_MODID = "theoneprobe";
     private static final String WAILA_MODID = "waila";
 
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
-
-        if (Loader.isModLoaded(TOP_MODID)) registerTheOneProbeIntegration();
 
         MinecraftForge.EVENT_BUS.register(this);
     }
@@ -81,11 +78,6 @@ public class ClientProxy extends CommonProxy {
             ItemRegistry.STORAGE_DISPLAY_PART,
             ItemRegistry.STORAGE_DISPLAY_SMALLER_PART,
             ItemRegistry.STORAGE_DISPLAY_SMALLLER_PART);
-    }
-
-    @Optional.Method(modid = TOP_MODID)
-    private static void registerTheOneProbeIntegration() {
-        com.ae2powertools.integration.theoneprobe.PowerToolsTheOneProbePlugin.register();
     }
 
     @Optional.Method(modid = WAILA_MODID)

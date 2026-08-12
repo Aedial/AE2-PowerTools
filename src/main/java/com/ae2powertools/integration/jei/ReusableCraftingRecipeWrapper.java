@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import mezz.jei.api.gui.ICraftingGridHelper;
@@ -41,7 +42,7 @@ public class ReusableCraftingRecipeWrapper implements ICustomCraftingRecipeWrapp
     }
 
     @Override
-    public void getIngredients(IIngredients ingredients) {
+    public void getIngredients(@Nonnull IIngredients ingredients) {
         List<List<ItemStack>> inputs = new ArrayList<>();
 
         for (Ingredient ingredient : recipe.getIngredients()) {
@@ -65,7 +66,7 @@ public class ReusableCraftingRecipeWrapper implements ICustomCraftingRecipeWrapp
 
         Set<Integer> reusableGuiSlots = mapReusableGuiSlots(itemStacks.getGuiIngredients());
         itemStacks.addTooltipCallback((slotIndex, input, ingredient, tooltip) -> {
-            if (!input || ingredient == null || ingredient.isEmpty()) return;
+            if (!input || ingredient.isEmpty()) return;
             if (!reusableGuiSlots.contains(slotIndex)) return;
 
             tooltip.add("");

@@ -41,7 +41,9 @@ public final class QueuedItemRenderer {
         RenderHelper.enableGUIStandardItemLighting();
         for (ItemDraw draw : queuedDraws) draw.draw(context);
         RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableLighting();
         GlStateManager.disableDepth();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         queuedDraws.clear();
     }
 }

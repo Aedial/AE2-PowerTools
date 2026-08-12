@@ -4,6 +4,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
@@ -156,14 +158,15 @@ public class ItemNetworkComponentLocator extends Item {
     }
 
     @Override
-    public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean isHeld) {
+    public void onUpdate(@Nonnull ItemStack stack, World world, @Nonnull Entity entity, int slot, boolean isHeld) {
         // Ensure device ID is assigned on first inventory tick
         if (!world.isRemote && !stack.isEmpty()) getDeviceId(stack);
     }
 
     @Override
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side,
-            float hitX, float hitY, float hitZ, EnumHand hand) {
+    @Nonnull
+    public EnumActionResult onItemUseFirst(@Nonnull EntityPlayer player, World world, @Nonnull BlockPos pos,
+            @Nonnull EnumFacing side, float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
         if (world.isRemote) return EnumActionResult.PASS;
 
         ItemStack stack = player.getHeldItem(hand);
@@ -190,7 +193,8 @@ public class ItemNetworkComponentLocator extends Item {
     }
 
     @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
+    @Nonnull
+    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, @Nonnull EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
 
         if (world.isRemote) {
@@ -240,20 +244,29 @@ public class ItemNetworkComponentLocator extends Item {
 
             if (part instanceof IGridHost) {
                 IGridNode node = ((IGridHost) part).getGridNode(AEPartLocation.INTERNAL);
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
 
             IPart cable = partHost.getPart(AEPartLocation.INTERNAL);
             if (cable instanceof IGridHost) {
                 IGridNode node = ((IGridHost) cable).getGridNode(AEPartLocation.INTERNAL);
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
 
             for (AEPartLocation loc : AEPartLocation.values()) {
                 IPart p = partHost.getPart(loc);
                 if (p instanceof IGridHost) {
                     IGridNode node = ((IGridHost) p).getGridNode(AEPartLocation.INTERNAL);
-                    if (node != null && node.getGrid() != null) return node.getGrid();
+                    if (node != null) {
+                        node.getGrid();
+                        return node.getGrid();
+                    }
                 }
             }
         }
@@ -264,7 +277,10 @@ public class ItemNetworkComponentLocator extends Item {
 
             for (AEPartLocation loc : AEPartLocation.values()) {
                 IGridNode node = host.getGridNode(loc);
-                if (node != null && node.getGrid() != null) return node.getGrid();
+                if (node != null) {
+                    node.getGrid();
+                    return node.getGrid();
+                }
             }
         }
 
@@ -273,7 +289,8 @@ public class ItemNetworkComponentLocator extends Item {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+            @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
         tooltip.add("");

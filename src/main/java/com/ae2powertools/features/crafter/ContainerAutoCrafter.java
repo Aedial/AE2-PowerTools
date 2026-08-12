@@ -36,7 +36,7 @@ import com.ae2powertools.util.ContainerListenerSync;
 /**
  * Container for the AE2 AutoCrafter GUI.
  * Manages the pattern slot and catalyst inventory for a single recipe entry.
- * 
+ * <p>
  * When NAE2 is installed and the player has a Pattern Multi-Tool in their inventory,
  * this container adds PMT slots for convenient pattern storage access.
  */
@@ -94,9 +94,8 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     private int lastRecipeEntryIndex = -1;
 
     // Slots for the current entry
-    private SlotPattern patternSlot;
-    private SlotCatalyst[] catalystSlots;
-    private SlotUpgrade[] upgradeSlots;
+    private final SlotPattern patternSlot;
+    private final SlotCatalyst[] catalystSlots;
 
     // Pattern Multi-Tool support
     private PMTManager pmtManager;
@@ -144,9 +143,9 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         }
 
         // Upgrade slots (4 slots) - uses tile directly (not per-entry)
-        this.upgradeSlots = new SlotUpgrade[TileAutoCrafter.UPGRADE_SLOTS];
+        int x = UPGRADE_START_X;
+        SlotUpgrade[] upgradeSlots = new SlotUpgrade[TileAutoCrafter.UPGRADE_SLOTS];
         for (int i = 0; i < TileAutoCrafter.UPGRADE_SLOTS; i++) {
-            int x = UPGRADE_START_X;
             int y = UPGRADE_START_Y + i * UPGRADE_SLOT_SIZE;
             upgradeSlots[i] = new SlotUpgrade(this, tile, i, x, y);
             addSlotToContainer(upgradeSlots[i]);
@@ -366,7 +365,8 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     }
 
     @Override
-    public ItemStack slotClick(int slotId, int dragType, ClickType clickType, EntityPlayer player) {
+    @Nonnull
+    public ItemStack slotClick(int slotId, int dragType, ClickType clickType, @Nonnull EntityPlayer player) {
         if (slotId >= 0 && slotId < inventorySlots.size()) {
             Slot slot = inventorySlots.get(slotId);
 
@@ -505,7 +505,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
     /**
      * Handles catalyst slot click interactions.
-     * 
+     * <p>
      * Catalyst slots hold REUSABLE and DURABILITY items:
      * - Each slot holds exactly 1 item (crafting recipes use 1 item per slot)
      * - Only items matching the expected catalyst type can be inserted
@@ -599,7 +599,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
 
     /**
      * Handles upgrade slot click interactions.
-     * 
+     * <p>
      * Simple vanilla-style slot behavior:
      * - Only speed upgrades are accepted
      * - Only ONE speed upgrade can be installed across all slots
@@ -832,6 +832,7 @@ public class ContainerAutoCrafter extends AEBaseContainer {
     private static final int SLOT_PLAYER_START = 14;
 
     @Override
+    @Nonnull
     public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
         Slot slot = inventorySlots.get(slotIndex);
         if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
@@ -975,6 +976,14 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         return ItemStack.EMPTY;
     }
 
+    /**
+     * Update the player inventory and slot after a successful transfer.
+     * This prevents stale client-side state and ensures the slot is cleared or updated correctly.
+     * @param slot The slot that was transferred.
+     * @param player The player performing the transfer.
+     * @param original The original ItemStack before the transfer.
+     * @return The ItemStack that remains after the transfer.
+     */
     private ItemStack finishTransfer(Slot slot, EntityPlayer player, ItemStack original) {
         ItemStack remaining = slot.getStack();
         if (remaining.isEmpty()) {
@@ -1344,7 +1353,8 @@ public class ContainerAutoCrafter extends AEBaseContainer {
         private final CatalystItemHandler handler;
         private final int catalystIndex;
 
-        public SlotCatalyst(ContainerAutoCrafter container, TileAutoCrafter tile, int catalystIndex, int entryIndex, int x, int y) {
+        public SlotCatalyst(ContainerAutoCrafter container, TileAutoCrafter tile, int catalystIndex,
+                int entryIndex, int x, int y) {
             super(new CatalystItemHandler(container, tile, catalystIndex, entryIndex), 0, x, y);
             this.handler = (CatalystItemHandler) this.getItemHandler();
             this.catalystIndex = catalystIndex;

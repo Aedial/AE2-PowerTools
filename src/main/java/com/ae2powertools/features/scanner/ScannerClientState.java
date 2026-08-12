@@ -27,6 +27,8 @@ import com.ae2powertools.client.PowerToolsClientConfig;
  * Client-side state for scanner overlay and rendering.
  * Stores detected loops, unloaded chunks, and channels received from server.
  * State is indexed by device ID to support multiple scanner devices simultaneously.
+ * TODO: Split this into separate classes for each tab, to aggressively share the
+ *       selection, sorting, and filtering logic.
  */
 @SideOnly(Side.CLIENT)
 public class ScannerClientState {
@@ -329,52 +331,49 @@ public class ScannerClientState {
         }
     }
 
-    private static final TabData<LoopLocationClient> LOOP_TAB_DATA = new TabData<LoopLocationClient>(
-            Tab.LOOPS,
-            state -> state.loopLocations,
-            state -> state.selectedLoopIndices,
-            state -> state.sortedLoopLocations,
-            (state, sortedEntries) -> state.sortedLoopLocations = sortedEntries);
+    private static final TabData<LoopLocationClient> LOOP_TAB_DATA = new TabData<>(
+        Tab.LOOPS,
+        state -> state.loopLocations,
+        state -> state.selectedLoopIndices,
+        state -> state.sortedLoopLocations,
+        (state, sortedEntries) -> state.sortedLoopLocations = sortedEntries);
 
-    private static final TabData<ChunkLocationClient> CHUNK_TAB_DATA = new TabData<ChunkLocationClient>(
-            Tab.UNLOADED_CHUNKS,
-            state -> state.chunkLocations,
-            state -> state.selectedChunkIndices,
-            state -> state.sortedChunkLocations,
-            (state, sortedEntries) -> state.sortedChunkLocations = sortedEntries);
+    private static final TabData<ChunkLocationClient> CHUNK_TAB_DATA = new TabData<>(
+        Tab.UNLOADED_CHUNKS,
+        state -> state.chunkLocations,
+        state -> state.selectedChunkIndices,
+        state -> state.sortedChunkLocations, (state, sortedEntries) -> state.sortedChunkLocations = sortedEntries);
 
-    private static final TabData<MissingDeviceClient> MISSING_TAB_DATA = new TabData<MissingDeviceClient>(
-            Tab.MISSING_CHANNELS,
-            state -> state.missingDevices,
-            state -> state.selectedMissingIndices,
-            state -> state.sortedMissingDevices,
-            (state, sortedEntries) -> state.sortedMissingDevices = sortedEntries);
+    private static final TabData<MissingDeviceClient> MISSING_TAB_DATA = new TabData<>(
+        Tab.MISSING_CHANNELS,
+        state -> state.missingDevices,
+        state -> state.selectedMissingIndices,
+        state -> state.sortedMissingDevices,
+        (state, sortedEntries) -> state.sortedMissingDevices = sortedEntries);
 
-    private static final TabData<ChokeLocationClient> CHOKE_TAB_DATA = new TabData<ChokeLocationClient>(
-            Tab.CHOKEPOINTS,
-            state -> state.chokeLocations,
-            state -> state.selectedChokeIndices,
-            state -> state.sortedChokeLocations,
-            (state, sortedEntries) -> state.sortedChokeLocations = sortedEntries);
+    private static final TabData<ChokeLocationClient> CHOKE_TAB_DATA = new TabData<>(
+        Tab.CHOKEPOINTS,
+        state -> state.chokeLocations,
+        state -> state.selectedChokeIndices,
+        state -> state.sortedChokeLocations,
+        (state, sortedEntries) -> state.sortedChokeLocations = sortedEntries);
 
-    private static final TabData<FatalNetworkError> FATAL_TAB_DATA = new TabData<FatalNetworkError>(
-            Tab.FATAL_ERRORS,
-            state -> state.fatalErrors,
-            state -> state.selectedFatalIndices,
-            state -> state.sortedFatalErrors,
-            (state, sortedEntries) -> state.sortedFatalErrors = sortedEntries);
+    private static final TabData<FatalNetworkError> FATAL_TAB_DATA = new TabData<>(
+        Tab.FATAL_ERRORS,
+        state -> state.fatalErrors,
+        state -> state.selectedFatalIndices,
+        state -> state.sortedFatalErrors,
+        (state, sortedEntries) -> state.sortedFatalErrors = sortedEntries);
 
-    private static final TabData<PatternIssue> PATTERN_TAB_DATA = new TabData<PatternIssue>(
-            Tab.PATTERNS,
-            state -> state.patternIssues,
-            state -> state.selectedPatternIndices,
-            state -> state.sortedPatternIssues,
-            (state, sortedEntries) -> state.sortedPatternIssues = sortedEntries);
+    private static final TabData<PatternIssue> PATTERN_TAB_DATA = new TabData<>(
+        Tab.PATTERNS,
+        state -> state.patternIssues,
+        state -> state.selectedPatternIndices,
+        state -> state.sortedPatternIssues,
+        (state, sortedEntries) -> state.sortedPatternIssues = sortedEntries);
 
     private static TabData<?> getTabData(Tab tab) {
         switch (tab) {
-            case LOOPS:
-                return LOOP_TAB_DATA;
             case UNLOADED_CHUNKS:
                 return CHUNK_TAB_DATA;
             case CHOKEPOINTS:
@@ -385,6 +384,7 @@ public class ScannerClientState {
                 return FATAL_TAB_DATA;
             case PATTERNS:
                 return PATTERN_TAB_DATA;
+            case LOOPS:
             default:
                 return LOOP_TAB_DATA;
         }

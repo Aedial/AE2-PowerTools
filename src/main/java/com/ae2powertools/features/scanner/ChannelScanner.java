@@ -43,16 +43,16 @@ import com.ae2powertools.features.scanner.ChannelChokepoint.DirectionFlow;
 
 /**
  * Scans an AE2 network for channel chokepoints - locations where channel demand exceeds cable capacity.
- *
+ * <p>
  * The algorithm:
  * 1. BFS from controller to find all channel-requiring devices and their paths to controller
  * 2. For each cable/connection, calculate:
  *    - Actual channels being used (from IGridConnection.getUsedChannels())
  *    - Demanded channels (count of all REQUIRE_CHANNEL devices behind it)
  * 3. Report chokepoints where demand > capacity at intersections (3+ connections)
- *
+ * <p>
  * Note: AE2 doesn't expose "would-be" channel usage, so we must calculate demand ourselves.
- *
+ * <p>
  * Multiblock handling: AE2 multiblocks (crafting CPUs, spatial pylons, etc.) are treated as single
  * entities consuming 1 channel total. When we encounter a multiblock cluster during BFS, we only
  * process its first-encountered node and treat subsequent nodes as part of the same entity.
@@ -183,13 +183,6 @@ public class ChannelScanner {
         try {
             IPathingGrid pathingGrid = grid.getCache(IPathingGrid.class);
 
-            if (pathingGrid == null) {
-                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.no_pathing_grid");
-                isComplete = true;
-
-                return;
-            }
-
             ControllerState state = pathingGrid.getControllerState();
             hasController = (state == ControllerState.CONTROLLER_ONLINE);
 
@@ -305,7 +298,6 @@ public class ChannelScanner {
 
         for (IGridConnection connection : node.getConnections()) {
             IGridNode neighbor = connection.getOtherSide(node);
-            if (neighbor == null) continue;
 
             // Skip if already visited (we came from there or it's already in tree)
             if (nodeMap.containsKey(neighbor)) continue;
@@ -555,7 +547,7 @@ public class ChannelScanner {
             return null;
         }
 
-        if (hostTile == null || hostTile.getWorld() == null || facing == null) return null;
+        if (hostTile == null || facing == null) return null;
 
         int dimension = hostTile.getWorld().provider.getDimension();
         BlockPos targetPos = hostTile.getPos().offset(facing);
@@ -580,7 +572,7 @@ public class ChannelScanner {
 
     private void addInterfaceTargets(Set<TargetLocation> targets, IInterfaceHost interfaceHost, ResourceType resourceType) {
         TileEntity tile = interfaceHost.getTileEntity();
-        if (tile == null || tile.getWorld() == null) return;
+        if (tile == null) return;
 
         int dimension = tile.getWorld().provider.getDimension();
         for (EnumFacing side : interfaceHost.getTargets()) {
@@ -593,7 +585,7 @@ public class ChannelScanner {
     private void addFluidInterfaceTargets(Set<TargetLocation> targets, IFluidInterfaceHost interfaceHost,
             ResourceType resourceType) {
         TileEntity tile = interfaceHost.getTileEntity();
-        if (tile == null || tile.getWorld() == null) return;
+        if (tile == null) return;
 
         int dimension = tile.getWorld().provider.getDimension();
         for (EnumFacing side : interfaceHost.getTargets()) {
@@ -689,7 +681,7 @@ public class ChannelScanner {
 
         try {
             DimensionalCoord coord = node.getGridBlock().getLocation();
-            if (coord != null) return coord.getPos();
+            return coord.getPos();
         } catch (Exception e) {
             // Fall through
         }
@@ -708,7 +700,7 @@ public class ChannelScanner {
 
         try {
             DimensionalCoord coord = node.getGridBlock().getLocation();
-            if (coord != null) return coord.getWorld();
+            return coord.getWorld();
         } catch (Exception e) {
             // Fall through
         }

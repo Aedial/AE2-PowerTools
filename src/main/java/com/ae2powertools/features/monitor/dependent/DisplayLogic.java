@@ -1,7 +1,5 @@
 package com.ae2powertools.features.monitor.dependent;
 
-import java.io.IOException;
-
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
@@ -170,7 +168,7 @@ public class DisplayLogic {
      * Writes (firstResource, firstQuantity, cornerColor) to the host's update stream.
      * Server-side only.
      */
-    public void writeToStream(ByteBuf data) throws IOException {
+    public void writeToStream(ByteBuf data) {
         MonitoredResource res = monitorLogic.getFirstResource();
         data.writeBoolean(res != null);
         if (res != null) res.writeToBuf(data);
@@ -183,7 +181,7 @@ public class DisplayLogic {
      * Client-side only - on the server the values are silently overwritten on the next
      * sync push.
      */
-    public void readFromStream(ByteBuf data) throws IOException {
+    public void readFromStream(ByteBuf data) {
         clientResource = data.readBoolean() ? MonitoredResource.readFromBuf(data) : null;
         clientQuantity = data.readLong();
         cornerColor = data.readInt();

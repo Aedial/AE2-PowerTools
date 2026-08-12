@@ -37,8 +37,12 @@ public final class FormattedNumberFieldHelper {
         long value = parser.parse(text);
         if (value < 0) return;
 
-        String formatted = formatter.format(value);
-        field.setText(formatted);
+        // We only reformat if the value is non-zero to avoid erasing _000 cases
+        String formatted = text;
+        if (value != 0) {
+            formatted = formatter.format(value);
+            field.setText(formatted);
+        }
 
         int newCursor = 0;
         int digitsSeen = 0;

@@ -81,11 +81,6 @@ public class RemoteMonitorOverlay implements HudOverlayManager.HudOverlayProvide
     }
 
     @Override
-    public int getPriority() {
-        return 0;
-    }
-
-    @Override
     public void onOverlayRendered(int renderedHeight) {
         lastOverlayHeight = renderedHeight;
     }
