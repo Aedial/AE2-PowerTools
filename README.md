@@ -189,6 +189,8 @@ Resulting jar will be under `build/libs/`.
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Textures
-Priority Tuner, Network Health Scanner: SangreBK
-Storage Level Emitter block, Storage Display block, Remote Storage Monitor item, Storage Level Alarm block, Storage Level Alarm Locator item: @NerdySpider
+
+## Credits
+- Chinese translation: @ZHAY10086
+- Priority Tuner, Network Health Scanner: SangreBK
+- Storage Level Emitter block, Storage Display block, Remote Storage Monitor item, Storage Level Alarm block, Storage Level Alarm Locator item: @NerdySpider

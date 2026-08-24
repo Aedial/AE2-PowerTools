@@ -137,16 +137,19 @@ public class MaintainerEntryViewport extends Gui {
     }
 
     public void draw(boolean useTallView, int guiLeft, int guiTop, int xSize, int ySize,
-            String searchTerm, boolean suppressItemRendering, int mouseX, int mouseY) {
+            String searchTerm, boolean modalOpen, boolean suppressItemRendering, int mouseX, int mouseY) {
         EntryLayout layout = createLayout(useTallView, guiTop, ySize);
         List<VisibleEntry> visibleEntries = collectVisibleEntries(layout, guiLeft, guiTop, xSize, searchTerm);
 
-        drawEntries(layout, visibleEntries, suppressItemRendering, mouseX, mouseY);
+        drawEntries(layout, visibleEntries, modalOpen, suppressItemRendering, mouseX, mouseY);
         drawScrollbar(guiLeft, layout);
         drawStatusBar(guiLeft, xSize, layout.statusY);
     }
 
-    public void drawTooltips(boolean useTallView, int guiLeft, int guiTop, int ySize, int mouseX, int mouseY) {
+    public void drawTooltips(boolean useTallView, int guiLeft, int guiTop, int ySize,
+            boolean modalOpen, int mouseX, int mouseY) {
+        if (modalOpen) return;
+
         drawEntryTooltips(mouseX, mouseY);
         drawStatusBarTooltips(useTallView, guiTop, ySize, mouseX, mouseY);
     }
@@ -259,11 +262,12 @@ public class MaintainerEntryViewport extends Gui {
     }
 
     private void drawEntries(EntryLayout layout, List<VisibleEntry> visibleEntries,
-            boolean suppressItemRendering, int mouseX, int mouseY) {
+            boolean modalOpen, boolean suppressItemRendering, int mouseX, int mouseY) {
         QueuedItemRenderer itemQueue = new QueuedItemRenderer();
         hoveredEntryIndex = -1;
         for (VisibleEntry visibleEntry : visibleEntries) {
-            boolean hovered = mouseX >= visibleEntry.x && mouseX < visibleEntry.x + visibleEntry.width
+            boolean hovered = !modalOpen
+                && mouseX >= visibleEntry.x && mouseX < visibleEntry.x + visibleEntry.width
                 && mouseY >= visibleEntry.y && mouseY < visibleEntry.y + visibleEntry.height;
             if (hovered) hoveredEntryIndex = visibleEntry.entryIndex;
 

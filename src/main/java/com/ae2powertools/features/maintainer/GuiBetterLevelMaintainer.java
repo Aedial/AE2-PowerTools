@@ -144,12 +144,16 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
 
     @Override
     protected void drawWidgetGuiTooltips(int mouseX, int mouseY) {
+        if (isManagedModalOpen()) return;
+
         renderHoveredToolTip(mouseX, mouseY);
-        entryViewport.drawTooltips(useTallView, guiLeft, guiTop, ySize, mouseX, mouseY);
+        entryViewport.drawTooltips(useTallView, guiLeft, guiTop, ySize, false, mouseX, mouseY);
     }
 
     @Override
     protected void drawWidgetGuiBackgroundContents(float partialTicks, int mouseX, int mouseY) {
+        boolean modalOpen = isManagedModalOpen();
+
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         if (useTallView) {
             mc.getTextureManager().bindTexture(BACKGROUND_TALL);
@@ -181,7 +185,8 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
             xSize,
             ySize,
             searchField.getText(),
-            entryEditorOverlay.isOpen(),
+            modalOpen,
+            modalOpen,
             mouseX,
             mouseY);
     }

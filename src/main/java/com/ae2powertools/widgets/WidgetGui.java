@@ -27,6 +27,12 @@ import net.minecraft.util.ResourceLocation;
  */
 public abstract class WidgetGui extends GuiContainer implements WidgetContext {
 
+    /**
+     * Screen coordinates that cannot be supplied by an actual mouse event. They keep the
+     * inactive GUI from entering any hover state while a modal owns the real pointer.
+     */
+    private static final int MODAL_INERT_MOUSE_COORDINATE = -10_000;
+
     private static final class RegisteredWidget {
 
         private final PressableWidget widget;
@@ -146,11 +152,14 @@ public abstract class WidgetGui extends GuiContainer implements WidgetContext {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        int underlyingMouseX = getUnderlyingMouseCoordinate(mouseX);
+        int underlyingMouseY = getUnderlyingMouseCoordinate(mouseY);
+
         if (shouldDrawWidgetGuiBackground()) drawDefaultBackground();
 
-        beforeWidgetGuiDrawScreen(mouseX, mouseY, partialTicks);
-        super.drawScreen(mouseX, mouseY, partialTicks);
-        afterWidgetGuiDrawScreen(mouseX, mouseY, partialTicks);
+        beforeWidgetGuiDrawScreen(underlyingMouseX, underlyingMouseY, partialTicks);
+        super.drawScreen(underlyingMouseX, underlyingMouseY, partialTicks);
+        afterWidgetGuiDrawScreen(underlyingMouseX, underlyingMouseY, partialTicks);
 
         AbstractModalGui openModal = getOpenModal();
         if (openModal != null) {
@@ -181,12 +190,15 @@ public abstract class WidgetGui extends GuiContainer implements WidgetContext {
 
     @Override
     protected final void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+        int underlyingMouseX = getUnderlyingMouseCoordinate(mouseX);
+        int underlyingMouseY = getUnderlyingMouseCoordinate(mouseY);
+
         prepareWidgetGuiBackground();
         drawWidgetGuiBackgroundTexture();
-        drawWidgetGuiBackgroundContents(partialTicks, mouseX, mouseY);
+        drawWidgetGuiBackgroundContents(partialTicks, underlyingMouseX, underlyingMouseY);
 
         for (RegisteredWidget registeredWidget : registeredWidgets) {
-            registeredWidget.widget.draw(this, mouseX, mouseY);
+            registeredWidget.widget.draw(this, underlyingMouseX, underlyingMouseY);
         }
 
         afterWidgetGuiWidgetsDraw();
@@ -206,6 +218,13 @@ public abstract class WidgetGui extends GuiContainer implements WidgetContext {
     protected abstract void drawWidgetGuiBackgroundContents(float partialTicks, int mouseX, int mouseY);
 
     protected void afterWidgetGuiWidgetsDraw() {
+    }
+
+    @Override
+    protected boolean isPointInRegion(int rectX, int rectY, int rectWidth, int rectHeight, int pointX, int pointY) {
+        if (isManagedModalOpen()) return false;
+
+        return super.isPointInRegion(rectX, rectY, rectWidth, rectHeight, pointX, pointY);
     }
 
     @Override
@@ -303,6 +322,10 @@ public abstract class WidgetGui extends GuiContainer implements WidgetContext {
     }
 
     protected void handleWidgetGuiMouseWheel(int mouseX, int mouseY, int scrollDelta) {
+    }
+
+    private int getUnderlyingMouseCoordinate(int coordinate) {
+        return isManagedModalOpen() ? MODAL_INERT_MOUSE_COORDINATE : coordinate;
     }
 
     @Override

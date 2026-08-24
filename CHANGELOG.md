@@ -12,10 +12,13 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 
+### Fixed
+- Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
+
 
 ## [1.6.8] - 2026-08-???
 ### Fixed
-- Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
+- Fix tooltip leaking from under the Maintainer modal when it is open.
 
 
 ## [1.6.7-hotfix2] - 2026-08-11
