@@ -150,13 +150,13 @@ public class MaintainerTask {
     }
 
     /**
-     * Checks if the crafting job is done (completed or cancelled).
+     * Checks if the crafting job reached a terminal state (completed or cancelled).
      */
     public boolean isDone() {
         if (cancelled) return true;
         if (craftingLink == null) return false;
 
-        return craftingLink.isDone();
+        return craftingLink.isDone() || craftingLink.isCanceled();
     }
 
     /**

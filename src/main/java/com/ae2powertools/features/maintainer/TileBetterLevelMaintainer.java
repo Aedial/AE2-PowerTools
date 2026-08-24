@@ -178,6 +178,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         boolean processedPendingJobs = false;
         boolean processedCpuWaitQueue = false;
+        boolean updatedActiveTasks = false;
 
         if (!requestsPaused) {
             // Process pending crafting jobs (lightweight: just checks if futures are done)
@@ -185,10 +186,12 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
             // Process CPU wait queue
             processedCpuWaitQueue = processCpuWaitQueue();
-        }
 
-        // Check active tasks status
-        boolean updatedActiveTasks = updateActiveTaskStates();
+            // Avoid discarding a finished link while the maintainer is disconnected. AE2 needs
+            // getRequestedJobs() to expose that original link when this node rejoins the grid
+            // so it can reconnect it to the CPU's link before we finalize the entry locally.
+            updatedActiveTasks = updateActiveTaskStates();
+        }
 
         // Periodic check for crafting needs
         boolean checkedCraftingNeeds = periodicCheckDue && checkCraftingNeeds();
@@ -331,6 +334,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         }
 
         networkPauseStartTime = -1;
+        reconcileFinishedPersistedLinks();
         markDirty();
         markForUpdate();
     }
@@ -808,29 +812,56 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         while (iter.hasNext()) {
             MaintainerTask task = iter.next();
-            MaintainerEntry entry = entries.get(task.getEntryIndex());
 
             if (task.getCraftingLink() == null) continue;
 
             if (task.isDone()) {
                 didWork = true;
-                if (task.isCraftingCancelled()) {
-                    entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cancelled");
-                    entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-                } else {
-                    // Success! Schedule next run and refresh quantity
-                    entry.setLastRunTime(world.getTotalWorldTime());
-                    entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-                    entry.setState(MaintainerState.IDLE);
-                    entry.clearError();
-                    refreshEntryQuantity(task.getEntryIndex());
-                }
+                finishCraftingLink(task.getEntryIndex(), task.getCraftingLink());
 
                 iter.remove();
             }
         }
 
         return didWork;
+    }
+
+    /**
+     * Applies the final state for a completed or cancelled AE2 crafting link.
+     */
+    private void finishCraftingLink(int entryIndex, ICraftingLink link) {
+        if (entryIndex < 0 || entryIndex >= entries.size() || link == null) return;
+
+        MaintainerEntry entry = entries.get(entryIndex);
+        long worldTime = world.getTotalWorldTime();
+
+        if (link.isCanceled()) {
+            entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cancelled");
+        } else {
+            entry.setLastRunTime(worldTime);
+            entry.setState(MaintainerState.IDLE);
+            entry.clearError();
+            refreshEntryQuantity(entryIndex);
+        }
+
+        entry.setNextRunTime(worldTime + entry.getFrequencyTicks());
+    }
+
+    /**
+     * Restored links can complete while the maintainer is disconnected. Once the
+     * startup gate has let AE2 reconnect the requester and CPU links, discard any
+     * terminal links and bring their entries back in sync.
+     */
+    private void reconcileFinishedPersistedLinks() {
+        Iterator<PersistedCraftingLink> iter = persistedLinks.iterator();
+        while (iter.hasNext()) {
+            PersistedCraftingLink persisted = iter.next();
+            ICraftingLink link = persisted.getLink();
+            if (link != null && (link.isDone() || link.isCanceled())) {
+                finishCraftingLink(persisted.getEntryIndex(), link);
+                iter.remove();
+            }
+        }
     }
 
     /**
@@ -1106,13 +1137,16 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         // Include links from active tasks
         for (MaintainerTask task : activeTasks) {
             ICraftingLink link = task.getCraftingLink();
-            if (link != null && !link.isDone()) links.add(link);
+            if (link != null) links.add(link);
         }
 
-        // Include persisted links restored from NBT (survived server restart)
+        // AE2 calls this while adding the requester back to a grid. We do not filter terminal
+        // links here: the crafting cache must see the original requester link to reconcile
+        // it with the CPU link that may have completed while this tile was disconnected.
+        // This mirrors AE2's own MultiCraftingTracker implementation.
         for (PersistedCraftingLink persisted : persistedLinks) {
             ICraftingLink link = persisted.getLink();
-            if (link != null && !link.isDone()) links.add(link);
+            if (link != null) links.add(link);
         }
 
         return ImmutableSet.copyOf(links);
@@ -1152,21 +1186,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         while (iter.hasNext()) {
             PersistedCraftingLink persisted = iter.next();
             if (persisted.getLink() == link) {
-                // Persisted link completed - update entry state
-                int entryIndex = persisted.getEntryIndex();
-                if (entryIndex >= 0 && entryIndex < entries.size()) {
-                    MaintainerEntry entry = entries.get(entryIndex);
-                    if (link.isCanceled()) {
-                        entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cancelled");
-                    } else {
-                        entry.setLastRunTime(world.getTotalWorldTime());
-                        entry.setState(MaintainerState.IDLE);
-                        entry.clearError();
-                        refreshEntryQuantity(entryIndex);
-                    }
-                    entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-                }
-
+                finishCraftingLink(persisted.getEntryIndex(), link);
                 iter.remove();
                 break;
             }
@@ -1207,10 +1227,12 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
             if (!linkData.isEmpty()) {
                 ICraftingLink link = AEApi.instance().storage().loadCraftingLink(linkData, this);
-                if (link != null && !link.isDone() && !link.isCanceled()) {
+                if (link != null) {
                     persistedLinks.add(new PersistedCraftingLink(entryIndex, link));
-                    // Mark entry as RUNNING since it has an ongoing craft
-                    if (entryIndex >= 0 && entryIndex < entries.size()) {
+                    // Terminal links are retained until AE2 has reconnected them to the CPU.
+                    // Only advertise a non-terminal link as actively running in the GUI.
+                    if (!link.isDone() && !link.isCanceled()
+                            && entryIndex >= 0 && entryIndex < entries.size()) {
                         entries.get(entryIndex).setState(MaintainerState.RUNNING);
                     }
                 }
@@ -1239,7 +1261,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         // Save links from active tasks
         for (MaintainerTask task : activeTasks) {
             ICraftingLink link = task.getCraftingLink();
-            if (link != null && !link.isDone() && !link.isCanceled()) {
+            if (link != null) {
                 NBTTagCompound linkTag = new NBTTagCompound();
                 linkTag.setInteger("entryIndex", task.getEntryIndex());
 
@@ -1253,7 +1275,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         // Also save any persisted links that haven't completed yet
         for (PersistedCraftingLink persisted : persistedLinks) {
             ICraftingLink link = persisted.getLink();
-            if (link != null && !link.isDone() && !link.isCanceled()) {
+            if (link != null) {
                 NBTTagCompound linkTag = new NBTTagCompound();
                 linkTag.setInteger("entryIndex", persisted.getEntryIndex());
 
