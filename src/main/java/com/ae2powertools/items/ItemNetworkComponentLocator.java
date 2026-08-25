@@ -22,7 +22,6 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -294,13 +293,13 @@ public class ItemNetworkComponentLocator extends Item {
         super.addInformation(stack, world, tooltip, flag);
 
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.network_component_locator.tip1"));
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.network_component_locator.tip2"));
+        tooltip.add(I18n.format("item.ae2powertools.network_component_locator.tip1"));
+        tooltip.add(I18n.format("item.ae2powertools.network_component_locator.tip2"));
 
         boolean overlayEnabled = isOverlayEnabled(stack);
-        String overlayState = overlayEnabled ?
-            TextFormatting.GREEN + I18n.format("item.ae2powertools.network_component_locator.overlay_on") + TextFormatting.AQUA :
-            TextFormatting.RED + I18n.format("item.ae2powertools.network_component_locator.overlay_off") + TextFormatting.AQUA;
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.network_component_locator.tip3", overlayState));
+        String overlayState = I18n.format(overlayEnabled ?
+            "item.ae2powertools.network_component_locator.overlay_on" :
+            "item.ae2powertools.network_component_locator.overlay_off");
+        tooltip.add(I18n.format("item.ae2powertools.network_component_locator.tip3", overlayState));
     }
 }

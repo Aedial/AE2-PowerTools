@@ -16,7 +16,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -71,13 +70,11 @@ public abstract class BlockStorageMonitorBase extends Block {
     public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
             @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
-        tooltip.add(TextFormatting.AQUA + I18n.format(getTooltipKey()));
+        tooltip.add(I18n.format(getTooltipKey()));
 
         List<String> additionalKeys = getAdditionalTooltipKeys();
         if (additionalKeys != null) {
-            for (String key : additionalKeys) {
-                tooltip.add(TextFormatting.AQUA + I18n.format(key));
-            }
+            for (String key : additionalKeys) tooltip.add(I18n.format(key));
         }
     }
 

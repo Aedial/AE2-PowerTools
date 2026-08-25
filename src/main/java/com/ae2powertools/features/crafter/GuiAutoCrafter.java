@@ -219,20 +219,20 @@ public class GuiAutoCrafter extends WidgetGui {
     private List<String> buildBatchButtonTooltip() {
         return Arrays.asList(
             I18n.format("gui.ae2powertools.crafter.batch.title"),
-            TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.batch.desc", container.syncBatchSize),
+            I18n.format("gui.ae2powertools.crafter.batch.desc", container.syncBatchSize),
             "",
-            TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.batch.explanation")
+            I18n.format("gui.ae2powertools.crafter.batch.explanation")
         );
     }
 
     private List<String> buildSpeedButtonTooltip() {
         return Arrays.asList(
             I18n.format("gui.ae2powertools.crafter.speed.title"),
-            TextFormatting.GRAY + I18n.format(
+            I18n.format(
                 "gui.ae2powertools.crafter.speed.desc",
                 FormatUtil.formatTimeTicks(container.syncSpeedTicks)),
             "",
-            TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.speed.explanation")
+            I18n.format("gui.ae2powertools.crafter.speed.explanation")
         );
     }
 
@@ -680,7 +680,7 @@ public class GuiAutoCrafter extends WidgetGui {
                                     ? ITooltipFlag.TooltipFlags.ADVANCED
                                     : ITooltipFlag.TooltipFlags.NORMAL));
                     tooltip.add("");
-                    tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.right_click_toggle"));
+                    tooltip.add(I18n.format("gui.ae2powertools.crafter.right_click_toggle.muted"));
 
                     GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, width, height, -1, fontRenderer);
                 }
@@ -707,12 +707,12 @@ public class GuiAutoCrafter extends WidgetGui {
         if (!state.isError() && state != CrafterState.HOLDING_OUTPUT && errorDetails.isEmpty()) return;
 
         List<String> tooltip = new ArrayList<>();
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.state")
-                + ": " + TextFormatting.RESET + state.getTranslated());
+        tooltip.add(I18n.format("gui.ae2powertools.crafter.state", state.getTranslated()));
 
         if (!errorDetails.isEmpty()) {
             tooltip.add("");
             for (ITextComponent detail : errorDetails) {
+                // TODO: Finish moving every TextFormatting to lang files
                 tooltip.add(TextFormatting.GRAY + "- " + detail.getFormattedText());
             }
         }

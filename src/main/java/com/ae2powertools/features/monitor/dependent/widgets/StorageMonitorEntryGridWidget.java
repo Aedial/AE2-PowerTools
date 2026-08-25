@@ -236,38 +236,38 @@ public class StorageMonitorEntryGridWidget extends Gui {
         String prefix = "gui.ae2powertools.storage_emitter.";
         if (entry.hasResource()) {
             String symbol = entry.getComparison().getSymbol();
-            tooltip.add(TextFormatting.GRAY + I18n.format(
+            tooltip.add(I18n.format(
                 prefix + "current_quantity", FormattedNumberFieldHelper.formatWithCommas(entry.getLastQuantity())));
 
             if (container.isSyncHysteresisEnabled()) {
-                tooltip.add(TextFormatting.GRAY + I18n.format(
+                tooltip.add(I18n.format(
                     prefix + "active_target",
                     symbol,
                     FormattedNumberFieldHelper.formatWithCommas(entry.getActiveThreshold(true)),
                     formatTargetProgress(entry)));
-                tooltip.add(TextFormatting.GRAY + I18n.format(
+                tooltip.add(I18n.format(
                     prefix + "increasing_target",
                     symbol,
                     FormattedNumberFieldHelper.formatWithCommas(entry.getThreshold())));
-                tooltip.add(TextFormatting.GRAY + I18n.format(
+                tooltip.add(I18n.format(
                     prefix + "decreasing_target",
                     symbol,
                     FormattedNumberFieldHelper.formatWithCommas(entry.getLowerThreshold())));
             } else {
-                tooltip.add(TextFormatting.GRAY + I18n.format(
+                tooltip.add(I18n.format(
                     prefix + "current_target",
                     symbol,
                     FormattedNumberFieldHelper.formatWithCommas(entry.getThreshold()),
                     formatTargetProgress(entry)));
             }
         } else {
-            tooltip.add(TextFormatting.GRAY + I18n.format(prefix + "empty_slot"));
+            tooltip.add(I18n.format(prefix + "empty_slot"));
         }
 
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format(prefix + "controls.title"));
-        tooltip.add(TextFormatting.GRAY + I18n.format(prefix + "controls.scroll"));
-        tooltip.add(TextFormatting.GRAY + I18n.format(prefix + "controls.toggle"));
+        tooltip.add(I18n.format(prefix + "controls.title"));
+        tooltip.add(I18n.format(prefix + "controls.scroll"));
+        tooltip.add(I18n.format(prefix + "controls.toggle"));
         return tooltip;
     }
 

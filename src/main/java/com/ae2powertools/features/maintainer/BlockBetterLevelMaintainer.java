@@ -19,7 +19,6 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -57,8 +56,8 @@ public class BlockBetterLevelMaintainer extends Block {
             @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
-        tooltip.add(TextFormatting.AQUA + I18n.format("tile.ae2powertools.better_level_maintainer.tooltip"));
-        tooltip.add(TextFormatting.YELLOW + I18n.format("tile.ae2powertools.better_level_maintainer.warning"));
+        tooltip.add(I18n.format("tile.ae2powertools.better_level_maintainer.tooltip"));
+        tooltip.add(I18n.format("tile.ae2powertools.better_level_maintainer.warning"));
     }
 
     @Override

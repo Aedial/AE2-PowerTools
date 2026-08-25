@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -67,7 +66,7 @@ public class PacketPriorityApplied implements IMessage {
                     message.priority,
                     message.pos.getX(), message.pos.getY(), message.pos.getZ()
                 );
-                Minecraft.getMinecraft().player.sendMessage(new TextComponentString(TextFormatting.GREEN + msg));
+                Minecraft.getMinecraft().player.sendMessage(new TextComponentString(msg));
             });
 
             return null;

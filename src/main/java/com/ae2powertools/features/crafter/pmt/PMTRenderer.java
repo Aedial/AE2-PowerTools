@@ -13,7 +13,6 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.client.resources.I18n;
 
 import appeng.api.implementations.ICraftingPatternItem;
@@ -297,8 +296,8 @@ public class PMTRenderer {
         if (!isProcessingPattern(stack)) return;
 
         tooltip.add("");
-        tooltip.add(TextFormatting.RED + I18n.format("gui.ae2powertools.crafter.warning.processing_pattern_title"));
-        tooltip.add(TextFormatting.RED + I18n.format("gui.ae2powertools.crafter.warning.processing_pattern_desc"));
+        tooltip.add(I18n.format("gui.ae2powertools.crafter.warning.processing_pattern_title"));
+        tooltip.add(I18n.format("gui.ae2powertools.crafter.warning.processing_pattern_desc"));
     }
 
     /**

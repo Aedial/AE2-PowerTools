@@ -19,7 +19,6 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -155,11 +154,10 @@ public class ItemPriorityTuner extends Item {
         super.addInformation(stack, world, tooltip, flag);
 
         int priority = getStoredPriority(stack);
-        tooltip.add(TextFormatting.GOLD + I18n.format("item.ae2powertools.priority_tuner.stored",
-            TextFormatting.WHITE.toString() + priority + TextFormatting.GOLD));
+        tooltip.add(I18n.format("item.ae2powertools.priority_tuner.stored", priority));
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.priority_tuner.tip1"));
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.priority_tuner.tip2"));
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.priority_tuner.tip3"));
+        tooltip.add(I18n.format("item.ae2powertools.priority_tuner.tip1"));
+        tooltip.add(I18n.format("item.ae2powertools.priority_tuner.tip2"));
+        tooltip.add(I18n.format("item.ae2powertools.priority_tuner.tip3"));
     }
 }

@@ -26,7 +26,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -132,8 +131,8 @@ public class BlockAutoCrafter extends Block {
             @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
-        tooltip.add(TextFormatting.AQUA + I18n.format("tile.ae2powertools.auto_crafter.tooltip"));
-        tooltip.add(TextFormatting.YELLOW + I18n.format("tile.ae2powertools.auto_crafter.tooltip2"));
+        tooltip.add(I18n.format("tile.ae2powertools.auto_crafter.tooltip"));
+        tooltip.add(I18n.format("tile.ae2powertools.auto_crafter.tooltip2"));
     }
 
     @Override

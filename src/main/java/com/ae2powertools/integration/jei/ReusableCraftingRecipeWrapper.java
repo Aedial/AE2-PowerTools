@@ -22,7 +22,6 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.TextFormatting;
 
 import com.ae2powertools.recipes.ShapelessReusableIngredientRecipe;
 
@@ -70,7 +69,7 @@ public class ReusableCraftingRecipeWrapper implements ICustomCraftingRecipeWrapp
             if (!reusableGuiSlots.contains(slotIndex)) return;
 
             tooltip.add("");
-            tooltip.add(TextFormatting.GREEN + I18n.format("jei.ae2powertools.reusable"));
+            tooltip.add(I18n.format("jei.ae2powertools.reusable"));
         });
     }
 

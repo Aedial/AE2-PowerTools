@@ -322,9 +322,9 @@ public class ItemRemoteStorageMonitor extends Item implements IWirelessTermHandl
         }
 
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format("item.ae2powertools.remote_storage_monitor.tip1"));
-        tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2powertools.remote_storage_monitor.tip2"));
-        tooltip.add(TextFormatting.GRAY + I18n.format(
+        tooltip.add(I18n.format("item.ae2powertools.remote_storage_monitor.tip1"));
+        tooltip.add(I18n.format("item.ae2powertools.remote_storage_monitor.tip2"));
+        tooltip.add(I18n.format(
             "item.ae2powertools.remote_storage_monitor.tip3",
             FormatUtil.formatTimeTicks(getStoredRefreshRate(stack)),
             FormatUtil.formatTimeTicks(getStoredSlidingWindow(stack))));

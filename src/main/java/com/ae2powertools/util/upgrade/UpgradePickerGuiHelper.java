@@ -365,7 +365,7 @@ public class UpgradePickerGuiHelper extends AbstractModalGui {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format(COMMON_PREFIX + ".empty"));
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format(COMMON_PREFIX + ".compatible"));
+        tooltip.add(I18n.format(COMMON_PREFIX + ".compatible"));
 
         for (UpgradeCardDefinition definition : inventory.getSupportedUpgradeCards()) {
             ItemStack preview = definition.getPreviewStack();
@@ -393,13 +393,13 @@ public class UpgradePickerGuiHelper extends AbstractModalGui {
         UpgradeCardDefinition definition = inventory.findUpgradeDefinition(stack);
         if (definition != null) {
             tooltip.add("");
-            tooltip.add(TextFormatting.GRAY + I18n.format(getUpgradeDescriptionKey(inventory, stack)));
+            tooltip.add(I18n.format(getUpgradeDescriptionKey(inventory, stack)));
         }
 
         if (includeActions) {
             tooltip.add("");
-            tooltip.add(TextFormatting.GRAY + I18n.format(COMMON_PREFIX + ".action.select"));
-            tooltip.add(TextFormatting.GRAY + I18n.format(COMMON_PREFIX + ".action.remove"));
+            tooltip.add(I18n.format(COMMON_PREFIX + ".action.select"));
+            tooltip.add(I18n.format(COMMON_PREFIX + ".action.remove"));
         }
 
         return tooltip;

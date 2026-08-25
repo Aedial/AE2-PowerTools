@@ -484,6 +484,7 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
             @Nonnull ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
 
+        // TODO: Refactor adding the Linked/Unlinked status
         String encKey = null;
         if (stack.hasTagCompound()) {
             NBTTagCompound tag = Platform.openNbtData(stack);
@@ -501,7 +502,7 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
             I18n.format("item.ae2powertools.cards_distributor.tip1");
 
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + tip1);
-        tooltip.add(TextFormatting.GRAY + I18n.format("item.ae2powertools.cards_distributor.tip2"));
+        tooltip.add(tip1);
+        tooltip.add(I18n.format("item.ae2powertools.cards_distributor.tip2"));
     }
 }

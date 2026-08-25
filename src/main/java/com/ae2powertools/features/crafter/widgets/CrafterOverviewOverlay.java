@@ -171,7 +171,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
                 tooltip.add(stateTextProvider.apply(state));
                 if (!errorDetails.isEmpty()) {
                     tooltip.add("");
-                    tooltip.add(TextFormatting.RED + I18n.format("gui.ae2powertools.crafter.issues") + ":");
+                    tooltip.add(I18n.format("gui.ae2powertools.crafter.issues"));
                     for (ITextComponent detail : errorDetails) {
                         tooltip.add(TextFormatting.GRAY + "  - " + detail.getFormattedText());
                     }
@@ -179,7 +179,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
             }
 
             tooltip.add("");
-            tooltip.add(TextFormatting.DARK_GRAY + I18n.format("gui.ae2powertools.crafter.click_to_view"));
+            tooltip.add(I18n.format("gui.ae2powertools.crafter.click_to_view.muted"));
             GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, context.getWidgetWidth(), context.getWidgetHeight(), -1, context.getWidgetFontRenderer());
             return;
         }
@@ -191,12 +191,11 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
         } else {
             tooltip.add(output.createItemStack().getDisplayName());
             tooltip.add("");
-            tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.state")
-                + ": " + TextFormatting.RESET + stateTextProvider.apply(state));
+            tooltip.add(I18n.format("gui.ae2powertools.crafter.state", stateTextProvider.apply(state)));
 
             if (!errorDetails.isEmpty()) {
                 tooltip.add("");
-                tooltip.add(TextFormatting.RED + I18n.format("gui.ae2powertools.crafter.issues") + ":");
+                tooltip.add(I18n.format("gui.ae2powertools.crafter.issues"));
                 // Resolve each component in the player's locale at render time.
                 for (ITextComponent detail : errorDetails) {
                     tooltip.add(TextFormatting.GRAY + "  - " + detail.getFormattedText());
@@ -209,8 +208,8 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
             }
 
             tooltip.add("");
-            tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.crafter.click_to_view"));
-            tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.crafter.right_click_toggle"));
+            tooltip.add(I18n.format("gui.ae2powertools.crafter.click_to_view.action"));
+            tooltip.add(I18n.format("gui.ae2powertools.crafter.right_click_toggle.action"));
         }
 
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, context.getWidgetWidth(), context.getWidgetHeight(), -1, context.getWidgetFontRenderer());
@@ -324,20 +323,20 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
 
     private void addMetricsTooltip(List<String> tooltip, int entryIndex) {
         String occupancy = String.format("%.1f%%", occupancyProvider.applyAsDouble(entryIndex));
-        tooltip.add(TextFormatting.GREEN + I18n.format("gui.ae2powertools.crafter.occupancy", occupancy));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.occupancy_desc"));
+        tooltip.add(I18n.format("gui.ae2powertools.crafter.occupancy", occupancy));
+        tooltip.add(I18n.format("gui.ae2powertools.crafter.occupancy_desc"));
         tooltip.add("");
 
-        TextFormatting errorColor = TextFormatting.GREEN;
         double errorRate = errorRateProvider.applyAsDouble(entryIndex);
+        String errorRateKey = "gui.ae2powertools.crafter.error_rate.good";
         if (errorRate > 10) {
-            errorColor = TextFormatting.RED;
+            errorRateKey = "gui.ae2powertools.crafter.error_rate.critical";
         } else if (errorRate > 0) {
-            errorColor = TextFormatting.YELLOW;
+            errorRateKey = "gui.ae2powertools.crafter.error_rate.warning";
         }
 
         String errorRateText = String.format("%.1f%%", errorRate);
-        tooltip.add(errorColor + I18n.format("gui.ae2powertools.crafter.error_rate", errorRateText));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.crafter.error_rate_desc"));
+        tooltip.add(I18n.format(errorRateKey, errorRateText));
+        tooltip.add(I18n.format("gui.ae2powertools.crafter.error_rate_desc"));
     }
 }

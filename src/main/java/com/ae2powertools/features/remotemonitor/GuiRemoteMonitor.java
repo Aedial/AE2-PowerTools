@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -110,8 +109,8 @@ public class GuiRemoteMonitor extends WidgetGui {
         String formattedValue = FormatUtil.formatTimeTicks(value);
 
         List<String> tooltip = new ArrayList<>();
-        tooltip.add(TextFormatting.AQUA + I18n.format(prefix + ".tooltip", formattedValue));
-        tooltip.add(TextFormatting.GRAY + I18n.format(prefix + ".description"));
+        tooltip.add(I18n.format(prefix + ".tooltip", formattedValue));
+        tooltip.add(I18n.format(prefix + ".description"));
         return tooltip;
     }
 
@@ -128,7 +127,7 @@ public class GuiRemoteMonitor extends WidgetGui {
     private List<String> buildManualPollTooltip() {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.poll_now.title"));
-        tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.poll_now.description"));
+        tooltip.add(I18n.format("gui.ae2powertools.poll_now.description"));
         return tooltip;
     }
 
@@ -212,15 +211,15 @@ public class GuiRemoteMonitor extends WidgetGui {
 
         MonitoredResource resource = RemoteMonitorClientState.getOrCreateState(this.deviceId).getResources()[index];
         if (resource == null) {
-            tooltip.add(TextFormatting.GRAY + I18n.format("gui.ae2powertools.remote_monitor.empty_slot"));
+            tooltip.add(I18n.format("gui.ae2powertools.remote_monitor.empty_slot"));
         } else {
             tooltip.addAll(getResourceTooltip(resource, mouseX, mouseY));
         }
 
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.remote_monitor.slot_left_click"));
+        tooltip.add(I18n.format("gui.ae2powertools.remote_monitor.slot_left_click"));
         if (resource != null) {
-            tooltip.add(TextFormatting.AQUA + I18n.format("gui.ae2powertools.remote_monitor.slot_right_click"));
+            tooltip.add(I18n.format("gui.ae2powertools.remote_monitor.slot_right_click"));
         }
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
