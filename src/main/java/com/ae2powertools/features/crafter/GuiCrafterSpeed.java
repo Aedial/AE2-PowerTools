@@ -2,17 +2,17 @@ package com.ae2powertools.features.crafter;
 
 import java.io.IOException;
 
-import javax.annotation.Nonnull;
-
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 
 import appeng.client.gui.AEBaseGui;
-import appeng.client.gui.widgets.GuiTabButton;
 
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.TimeAdjustmentButtons;
+import com.ae2powertools.widgets.ItemTabButton;
+import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -21,9 +21,11 @@ import com.ae2powertools.util.TimeAdjustmentButtons;
  */
 public class GuiCrafterSpeed extends AEBaseGui {
 
-    private GuiTabButton backBtn;
+    private ItemTabButton backButton;
 
     private final TimeAdjustmentButtons timeButtons = new TimeAdjustmentButtons();
+    private final WidgetList widgets = new WidgetList();
+    private final WidgetContext widgetContext = WidgetContext.of(this);
 
     private final ContainerCrafterSpeed container;
 
@@ -35,18 +37,19 @@ public class GuiCrafterSpeed extends AEBaseGui {
     @Override
     public void initGui() {
         super.initGui();
+        this.buttonList.clear();
+        this.widgets.clear();
 
-        this.timeButtons.addTo(this.buttonList, this.guiLeft, this.guiTop);
+        this.timeButtons.addTo(this.widgets, this.guiLeft, this.guiTop, this::applyAdjustedSpeed);
 
         // Back button
         TileAutoCrafter tile = container.getTile();
-        this.buttonList.add(this.backBtn = new GuiTabButton(
+        this.backButton = this.widgets.add(new ItemTabButton(
             this.guiLeft + 154,
             this.guiTop,
             new ItemStack(tile.getBlockType()),
-            I18n.format("gui.ae2powertools.crafter.title"),
-            this.itemRender
-        ));
+            I18n.format("gui.ae2powertools.crafter.title")));
+        this.backButton.setOnClick(this::returnToCrafterGui);
     }
 
     @Override
@@ -68,31 +71,33 @@ public class GuiCrafterSpeed extends AEBaseGui {
         // Use AE2's priority texture as base
         this.bindTexture("guis/priority.png");
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
+
+        this.timeButtons.updateLabels();
+        this.widgets.draw(this.widgetContext, mouseX, mouseY);
     }
 
     @Override
-    protected void actionPerformed(@Nonnull GuiButton btn) throws IOException {
-        super.actionPerformed(btn);
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        this.widgets.drawTooltips(this.widgetContext, mouseX, mouseY);
+    }
 
-        if (btn == this.backBtn) {
-            // Send packet to server to return to main crafter GUI
-            // This ensures proper sync of values on first frame
-            TileAutoCrafter tile = container.getTile();
-            PowerToolsNetwork.INSTANCE.sendToServer(new PacketReturnToCrafterGui(tile.getPos()));
-            return;
-        }
-
-        int adjustedValue = this.timeButtons.getAdjustedValue(btn, container.speedTicks, TileAutoCrafter.MIN_SPEED_TICKS);
+    private void applyAdjustedSpeed(SmallVanillaButton button) {
+        int adjustedValue = this.timeButtons.getAdjustedValue(button, container.speedTicks, TileAutoCrafter.MIN_SPEED_TICKS);
         if (adjustedValue == Integer.MIN_VALUE) return;
 
         PowerToolsNetwork.INSTANCE.sendToServer(new PacketSetCrafterSpeed(container.getTile().getPos(), adjustedValue));
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        super.drawScreen(mouseX, mouseY, partialTicks);
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (this.widgets.mouseClicked(mouseX, mouseY, mouseButton)) return;
 
-        // Keep the button labels in sync with the active shift multiplier.
-        this.timeButtons.updateLabels();
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    private void returnToCrafterGui() {
+        TileAutoCrafter tile = container.getTile();
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketReturnToCrafterGui(tile.getPos()));
     }
 }

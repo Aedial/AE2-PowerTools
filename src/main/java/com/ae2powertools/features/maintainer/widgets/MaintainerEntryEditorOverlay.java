@@ -6,7 +6,6 @@ import java.util.function.Supplier;
 
 import org.lwjgl.input.Keyboard;
 
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
@@ -28,7 +27,9 @@ import com.ae2powertools.util.FormatUtil;
 import com.ae2powertools.widgets.AbstractModalGui;
 import com.ae2powertools.widgets.FormattedNumberFieldHelper;
 import com.ae2powertools.widgets.SearchableGridSelectorWidget;
+import com.ae2powertools.widgets.SmallVanillaButton;
 import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -59,7 +60,7 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
     private final SaveHandler saveHandler;
     private final StackSizeRenderer stackSizeRenderer = new StackSizeRenderer();
     private final SearchableGridSelectorWidget<IAEItemStack> selector;
-    private final List<GuiButton> frequencyButtons = new ArrayList<>();
+    private final WidgetList frequencyButtons = new WidgetList();
 
     private int entryIndex = -1;
     private MaintainerEntry workingEntry;
@@ -182,9 +183,7 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
         batchField.drawTextBox();
         frequencyField.drawTextBox();
 
-        for (GuiButton button : frequencyButtons) {
-            button.drawButton(context.getWidgetMinecraft(), mouseX, mouseY, partialTicks);
-        }
+        frequencyButtons.draw(context, mouseX, mouseY);
 
         context.getWidgetFontRenderer().drawString(
             I18n.format("gui.ae2powertools.maintainer.modal.target"),
@@ -315,12 +314,7 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
         targetField.mouseClicked(mouseX, mouseY, mouseButton);
         batchField.mouseClicked(mouseX, mouseY, mouseButton);
 
-        for (GuiButton button : frequencyButtons) {
-            if (button.mousePressed(context.getWidgetMinecraft(), mouseX, mouseY)) {
-                handleFrequencyButton(button);
-                return true;
-            }
-        }
+        if (frequencyButtons.mouseClicked(mouseX, mouseY, mouseButton)) return true;
 
         int localX = mouseX - modalLeft;
         int localY = mouseY - modalTop;
@@ -378,22 +372,28 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
         int buttonX = modalLeft + 3;
         int buttonY = modalTop + 48;
         int nextId = 100;
-        frequencyButtons.add(new GuiButton(nextId++, buttonX, buttonY, 26, 12, "-1s"));
-        frequencyButtons.add(new GuiButton(nextId++, buttonX + 28, buttonY, 26, 12, "+1s"));
+        addFrequencyButton(nextId++, buttonX, buttonY, "-1s");
+        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1s");
         buttonY += 14;
-        frequencyButtons.add(new GuiButton(nextId++, buttonX, buttonY, 26, 12, "-1m"));
-        frequencyButtons.add(new GuiButton(nextId++, buttonX + 28, buttonY, 26, 12, "+1m"));
+        addFrequencyButton(nextId++, buttonX, buttonY, "-1m");
+        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1m");
         buttonY += 14;
-        frequencyButtons.add(new GuiButton(nextId++, buttonX, buttonY, 26, 12, "-1h"));
-        frequencyButtons.add(new GuiButton(nextId++, buttonX + 28, buttonY, 26, 12, "+1h"));
+        addFrequencyButton(nextId++, buttonX, buttonY, "-1h");
+        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1h");
         buttonY += 14;
-        frequencyButtons.add(new GuiButton(nextId++, buttonX, buttonY, 26, 12, "-1d"));
-        frequencyButtons.add(new GuiButton(nextId++, buttonX + 28, buttonY, 26, 12, "+1d"));
+        addFrequencyButton(nextId++, buttonX, buttonY, "-1d");
+        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1d");
     }
 
-    private void handleFrequencyButton(GuiButton button) {
+    private void addFrequencyButton(int buttonId, int x, int y, String label) {
+        SmallVanillaButton button = new SmallVanillaButton(buttonId, x, y, 26, 12, label);
+        button.setOnClick(() -> handleFrequencyButton(button));
+        frequencyButtons.add(button);
+    }
+
+    private void handleFrequencyButton(SmallVanillaButton button) {
         int delta = 0;
-        String label = button.displayString;
+        String label = button.getLabel();
         switch (label) {
             case "-1s":
                 delta = -1;

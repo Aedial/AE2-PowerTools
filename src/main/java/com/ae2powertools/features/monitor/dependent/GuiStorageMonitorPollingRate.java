@@ -2,18 +2,18 @@ package com.ae2powertools.features.monitor.dependent;
 
 import java.io.IOException;
 
-import javax.annotation.Nonnull;
-
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 
 import appeng.client.gui.AEBaseGui;
-import appeng.client.gui.widgets.GuiTabButton;
 
 import com.ae2powertools.network.PacketReturnToStorageMonitorGui;
 import com.ae2powertools.network.PacketSetRefreshRate;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.TimeAdjustmentButtons;
+import com.ae2powertools.widgets.ItemTabButton;
+import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -26,8 +26,10 @@ public class GuiStorageMonitorPollingRate extends AEBaseGui {
 
     private final ContainerStorageMonitorPollingRate container;
 
-    private GuiTabButton backBtn;
+    private ItemTabButton backButton;
     private final TimeAdjustmentButtons timeButtons = new TimeAdjustmentButtons();
+    private final WidgetList widgets = new WidgetList();
+    private final WidgetContext widgetContext = WidgetContext.of(this);
 
     public GuiStorageMonitorPollingRate(ContainerStorageMonitorPollingRate container) {
         super(container);
@@ -37,17 +39,18 @@ public class GuiStorageMonitorPollingRate extends AEBaseGui {
     @Override
     public void initGui() {
         super.initGui();
+        this.buttonList.clear();
+        this.widgets.clear();
 
-        this.timeButtons.addTo(this.buttonList, this.guiLeft, this.guiTop);
+        this.timeButtons.addTo(this.widgets, this.guiLeft, this.guiTop, this::applyAdjustedRefreshRate);
 
         // Back button: shows the host's block as the icon, like AE2 / CELLS does.
-        this.buttonList.add(this.backBtn = new GuiTabButton(
+        this.backButton = this.widgets.add(new ItemTabButton(
             this.guiLeft + 154,
             this.guiTop,
             container.getHost().getBackButtonStack(),
-            I18n.format(container.getHost().getHostType().getTitleLangKey()),
-            this.itemRender
-        ));
+            I18n.format(container.getHost().getHostType().getTitleLangKey())));
+        this.backButton.setOnClick(this::returnToStorageMonitorGui);
     }
 
     @Override
@@ -71,20 +74,19 @@ public class GuiStorageMonitorPollingRate extends AEBaseGui {
         // Reuse AE2's priority texture for layout.
         this.bindTexture("guis/priority.png");
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
+
+        this.timeButtons.updateLabels();
+        this.widgets.draw(this.widgetContext, mouseX, mouseY);
     }
 
     @Override
-    protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
-        super.actionPerformed(btn);
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        this.widgets.drawTooltips(this.widgetContext, mouseX, mouseY);
+    }
 
-        if (btn == this.backBtn) {
-            // Return to the main GUI via a server round-trip so synced fields land before render.
-            PowerToolsNetwork.INSTANCE.sendToServer(
-                new PacketReturnToStorageMonitorGui(container.getHost()));
-            return;
-        }
-
-        int adjustedValue = this.timeButtons.getAdjustedValue(btn, container.refreshRate, MonitorLogic.MIN_REFRESH_RATE);
+    private void applyAdjustedRefreshRate(final SmallVanillaButton button) {
+        int adjustedValue = this.timeButtons.getAdjustedValue(button, container.refreshRate, MonitorLogic.MIN_REFRESH_RATE);
         if (adjustedValue == Integer.MIN_VALUE) return;
 
         PowerToolsNetwork.INSTANCE.sendToServer(
@@ -92,10 +94,14 @@ public class GuiStorageMonitorPollingRate extends AEBaseGui {
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        super.drawScreen(mouseX, mouseY, partialTicks);
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (this.widgets.mouseClicked(mouseX, mouseY, mouseButton)) return;
 
-        // Update labels live so the user always sees the actual delta a click will apply.
-        this.timeButtons.updateLabels();
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    private void returnToStorageMonitorGui() {
+        PowerToolsNetwork.INSTANCE.sendToServer(
+            new PacketReturnToStorageMonitorGui(container.getHost()));
     }
 }

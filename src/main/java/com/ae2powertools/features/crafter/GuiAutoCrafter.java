@@ -33,8 +33,8 @@ import com.ae2powertools.features.crafter.pmt.PMTRenderer;
 import com.ae2powertools.features.crafter.pmt.PMTSlot;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.FormatUtil;
-import com.ae2powertools.widgets.BeveledButton;
 import com.ae2powertools.widgets.QueuedItemRenderer;
+import com.ae2powertools.widgets.SmallVanillaButton;
 import com.ae2powertools.widgets.TexturedButton;
 import com.ae2powertools.widgets.WidgetAnchor;
 import com.ae2powertools.widgets.WidgetDrawHelper;
@@ -110,9 +110,9 @@ public class GuiAutoCrafter extends WidgetGui {
 
     private final ContainerAutoCrafter container;
     private final CrafterOverviewOverlay overviewOverlay;
-    private final BeveledButton overviewButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, "<");
-    private final BeveledButton pagePrevButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, "<");
-    private final BeveledButton pageNextButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, ">");
+    private final SmallVanillaButton overviewButton = new SmallVanillaButton(0, 0, 0, PAGE_BTN_SIZE, "<");
+    private final SmallVanillaButton pagePrevButton = new SmallVanillaButton(0, 0, 0, PAGE_BTN_SIZE, "<");
+    private final SmallVanillaButton pageNextButton = new SmallVanillaButton(0, 0, 0, PAGE_BTN_SIZE, ">");
     private final TexturedButton batchButton = new TexturedButton(0, 0, TAB_BTN_SIZE, BATCH_BUTTON_TEXTURE);
     private final TexturedButton speedButton = new TexturedButton(0, 0, TAB_BTN_SIZE, SPEED_BUTTON_TEXTURE);
 

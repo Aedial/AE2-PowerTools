@@ -1,12 +1,14 @@
 package com.ae2powertools.util;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.function.Consumer;
 
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.GuiButton;
+
+import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -37,7 +39,7 @@ public class StepAdjustmentButtons {
     private final int shiftMultiplier;
     private final int[] columnXOffsets;
     private final LabelFormatter labelFormatter;
-    private final GuiButton[] buttons;
+    private final SmallVanillaButton[] buttons;
     private final int[] columnWidths;
 
     public static StepAdjustmentButtons forNumeric(int... steps) {
@@ -57,7 +59,7 @@ public class StepAdjustmentButtons {
         this.shiftMultiplier = Math.max(1, shiftMultiplier);
         this.columnXOffsets = columnXOffsets == null ? null : Arrays.copyOf(columnXOffsets, columnXOffsets.length);
         this.labelFormatter = labelFormatter;
-        this.buttons = new GuiButton[this.baseSteps.length * 2];
+        this.buttons = new SmallVanillaButton[this.baseSteps.length * 2];
         this.columnWidths = new int[this.baseSteps.length];
 
         for (int columnIndex = 0; columnIndex < this.baseSteps.length; columnIndex++) {
@@ -65,7 +67,7 @@ public class StepAdjustmentButtons {
         }
     }
 
-    public void addTo(List<GuiButton> buttonList, int guiLeft, int guiTop) {
+    public void addTo(WidgetList buttonList, int guiLeft, int guiTop, Consumer<SmallVanillaButton> clickHandler) {
         int x = guiLeft + START_X;
 
         for (int columnIndex = 0; columnIndex < baseSteps.length; columnIndex++) {
@@ -74,23 +76,25 @@ public class StepAdjustmentButtons {
                 x = guiLeft + columnXOffsets[columnIndex];
             }
 
-            GuiButton positive = new GuiButton(
+            SmallVanillaButton positive = new SmallVanillaButton(
                 columnIndex,
                 x,
                 guiTop + TOP_ROW_Y,
                 width,
                 BUTTON_HEIGHT,
                 labelFormatter.formatLabel(columnIndex, 1, true));
+            positive.setOnClick(() -> clickHandler.accept(positive));
             buttons[columnIndex] = positive;
             buttonList.add(positive);
 
-            GuiButton negative = new GuiButton(
+            SmallVanillaButton negative = new SmallVanillaButton(
                 columnIndex + baseSteps.length,
                 x,
                 guiTop + BOTTOM_ROW_Y,
                 width,
                 BUTTON_HEIGHT,
                 labelFormatter.formatLabel(columnIndex, 1, false));
+            negative.setOnClick(() -> clickHandler.accept(negative));
             buttons[columnIndex + baseSteps.length] = negative;
             buttonList.add(negative);
 
@@ -98,22 +102,22 @@ public class StepAdjustmentButtons {
         }
     }
 
-    public boolean manages(GuiButton button) {
+    public boolean manages(SmallVanillaButton button) {
         if (button == null) return false;
-        if (button.id < 0 || button.id >= buttons.length) return false;
+        if (button.getId() < 0 || button.getId() >= buttons.length) return false;
 
-        return buttons[button.id] == button;
+        return buttons[button.getId()] == button;
     }
 
-    public int getDelta(GuiButton button) {
+    public int getDelta(SmallVanillaButton button) {
         if (!manages(button)) return 0;
 
-        int columnIndex = button.id % baseSteps.length;
-        int direction = button.id < baseSteps.length ? 1 : -1;
+        int columnIndex = button.getId() % baseSteps.length;
+        int direction = button.getId() < baseSteps.length ? 1 : -1;
         return baseSteps[columnIndex] * getCurrentMultiplier() * direction;
     }
 
-    public long getAdjustedValue(GuiButton button, long currentValue, long minimumValue, long maximumValue) {
+    public long getAdjustedValue(SmallVanillaButton button, long currentValue, long minimumValue, long maximumValue) {
         long result = currentValue + getDelta(button);
         return Math.max(minimumValue, Math.min(maximumValue, result));
     }
@@ -122,12 +126,12 @@ public class StepAdjustmentButtons {
         int multiplier = getCurrentMultiplier();
 
         for (int buttonIndex = 0; buttonIndex < buttons.length; buttonIndex++) {
-            GuiButton button = buttons[buttonIndex];
+            SmallVanillaButton button = buttons[buttonIndex];
             if (button == null) continue;
 
             int columnIndex = buttonIndex % baseSteps.length;
             boolean positive = buttonIndex < baseSteps.length;
-            button.displayString = labelFormatter.formatLabel(columnIndex, multiplier, positive);
+            button.setLabel(labelFormatter.formatLabel(columnIndex, multiplier, positive));
         }
     }
 

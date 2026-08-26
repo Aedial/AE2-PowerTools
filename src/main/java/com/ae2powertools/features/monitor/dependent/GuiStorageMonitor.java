@@ -43,9 +43,9 @@ import com.ae2powertools.util.FormatUtil;
 import com.ae2powertools.util.upgrade.ISelectableUpgradeInventory;
 import com.ae2powertools.util.upgrade.UpgradePickerGuiHelper;
 import com.ae2powertools.widgets.Ae2Button;
-import com.ae2powertools.widgets.BeveledButton;
 import com.ae2powertools.widgets.TabButton;
 import com.ae2powertools.widgets.SearchableGridSelectorWidget;
+import com.ae2powertools.widgets.SmallVanillaButton;
 import com.ae2powertools.widgets.WidgetAnchor;
 import com.ae2powertools.widgets.WidgetGui;
 
@@ -552,7 +552,7 @@ public class GuiStorageMonitor extends WidgetGui {
 
             for (int x = -1; x < 2; x += 2) {  // -1, 1
                 int delta = x * y * 5;
-                BeveledButton button = new BeveledButton(0, 0, STRENGTH_BTN_WIDTH, STRENGTH_BTN_HEIGHT, formatDelta(delta));
+                SmallVanillaButton button = new SmallVanillaButton(0, 0, 0, STRENGTH_BTN_WIDTH, STRENGTH_BTN_HEIGHT, formatDelta(delta));
                 button.setOnClick(() -> adjustEmitterStrength(delta));
                 registerWidget(button, btnX, btnY);
                 btnX += STRENGTH_BTN_X_OFFSET;

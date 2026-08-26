@@ -2,9 +2,6 @@ package com.ae2powertools.features.tuner;
 
 import java.io.IOException;
 
-import javax.annotation.Nonnull;
-
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
@@ -17,6 +14,9 @@ import appeng.client.gui.widgets.GuiNumberBox;
 import com.ae2powertools.network.PacketSetTunerPriority;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.StepAdjustmentButtons;
+import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -30,6 +30,8 @@ public class GuiPriorityTuner extends GuiContainer {
 
     private GuiNumberBox priorityField;
     private final StepAdjustmentButtons priorityButtons = StepAdjustmentButtons.forNumeric(1, 10, 100, 1000);
+    private final WidgetList widgets = new WidgetList();
+    private final WidgetContext widgetContext = WidgetContext.of(this);
 
     private final ContainerPriorityTuner container;
 
@@ -43,9 +45,11 @@ public class GuiPriorityTuner extends GuiContainer {
     @Override
     public void initGui() {
         super.initGui();
+        this.buttonList.clear();
+        this.widgets.clear();
 
         // Priority adjustment buttons
-        this.priorityButtons.addTo(this.buttonList, this.guiLeft, this.guiTop);
+        this.priorityButtons.addTo(this.widgets, this.guiLeft, this.guiTop, this::applyAdjustedPriority);
 
         // Priority text field
         this.priorityField = new GuiNumberBox(this.fontRenderer, this.guiLeft + 62, this.guiTop + 57, 59, this.fontRenderer.FONT_HEIGHT, Long.class);
@@ -70,18 +74,16 @@ public class GuiPriorityTuner extends GuiContainer {
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
 
         this.priorityField.drawTextBox();
+        this.widgets.draw(this.widgetContext, mouseX, mouseY);
     }
 
     @Override
-    protected void actionPerformed(@Nonnull GuiButton button) throws IOException {
-        super.actionPerformed(button);
-
-        if (!this.priorityButtons.manages(button)) return;
-
-        applyAdjustedPriority(button);
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        this.widgets.drawTooltips(this.widgetContext, mouseX, mouseY);
     }
 
-    private void applyAdjustedPriority(GuiButton button) {
+    private void applyAdjustedPriority(SmallVanillaButton button) {
         try {
             long adjustedValue = this.priorityButtons.getAdjustedValue(
                 button,
@@ -129,6 +131,8 @@ public class GuiPriorityTuner extends GuiContainer {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (this.widgets.mouseClicked(mouseX, mouseY, mouseButton)) return;
+
         super.mouseClicked(mouseX, mouseY, mouseButton);
         this.priorityField.mouseClicked(mouseX, mouseY, mouseButton);
     }

@@ -1,23 +1,20 @@
 package com.ae2powertools.features.remotemonitor;
 
 import java.io.IOException;
-import java.util.Collections;
-
-import javax.annotation.Nonnull;
 
 import org.lwjgl.input.Keyboard;
 
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 
-import appeng.client.gui.widgets.GuiTabButton;
-import appeng.client.gui.widgets.ITooltip;
-
 import com.ae2powertools.ItemRegistry;
 import com.ae2powertools.util.TimeAdjustmentButtons;
+import com.ae2powertools.widgets.ItemTabButton;
+import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -30,11 +27,13 @@ public abstract class GuiTimingScreen extends GuiScreen {
 
     private final long deviceId;
     private final TimeAdjustmentButtons timeButtons = new TimeAdjustmentButtons();
+    private final WidgetList widgets = new WidgetList();
+    private final WidgetContext widgetContext = WidgetContext.of(this);
 
     private int guiLeft;
     private int guiTop;
     private int currentValue;
-    private GuiTabButton backBtn;
+    private ItemTabButton backButton;
 
     protected GuiTimingScreen(long deviceId, int initialValue) {
         this.deviceId = deviceId;
@@ -48,43 +47,32 @@ public abstract class GuiTimingScreen extends GuiScreen {
     @Override
     public void initGui() {
         super.initGui();
+        this.buttonList.clear();
+        this.widgets.clear();
 
         this.guiLeft = (this.width - GUI_WIDTH) / 2;
         this.guiTop = (this.height - GUI_HEIGHT) / 2;
 
-        this.buttonList.clear();
-        this.timeButtons.addTo(this.buttonList, this.guiLeft, this.guiTop);
+        this.timeButtons.addTo(this.widgets, this.guiLeft, this.guiTop, this::applyAdjustedValue);
 
-        this.buttonList.add(this.backBtn = new GuiTabButton(
+        this.backButton = this.widgets.add(new ItemTabButton(
             this.guiLeft + 154,
             this.guiTop,
             new ItemStack(ItemRegistry.REMOTE_STORAGE_MONITOR),
-            I18n.format("gui.ae2powertools.remote_monitor.title"),
-            this.itemRender));
-    }
-
-    @Override
-    protected void actionPerformed(@Nonnull GuiButton button) throws IOException {
-        super.actionPerformed(button);
-
-        if (button == this.backBtn) {
-            returnToParent();
-            return;
-        }
-
-        int adjustedValue = this.timeButtons.getAdjustedValue(button, this.currentValue, getMinimumValue());
-        if (adjustedValue == Integer.MIN_VALUE) return;
-
-        sendUpdatedValue(adjustedValue);
+            I18n.format("gui.ae2powertools.remote_monitor.title")));
+        this.backButton.setOnClick(this::returnToParent);
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.currentValue = getSyncedValue();
 
+        this.timeButtons.updateLabels();
+
         this.drawDefaultBackground();
         this.mc.getTextureManager().bindTexture(new ResourceLocation("appliedenergistics2", "textures/guis/priority.png"));
         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, GUI_WIDTH, GUI_HEIGHT);
+        this.widgets.draw(this.widgetContext, mouseX, mouseY);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -98,9 +86,14 @@ public abstract class GuiTimingScreen extends GuiScreen {
             this.guiTop + 57,
             0xFFFFFF);
 
-        this.timeButtons.updateLabels();
+        this.widgets.drawTooltips(this.widgetContext, mouseX, mouseY);
+    }
 
-        drawBackButtonTooltip(mouseX, mouseY);
+    private void applyAdjustedValue(SmallVanillaButton button) {
+        int adjustedValue = this.timeButtons.getAdjustedValue(button, this.currentValue, getMinimumValue());
+        if (adjustedValue == Integer.MIN_VALUE) return;
+
+        sendUpdatedValue(adjustedValue);
     }
 
     @Override
@@ -113,23 +106,15 @@ public abstract class GuiTimingScreen extends GuiScreen {
         super.keyTyped(typedChar, keyCode);
     }
 
-    private void returnToParent() {
-        this.mc.displayGuiScreen(new GuiRemoteMonitor(this.deviceId));
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (this.widgets.mouseClicked(mouseX, mouseY, mouseButton)) return;
+
+        super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
-    private void drawBackButtonTooltip(int mouseX, int mouseY) {
-        if (this.backBtn == null || !this.backBtn.visible) return;
-
-        ITooltip tooltip = this.backBtn;
-        int x = tooltip.xPos();
-        int y = tooltip.yPos();
-        if (mouseX < x || mouseX >= x + tooltip.getWidth()) return;
-        if (mouseY < y || mouseY >= y + tooltip.getHeight()) return;
-
-        String message = tooltip.getMessage();
-        if (message == null || message.isEmpty()) return;
-
-        this.drawHoveringText(Collections.singletonList(message), x + 11, Math.max(15, y + 4), this.fontRenderer);
+    private void returnToParent() {
+        this.mc.displayGuiScreen(new GuiRemoteMonitor(this.deviceId));
     }
 
     protected abstract int getSyncedValue();

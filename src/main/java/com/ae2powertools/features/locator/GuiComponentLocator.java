@@ -21,6 +21,9 @@ import com.ae2powertools.client.PowerToolsClientConfig;
 import com.ae2powertools.features.locator.LocatorClientState.ComponentLocationClient;
 import com.ae2powertools.features.locator.LocatorClientState.ComponentTypeClient;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -78,7 +81,6 @@ public class GuiComponentLocator extends GuiScreen {
     private static final int COLOR_HOVER = 0x40FFFFFF;             // White hover highlight
     private static final int COLOR_TEXT = 0x000000;                // Dark text (AE2 standard)
     private static final int COLOR_TEXT_BLACK = 0x000000;          // Black text (for selection)
-    private static final int COLOR_TEXT_WHITE = 0xFFFFFF;          // White text (for buttons)
     private static final int COLOR_TEXT_DIM = 0x808080;            // Dimmed text
 
     // ========== Arrow Button Constants ==========
@@ -111,13 +113,14 @@ public class GuiComponentLocator extends GuiScreen {
     private int subnetButtonX, subnetButtonY;
     private boolean subnetButtonHovered = false;
 
-    // Select/Clear all button hover states
-    private boolean selectAllButtonHovered = false;
-    private boolean clearAllButtonHovered = false;
-
     // Drag scrolling state
     private boolean isDraggingGridScrollbar = false;
     private boolean isDraggingDetailScrollbar = false;
+
+    private final WidgetList detailActionButtons = new WidgetList();
+    private final WidgetContext widgetContext = WidgetContext.of(this);
+    private SmallVanillaButton selectAllButton;
+    private SmallVanillaButton clearAllButton;
 
     // Cache sorted locations for detail view
     private List<ComponentLocationClient> sortedLocations = null;
@@ -162,12 +165,11 @@ public class GuiComponentLocator extends GuiScreen {
         hoveredBackArrow = false;
         styleButtonHovered = false;
         subnetButtonHovered = false;
-        selectAllButtonHovered = false;
-        clearAllButtonHovered = false;
-
         // Invalidate sorted locations cache on init
         sortedLocations = null;
         originalIndices = null;
+
+        initDetailActionButtons();
     }
 
     @Override
@@ -591,62 +593,14 @@ public class GuiComponentLocator extends GuiScreen {
         }
 
         // Draw Select All / Clear All buttons in the footer
-        drawDetailFooterButtons(mouseX, mouseY, selectedCount);
+        drawDetailFooterButtons(mouseX, mouseY);
     }
 
     /**
      * Draw Select All and Clear All buttons in the detail view footer using vanilla button style.
      */
-    private void drawDetailFooterButtons(int mouseX, int mouseY, int selectedCount) {
-        // Calculate button positions
-        int footerTop = guiTop + currentYSize - FOOTER_HEIGHT;
-        int buttonY = footerTop + ACTION_BUTTON_Y_OFFSET;
-        int selectAllX = guiLeft + 8;
-        int clearAllX = selectAllX + ACTION_BUTTON_WIDTH + ACTION_BUTTON_GAP;
-
-        // Update button hover states
-        selectAllButtonHovered = mouseX >= selectAllX && mouseX < selectAllX + ACTION_BUTTON_WIDTH
-            && mouseY >= buttonY && mouseY < buttonY + ACTION_BUTTON_HEIGHT;
-        clearAllButtonHovered = mouseX >= clearAllX && mouseX < clearAllX + ACTION_BUTTON_WIDTH
-            && mouseY >= buttonY && mouseY < buttonY + ACTION_BUTTON_HEIGHT;
-
-        // Draw Select All button using vanilla button texture
-        String selectText = I18n.format("gui.ae2powertools.scanner.select_all");
-        drawVanillaButton(selectAllX, buttonY, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT,
-            selectText, selectAllButtonHovered);
-
-        // Draw Clear All button using vanilla button texture
-        String clearText = I18n.format("gui.ae2powertools.scanner.deselect_all");
-        drawVanillaButton(clearAllX, buttonY, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT,
-            clearText, clearAllButtonHovered);
-    }
-
-    /**
-     * Draw a vanilla-style button using the widgets texture (like GuiButton).
-     * Uses standard Minecraft button rendering with proper 9-slice.
-     */
-    private void drawVanillaButton(int x, int y, int width, int height, String text, boolean hovered) {
-        mc.getTextureManager().bindTexture(new ResourceLocation("minecraft", "textures/gui/widgets.png"));
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
-
-        // Vanilla button texture layout in widgets.png:
-        // y=46: disabled, y=66: normal, y=86: hovered
-        // Each button is 200x20 pixels
-        int texY = hovered ? 86 : 66;
-
-        // Draw using vanilla's half-button approach (like GuiButton does)
-        // Left half from texture start, right half from texture end
-        int halfWidth = width / 2;
-
-        // Left half of button
-        drawTexturedModalRect(x, y, 0, texY, halfWidth, height);
-        // Right half of button (from end of texture)
-        drawTexturedModalRect(x + halfWidth, y, 200 - (width - halfWidth), texY, width - halfWidth, height);
-
-        // Draw centered text with shadow (standard for buttons)
-        int textX = x + (width - fontRenderer.getStringWidth(text)) / 2;
-        int textY_ = y + (height - 8) / 2;
-        fontRenderer.drawStringWithShadow(text, textX, textY_, hovered ? 0xFFFFA0 : COLOR_TEXT_WHITE);
+    private void drawDetailFooterButtons(int mouseX, int mouseY) {
+        detailActionButtons.draw(widgetContext, mouseX, mouseY);
     }
 
     private void drawDetailScrollbar(int visibleRows, int totalRows) {
@@ -879,25 +833,40 @@ public class GuiComponentLocator extends GuiScreen {
             return;
         }
 
-        // Select All button
-        if (selectAllButtonHovered) {
-            LocatorClientState.selectAll();
-
-            return;
-        }
-
-        // Clear All button
-        if (clearAllButtonHovered) {
-            LocatorClientState.deselectAll();
-
-            return;
-        }
+        if (detailActionButtons.mouseClicked(mouseX, mouseY, mouseButton)) return;
 
         // Location row toggle
         if (hoveredDetailRow >= 0 && sortedLocations != null && hoveredDetailRow < sortedLocations.size()) {
             int originalIdx = originalIndices.get(hoveredDetailRow);
             LocatorClientState.toggleLocationSelection(originalIdx);
         }
+    }
+
+    private void initDetailActionButtons() {
+        detailActionButtons.clear();
+
+        int footerTop = guiTop + currentYSize - FOOTER_HEIGHT;
+        int buttonY = footerTop + ACTION_BUTTON_Y_OFFSET;
+        int selectAllX = guiLeft + 8;
+        int clearAllX = selectAllX + ACTION_BUTTON_WIDTH + ACTION_BUTTON_GAP;
+
+        selectAllButton = detailActionButtons.add(new SmallVanillaButton(
+            0,
+            selectAllX,
+            buttonY,
+            ACTION_BUTTON_WIDTH,
+            ACTION_BUTTON_HEIGHT,
+            I18n.format("gui.ae2powertools.scanner.select_all")));
+        selectAllButton.setOnClick(LocatorClientState::selectAll);
+
+        clearAllButton = detailActionButtons.add(new SmallVanillaButton(
+            1,
+            clearAllX,
+            buttonY,
+            ACTION_BUTTON_WIDTH,
+            ACTION_BUTTON_HEIGHT,
+            I18n.format("gui.ae2powertools.scanner.deselect_all")));
+        clearAllButton.setOnClick(LocatorClientState::deselectAll);
     }
 
     @Override

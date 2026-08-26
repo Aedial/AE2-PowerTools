@@ -26,8 +26,8 @@ import com.ae2powertools.Tags;
 import com.ae2powertools.features.crafter.CrafterState;
 import com.ae2powertools.features.crafter.TileAutoCrafter;
 import com.ae2powertools.widgets.AbstractModalGui;
-import com.ae2powertools.widgets.BeveledButton;
 import com.ae2powertools.widgets.QueuedItemRenderer;
+import com.ae2powertools.widgets.SmallVanillaButton;
 import com.ae2powertools.widgets.WidgetContext;
 
 
@@ -62,7 +62,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
     private final Function<CrafterState, String> stateTextProvider;
     private final IntConsumer pageSelectionHandler;
     private final IntConsumer toggleEntryHandler;
-    private final BeveledButton closeButton = new BeveledButton(0, 0, PAGE_BTN_SIZE, ">");
+    private final SmallVanillaButton closeButton = new SmallVanillaButton(0, 0, 0, PAGE_BTN_SIZE, ">");
 
     private int overviewLeft;
     private int overviewTop;

@@ -1,6 +1,6 @@
 package com.ae2powertools.util;
 
-import net.minecraft.client.gui.GuiButton;
+import com.ae2powertools.widgets.SmallVanillaButton;
 
 
 /**
@@ -24,7 +24,7 @@ public class TimeAdjustmentButtons extends StepAdjustmentButtons {
         });
     }
 
-    public int getAdjustedValue(final GuiButton button, final long currentValue, final int minimumValue) {
+    public int getAdjustedValue(final SmallVanillaButton button, final long currentValue, final int minimumValue) {
         if (!this.manages(button)) return Integer.MIN_VALUE;
 
         long adjustedValue = super.getAdjustedValue(button, currentValue, minimumValue, Integer.MAX_VALUE);

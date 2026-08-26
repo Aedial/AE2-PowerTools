@@ -11,7 +11,6 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -32,6 +31,9 @@ import com.ae2powertools.features.scanner.ScannerClientState.Tab;
 import com.ae2powertools.network.PacketScannerCancel;
 import com.ae2powertools.network.PacketScannerToggleSubnet;
 import com.ae2powertools.network.PowerToolsNetwork;
+import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.WidgetContext;
+import com.ae2powertools.widgets.WidgetList;
 
 
 /**
@@ -107,9 +109,11 @@ public class GuiNetworkHealthScanner extends GuiScreen {
     private final List<String> footerLines = new ArrayList<>();
 
     // Buttons
-    private GuiButton selectAllButton;
-    private GuiButton deselectAllButton;
-    private GuiButton cancelButton;
+    private final WidgetList headerButtons = new WidgetList();
+    private final WidgetContext widgetContext = WidgetContext.of(this);
+    private SmallVanillaButton selectAllButton;
+    private SmallVanillaButton deselectAllButton;
+    private SmallVanillaButton cancelButton;
 
     // Sort button (custom-drawn icon button, right side of GUI)
     private boolean sortButtonHovered = false;
@@ -155,9 +159,17 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         }
     }
 
+    private void cancelScan() {
+        long deviceId = ScannerClientState.getActiveDeviceId();
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketScannerCancel(deviceId));
+        ScannerClientState.setActiveSession(deviceId, false);
+        mc.displayGuiScreen(null);
+    }
+
     @Override
     public void initGui() {
         super.initGui();
+        buttonList.clear();
 
         // Build rows first to calculate dimensions
         rebuildDisplayRows();
@@ -181,13 +193,34 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int deselectAllWidth = fontRenderer.getStringWidth(deselectAllText) + buttonPadding;
         int cancelWidth = fontRenderer.getStringWidth(cancelText) + buttonPadding;
 
-        selectAllButton = new GuiButton(0, guiLeft + TAB_SIZE + PADDING + 2, buttonY, selectAllWidth, buttonHeight, selectAllText);
-        deselectAllButton = new GuiButton(1, guiLeft + TAB_SIZE + PADDING + 2 + selectAllWidth + spacing, buttonY, deselectAllWidth, buttonHeight, deselectAllText);
-        cancelButton = new GuiButton(2, guiLeft + guiWidth - cancelWidth - 6, buttonY, cancelWidth, buttonHeight, cancelText);
+        headerButtons.clear();
 
-        buttonList.add(selectAllButton);
-        buttonList.add(deselectAllButton);
-        buttonList.add(cancelButton);
+        selectAllButton = headerButtons.add(new SmallVanillaButton(
+            0,
+            guiLeft + TAB_SIZE + PADDING + 2,
+            buttonY,
+            selectAllWidth,
+            buttonHeight,
+            selectAllText));
+        selectAllButton.setOnClick(ScannerClientState::selectAll);
+
+        deselectAllButton = headerButtons.add(new SmallVanillaButton(
+            1,
+            guiLeft + TAB_SIZE + PADDING + 2 + selectAllWidth + spacing,
+            buttonY,
+            deselectAllWidth,
+            buttonHeight,
+            deselectAllText));
+        deselectAllButton.setOnClick(ScannerClientState::deselectAll);
+
+        cancelButton = headerButtons.add(new SmallVanillaButton(
+            2,
+            guiLeft + guiWidth - cancelWidth - 6,
+            buttonY,
+            cancelWidth,
+            buttonHeight,
+            cancelText));
+        cancelButton.setOnClick(this::cancelScan);
 
         scrollOffset = 0;
     }
@@ -252,32 +285,11 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         int buttonY = guiTop + 6;
         int spacing = 4;
 
-        selectAllButton.x = guiLeft + TAB_SIZE + PADDING + 2;
-        selectAllButton.y = buttonY;
-        deselectAllButton.x = selectAllButton.x + selectAllButton.width + spacing;
-        deselectAllButton.y = buttonY;
-        cancelButton.x = guiLeft + guiWidth - cancelButton.width - 6;
-        cancelButton.y = buttonY;
-    }
+        if (selectAllButton == null || deselectAllButton == null || cancelButton == null) return;
 
-    @Override
-    protected void actionPerformed(GuiButton button) {
-        switch (button.id) {
-            case 0: // Select All
-                ScannerClientState.selectAll();
-                break;
-
-            case 1: // Deselect All
-                ScannerClientState.deselectAll();
-                break;
-
-            case 2: // Cancel - cancels the scan session
-                long deviceId = ScannerClientState.getActiveDeviceId();
-                PowerToolsNetwork.INSTANCE.sendToServer(new PacketScannerCancel(deviceId));
-                ScannerClientState.setActiveSession(deviceId, false);
-                mc.displayGuiScreen(null);
-                break;
-        }
+        selectAllButton.setPosition(guiLeft + TAB_SIZE + PADDING + 2, buttonY);
+        deselectAllButton.setPosition(selectAllButton.getX() + selectAllButton.getWidth() + spacing, buttonY);
+        cancelButton.setPosition(guiLeft + guiWidth - cancelButton.getWidth() - 6, buttonY);
     }
 
     private void rebuildDisplayRows() {
@@ -746,8 +758,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         // Draw scrollbar
         drawScrollbar(guiLeft + guiWidth - SCROLLBAR_WIDTH, contentTop, SCROLLBAR_WIDTH, contentHeight);
 
-        // Draw buttons
         super.drawScreen(mouseX, mouseY, partialTicks);
+        headerButtons.draw(widgetContext, mouseX, mouseY);
 
         // Draw tooltips last (on top of everything)
         drawTabTooltips(mouseX, mouseY);
@@ -1091,6 +1103,8 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (headerButtons.mouseClicked(mouseX, mouseY, mouseButton)) return;
+
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
         if (mouseButton != 0) return;
