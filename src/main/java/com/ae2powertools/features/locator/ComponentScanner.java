@@ -124,10 +124,18 @@ public class ComponentScanner {
                 if (representation.isEmpty()) continue;
 
                 DimensionalCoord coord = blk.getLocation();
-                ItemStackKey key = ItemStackKey.of(representation);
+
+                // Components can have different NBT data from internal inventory,
+                // so we normalize them. AE2 components *should never* use NBT data
+                // to differentiate between different types of the same component.
+                ItemStack componentRepresentation = representation.copy();
+                componentRepresentation.setCount(1);
+                componentRepresentation.setTagCompound(null);
+
+                ItemStackKey key = ItemStackKey.of(componentRepresentation);
                 if (key == null) continue;
 
-                ComponentType type = typeMap.computeIfAbsent(key, k -> new ComponentType(representation));
+                ComponentType type = typeMap.computeIfAbsent(key, k -> new ComponentType(componentRepresentation));
                 type.addLocation(coord.getPos(), coord.getWorld().provider.getDimension());
             }
         }
