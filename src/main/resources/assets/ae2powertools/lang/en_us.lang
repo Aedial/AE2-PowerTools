@@ -102,6 +102,9 @@ gui.ae2powertools.scanner.fatal.duplicate_storage_target.entry=%1$s -> shared ta
 gui.ae2powertools.scanner.fatal.same_network_interface_link.title=Main net linked to its subnet
 gui.ae2powertools.scanner.fatal.same_network_interface_link.tooltip=A storage bus points at an interface that belongs to the same grid. This feeds the main network back into itself and can misreport quantities.
 gui.ae2powertools.scanner.fatal.same_network_interface_link.entry=%1$s -> same-network interface
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.title=Chunk-boundary multiblocks
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.tooltip=This AE2 multiblock spans chunk boundaries. It may not form back or fail catastrophically when those chunks load out-of-sync.
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.entry=%s
 gui.ae2powertools.scanner.sort_distance=Distance
 gui.ae2powertools.scanner.sort_name=Name
 gui.ae2powertools.scanner.sort_tooltip=Sort by: %s
@@ -143,6 +146,7 @@ ae2powertools.scanner.complete.summary.line3=- Found %d chokepoint(s)
 ae2powertools.scanner.complete.summary.line4=- Found %d device(s) without channels
 ae2powertools.scanner.complete.summary.line5=- Found %d fatal error(s)
 ae2powertools.scanner.complete.summary.line6=- Found %d pattern issue(s)
+ae2powertools.scanner.complete.summary.end=§bRight-click the scanner to open the GUI and filter the results.
 
 # =====================================================
 # Better Level Maintainer

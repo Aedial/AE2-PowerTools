@@ -288,6 +288,9 @@ public class ScanSessionManager {
         root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line5", fatal));
         root.appendText("\n");
         root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.line6", patterns));
+        root.appendText("\n");
+        root.appendText("\n");
+        root.appendSibling(new TextComponentTranslation("ae2powertools.scanner.complete.summary.end"));
 
         return root;
     }

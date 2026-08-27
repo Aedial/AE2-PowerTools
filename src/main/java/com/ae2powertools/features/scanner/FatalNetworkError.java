@@ -12,7 +12,8 @@ public class FatalNetworkError extends AbstractLocation {
 
     public enum Category {
         DUPLICATE_STORAGE_TARGET("duplicate_storage_target"),
-        SAME_NETWORK_INTERFACE_LINK("same_network_interface_link");
+        SAME_NETWORK_INTERFACE_LINK("same_network_interface_link"),
+        CHUNK_BOUNDARY_MULTIBLOCK("chunk_boundary_multiblock");
 
         private final String translationSuffix;
 

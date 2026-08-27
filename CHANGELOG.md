@@ -17,6 +17,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [1.6.8] - 2026-08-???
+### Added
+- Add chunk-boundary checks for AE2 multiblocks to the Network Health Scanner's fatal errors.
+
 ### Fixed
 - Fix tooltip leaking from under the Maintainer modal when it is open.
 - Fix Maintainer not being able to reconcile finished jobs after a network disconnect, which could cause the Maintainer to think it was still waiting for a job that had already ended.

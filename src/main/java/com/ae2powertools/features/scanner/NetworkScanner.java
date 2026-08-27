@@ -11,6 +11,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -104,6 +105,7 @@ public class NetworkScanner {
     private final Map<IGridNode, PathNode> visitedNodes = new HashMap<>();
     private final Set<IssueLocation> detectedLoops = new HashSet<>();
     private final Set<ChunkLocation> unloadedChunks = new HashSet<>();
+    private final Set<FatalNetworkError> multiblockFatalErrors = new HashSet<>();
 
     // Track multiblock clusters and where they were first entered from outside.
     // If we enter the same cluster from outside again, that indicates a loop.
@@ -370,6 +372,7 @@ public class NetworkScanner {
     }
 
     private boolean processPatternScan() {
+        scanMultiblockChunkBoundaryIssues();
         scanPatternIssues();
 
         return advanceAfterCurrentGridScan();
@@ -979,6 +982,86 @@ public class NetworkScanner {
     }
 
     /**
+     * Report every formed AE2 multiblock that physically crosses a chunk boundary.
+     * <p>
+     * Out-of-sync first chunk loads can cause multiblocks to form across chunk boundaries,
+     * leading to broken behavior. This is particularly flaky as chunks may or may not
+     * load at the same time depending on what's inside and current server load.
+     */
+    private void scanMultiblockChunkBoundaryIssues() {
+        multiblockFatalErrors.clear();
+
+        Map<IGridHost, DimensionalCoord> hostLocations = new IdentityHashMap<>();
+        for (IGridNode node : visitedNodes.keySet()) {
+            IGridHost host = node.getMachine();
+            if (hostLocations.containsKey(host)) continue;
+
+            try {
+                hostLocations.put(host, node.getGridBlock().getLocation());
+            } catch (Exception e) {
+                // A non-world node need not expose a usable location.
+            }
+        }
+
+        Set<IAECluster> scannedClusters = Collections.newSetFromMap(new IdentityHashMap<IAECluster, Boolean>());
+        for (IGridNode node : visitedNodes.keySet()) {
+            IAECluster cluster = getClusterOf(node.getMachine());
+            if (cluster == null || !scannedClusters.add(cluster)) continue;
+
+            addChunkBoundaryMultiblockError(cluster, node, hostLocations);
+        }
+    }
+
+    private void addChunkBoundaryMultiblockError(IAECluster cluster, IGridNode representativeNode,
+            Map<IGridHost, DimensionalCoord> hostLocations) {
+        Set<ChunkLocation> occupiedChunks = new HashSet<>();
+        DimensionalCoord marker = null;
+
+        Iterator<IGridHost> tiles = cluster.getTiles();
+        while (tiles.hasNext()) {
+            DimensionalCoord location = getMultiblockHostLocation(tiles.next(), hostLocations);
+            if (location == null) continue;
+
+            World tileWorld = location.getWorld();
+            int dimension = tileWorld.provider.getDimension();
+            String dimensionName = tileWorld.provider.getDimensionType().getName();
+            occupiedChunks.add(new ChunkLocation(new ChunkPos(location.getPos()), dimension, dimensionName));
+
+            if (marker == null) marker = location;
+        }
+
+        if (marker == null || occupiedChunks.size() < 2) return;
+
+        World markerWorld = marker.getWorld();
+        BlockPos markerPos = marker.getPos();
+        BlockPos sourcePos = getNodePosition(representativeNode);
+        if (sourcePos == null) sourcePos = markerPos;
+
+        multiblockFatalErrors.add(new FatalNetworkError(
+            FatalNetworkError.Category.CHUNK_BOUNDARY_MULTIBLOCK,
+            markerPos,
+            markerWorld.provider.getDimension(),
+            markerWorld.provider.getDimensionType().getName(),
+            ScannerTextHelper.getNodeDescription(representativeNode),
+            sourcePos
+        ));
+    }
+
+    /**
+     * Resolve a multiblock member without assuming that all IAEMultiBlock
+     * implementations are TileEntities.
+     */
+    private DimensionalCoord getMultiblockHostLocation(IGridHost host,
+            Map<IGridHost, DimensionalCoord> hostLocations) {
+        if (host instanceof TileEntity) {
+            TileEntity tile = (TileEntity) host;
+            if (tile.getWorld() != null) return new DimensionalCoord(tile);
+        }
+
+        return hostLocations.get(host);
+    }
+
+    /**
      * Add a loop location to the detected loops set.
      * We report the location of the current node that discovered the loop-closing edge.
      */
@@ -1410,6 +1493,7 @@ public class NetworkScanner {
 
     public Set<FatalNetworkError> getFatalErrors() {
         Set<FatalNetworkError> combined = new HashSet<>(subnetFatalErrors);
+        combined.addAll(multiblockFatalErrors);
 
         if (channelScanner != null) combined.addAll(channelScanner.getFatalErrors());
         if (activeSubnetScanner != null) combined.addAll(activeSubnetScanner.getFatalErrors());
