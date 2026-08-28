@@ -11,7 +11,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.inventory.Slot;
@@ -35,6 +34,7 @@ import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.FormatUtil;
 import com.ae2powertools.widgets.QueuedItemRenderer;
 import com.ae2powertools.widgets.SmallVanillaButton;
+import com.ae2powertools.widgets.StencilItemRenderer;
 import com.ae2powertools.widgets.TexturedButton;
 import com.ae2powertools.widgets.WidgetAnchor;
 import com.ae2powertools.widgets.WidgetDrawHelper;
@@ -527,6 +527,7 @@ public class GuiAutoCrafter extends WidgetGui {
     private void drawRecipeContent(int mouseX, int mouseY) {
         int currentPage = getCurrentPage();
         QueuedItemRenderer itemQueue = new QueuedItemRenderer();
+        StencilItemRenderer catalystQueue = new StencilItemRenderer();
 
         // Don't update hover state if overview modal is open
         if (!overviewOverlay.isOpen()) {
@@ -577,8 +578,9 @@ public class GuiAutoCrafter extends WidgetGui {
             }
 
             // Draw catalyst ghost items using synced catalyst data
-            drawCatalystGhosts(currentPage, itemQueue);
+            drawCatalystGhosts(currentPage, catalystQueue);
             itemQueue.flush(this);
+            catalystQueue.flush(this);
 
             // Draw speed info (under catalyst slots) using synced values
             drawSpeedInfo(currentPage, guiLeft + SPEED_INFO_X, guiTop + SPEED_INFO_Y);
@@ -598,7 +600,7 @@ public class GuiAutoCrafter extends WidgetGui {
      * while using the explicitly-synced current catalyst contents to decide whether the
      * real item is present.
      */
-    private void drawCatalystGhosts(int entryIndex, QueuedItemRenderer itemQueue) {
+    private void drawCatalystGhosts(int entryIndex, StencilItemRenderer catalystQueue) {
         List<CatalystInfo> catalysts = getSyncedCatalystInfo(entryIndex);
         if (catalysts.isEmpty()) return;
 
@@ -613,7 +615,7 @@ public class GuiAutoCrafter extends WidgetGui {
             int y = guiTop + CATALYST_START_Y;
 
             if ((current == null || current.isEmpty()) && catalyst.expectedItem != null) {
-                queueGhostItemStack(itemQueue, catalyst.expectedItem.createItemStack(), x, y);
+                catalystQueue.queue(catalyst.expectedItem.createItemStack(), x, y);
             }
         }
     }
@@ -1025,27 +1027,6 @@ public class GuiAutoCrafter extends WidgetGui {
         itemQueue.queue(context -> {
             context.getWidgetItemRenderer().renderItemAndEffectIntoGUI(stack, x, y);
             context.getWidgetItemRenderer().renderItemOverlayIntoGUI(context.getWidgetFontRenderer(), stack, x, y, null);
-        });
-    }
-
-    private void queueGhostItemStack(QueuedItemRenderer itemQueue, ItemStack stack, int x, int y) {
-        itemQueue.queue(context -> {
-            context.getWidgetItemRenderer().renderItemAndEffectIntoGUI(stack, x, y);
-            context.getWidgetItemRenderer().renderItemOverlayIntoGUI(context.getWidgetFontRenderer(), stack, x, y, null);
-
-            // TODO: We use a slot-wide effect to indicate ghost items because ItemStacks ignore the alpha channel in 1.12
-            //       Ideally, we should have a solution that does not involve the whole slot but just the item itself.
-            RenderHelper.disableStandardItemLighting();
-            GlStateManager.disableLighting();
-            GlStateManager.disableDepth();
-            GlStateManager.enableBlend();
-            GlStateManager.blendFunc(
-                GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-            drawRect(x, y, x + 16, y + 16, 0xAA555555);
-            GlStateManager.disableBlend();
-            GlStateManager.enableDepth();
-            RenderHelper.enableGUIStandardItemLighting();
         });
     }
 }

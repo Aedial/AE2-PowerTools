@@ -2,6 +2,7 @@
 package com.ae2powertools;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.item.Item;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.event.TextureStitchEvent;
@@ -42,6 +43,9 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+
+        Framebuffer framebuffer = Minecraft.getMinecraft().getFramebuffer();
+        if (!framebuffer.isStencilEnabled()) framebuffer.enableStencil();
 
         if (Loader.isModLoaded(WAILA_MODID)) registerWailaIntegration();
 
