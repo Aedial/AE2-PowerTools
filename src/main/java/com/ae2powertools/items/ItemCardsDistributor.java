@@ -235,21 +235,34 @@ public class ItemCardsDistributor extends Item implements IWirelessTermHandler {
     private List<AssemblerInfo> collectAssemblersNeedingCards(IGrid grid) {
         List<AssemblerInfo> assemblersToUpgrade = new ArrayList<>();
 
-        for (IGridNode node : grid.getMachines(TileMolecularAssembler.class)) {
-            Object machine = node.getMachine();
-            if (!(machine instanceof TileMolecularAssembler)) continue;
+        // AE2 stores grid machines under their exact runtime class, so subclassed assemblers
+        // must be discovered by scanning the registered machine classes instead of only the
+        // base TileMolecularAssembler key.
+        // We check for assignability to TileMolecularAssembler to find all assembler-like machines.
+        // They are *supposed* to accept the same upgrades under the same rules.
+        for (Class<? extends IGridHost> machineClass : grid.getMachinesClasses()) {
+            if (!TileMolecularAssembler.class.isAssignableFrom(machineClass)) continue;
 
-            TileMolecularAssembler assembler = (TileMolecularAssembler) machine;
-            IItemHandler upgradeInv = assembler.getInventoryByName("upgrades");
-            if (upgradeInv == null) continue;
+            for (IGridNode node : grid.getMachines(machineClass)) {
+                Object machine = node.getMachine();
+                if (!(machine instanceof TileMolecularAssembler)) continue;
 
-            int maxCards = upgradeInv.getSlots();
-            int currentCards = assembler.getInstalledUpgrades(Upgrades.SPEED);
-            int slotsNeeded = maxCards - currentCards;
-            if (slotsNeeded > 0) assemblersToUpgrade.add(new AssemblerInfo(upgradeInv, slotsNeeded));
+                collectAssemblerIfNeedingCards(assemblersToUpgrade, (TileMolecularAssembler) machine);
+            }
         }
 
         return assemblersToUpgrade;
+    }
+
+    private void collectAssemblerIfNeedingCards(List<AssemblerInfo> assemblersToUpgrade,
+            TileMolecularAssembler assembler) {
+        IItemHandler upgradeInv = assembler.getInventoryByName("upgrades");
+        if (upgradeInv == null) return;
+
+        int maxCards = upgradeInv.getSlots();
+        int currentCards = assembler.getInstalledUpgrades(Upgrades.SPEED);
+        int slotsNeeded = maxCards - currentCards;
+        if (slotsNeeded > 0) assemblersToUpgrade.add(new AssemblerInfo(upgradeInv, slotsNeeded));
     }
 
     /**

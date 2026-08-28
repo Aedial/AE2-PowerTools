@@ -19,6 +19,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [1.6.8] - 2026-08-???
 ### Added
 - Add chunk-boundary checks for AE2 multiblocks to the Network Health Scanner's fatal errors.
+- Add support for all Molecular Assembler-like machines to the Cards Distributor, for Acceleration Card distribution.
 
 ### Fixed
 - Fix tooltip leaking from under the Maintainer modal when it is open.
