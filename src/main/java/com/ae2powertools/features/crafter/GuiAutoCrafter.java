@@ -32,6 +32,7 @@ import com.ae2powertools.features.crafter.pmt.PMTRenderer;
 import com.ae2powertools.features.crafter.pmt.PMTSlot;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.FormatUtil;
+import com.ae2powertools.util.SaturatingMath;
 import com.ae2powertools.widgets.QueuedItemRenderer;
 import com.ae2powertools.widgets.SmallVanillaButton;
 import com.ae2powertools.widgets.StencilItemRenderer;
@@ -638,9 +639,9 @@ public class GuiAutoCrafter extends WidgetGui {
         long batchSize = container.syncBatchSize;
         long outputCount = output.getStackSize();
 
-        long itemsPerCraft = CrafterMath.saturatingMultiply(container.syncEffectiveBatchSize, outputCount);
+        long itemsPerCraft = SaturatingMath.saturatingMultiply(container.syncEffectiveBatchSize, outputCount);
         String itemsPerCraftStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(itemsPerCraft);
-        String timePerOperation = FormatUtil.formatTimeTicks(CrafterMath.saturatingMultiply(speedTicks, batchSize));
+        String timePerOperation = FormatUtil.formatTimeTicks(SaturatingMath.saturatingMultiply(speedTicks, batchSize));
         String throughput = I18n.format("gui.ae2powertools.crafter.crafts_per_operation",
                 itemsPerCraftStr, timePerOperation);
 

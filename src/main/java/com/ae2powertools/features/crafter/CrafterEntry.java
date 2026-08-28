@@ -13,6 +13,8 @@ import net.minecraft.util.text.ITextComponent;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
 
+import com.ae2powertools.util.SaturatingMath;
+
 
 /**
  * Represents a single recipe entry in the AutoCrafter.
@@ -333,7 +335,7 @@ public class CrafterEntry {
         // Try to merge with existing pending output of the same type
         for (IAEItemStack pending : pendingOutputs) {
             if (pending.isSameType(output)) {
-                pending.setStackSize(CrafterMath.saturatingAdd(pending.getStackSize(), output.getStackSize()));
+                pending.setStackSize(SaturatingMath.saturatingAdd(pending.getStackSize(), output.getStackSize()));
                 return;
             }
         }
@@ -434,13 +436,13 @@ public class CrafterEntry {
      * @param actualCrafts Actual batch size achieved (0 if error/not crafting)
      */
     public void recordMetrics(boolean wasError, long requestedCrafts, long actualCrafts) {
-        metricsTotal = CrafterMath.saturatingAdd(metricsTotal, 1L);
-        if (wasError) metricsError = CrafterMath.saturatingAdd(metricsError, 1L);
+        metricsTotal = SaturatingMath.saturatingAdd(metricsTotal, 1L);
+        if (wasError) metricsError = SaturatingMath.saturatingAdd(metricsError, 1L);
 
         // Only count successful operations for occupancy
         if (!wasError && requestedCrafts > 0) {
-            metricsTotalMaxPossible = CrafterMath.saturatingAdd(metricsTotalMaxPossible, requestedCrafts);
-            metricsTotalActualCrafted = CrafterMath.saturatingAdd(metricsTotalActualCrafted, actualCrafts);
+            metricsTotalMaxPossible = SaturatingMath.saturatingAdd(metricsTotalMaxPossible, requestedCrafts);
+            metricsTotalActualCrafted = SaturatingMath.saturatingAdd(metricsTotalActualCrafted, actualCrafts);
         }
     }
 

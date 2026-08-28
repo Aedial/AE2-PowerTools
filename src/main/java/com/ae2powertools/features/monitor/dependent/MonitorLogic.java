@@ -35,6 +35,7 @@ import com.ae2powertools.features.monitor.emitter.IEmitterCardHost;
 import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.util.FormatUtil;
+import com.ae2powertools.util.SaturatingMath;
 
 
 /**
@@ -311,7 +312,7 @@ public class MonitorLogic {
         long total = 0;
 
         for (IAEItemStack match : stacks) {
-            if (match != null) total += match.getStackSize();
+            if (match != null) total = SaturatingMath.saturatingAdd(total, match.getStackSize());
         }
 
         return total;

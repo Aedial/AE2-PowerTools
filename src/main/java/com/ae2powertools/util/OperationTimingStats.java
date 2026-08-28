@@ -39,15 +39,8 @@ public final class OperationTimingStats {
 
         sampleCount++;
         lastDurationNanos = clampedDuration;
-        totalDurationNanos = saturatingAdd(totalDurationNanos, clampedDuration);
+        totalDurationNanos = SaturatingMath.saturatingAdd(totalDurationNanos, clampedDuration);
 
         if (clampedDuration > maxDurationNanos) maxDurationNanos = clampedDuration;
-    }
-
-    private long saturatingAdd(long left, long right) {
-        if (right <= 0L) return left;
-        if (left > Long.MAX_VALUE - right) return Long.MAX_VALUE;
-
-        return left + right;
     }
 }

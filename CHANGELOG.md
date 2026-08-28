@@ -24,6 +24,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix tooltip leaking from under the Maintainer modal when it is open.
 - Fix Maintainer not being able to reconcile finished jobs after a network disconnect, which could cause the Maintainer to think it was still waiting for a job that had already ended.
 - Fix Network Component Locator not merging entries of the same component type when they had different NBT data.
+- Fix possible overflow in Storage Level Emitter, when using a Fuzzy card (realistically only possible with Creative Cell).
+
+### Changed
+- Improve tooltips everywhere to highlight the actions (in AQUA) and the times (in GREEN).
+- Improve the visuals on the AE2 AutoCrafter's catalysts, making the item a proper ghost item instead of a full-slot overlay.
 
 
 ## [1.6.7-hotfix2] - 2026-08-11
