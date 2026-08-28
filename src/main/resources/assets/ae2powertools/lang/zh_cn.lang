@@ -102,6 +102,9 @@ gui.ae2powertools.scanner.fatal.duplicate_storage_target.entry=%1$s -> 共享目
 gui.ae2powertools.scanner.fatal.same_network_interface_link.title=主网络链接到其子网络
 gui.ae2powertools.scanner.fatal.same_network_interface_link.tooltip=存储总线指向了属于同一网络的接口。这会使主网络自我回环，导致数量报告错误。
 gui.ae2powertools.scanner.fatal.same_network_interface_link.entry=%1$s -> 同网络接口
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.title=跨区块边界的多方块结构
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.tooltip=此AE2多方块结构跨越了区块边界。当这些区块加载不同步时，结构可能无法重新成型或发生灾难性故障。
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.entry=%s
 gui.ae2powertools.scanner.sort_distance=距离
 gui.ae2powertools.scanner.sort_name=名称
 gui.ae2powertools.scanner.sort_tooltip=排序方式：%s
@@ -143,6 +146,7 @@ ae2powertools.scanner.complete.summary.line3=- 找到了%d个阻塞点
 ae2powertools.scanner.complete.summary.line4=- 找到了%d台缺失频道的设备
 ae2powertools.scanner.complete.summary.line5=- 找到了%d个致命错误
 ae2powertools.scanner.complete.summary.line6=- 找到了%d个样板问题
+ae2powertools.scanner.complete.summary.end=§b右键点击扫描器来打开GUI，过滤结果。
 
 # =====================================================
 # Better Level Maintainer
