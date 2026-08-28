@@ -258,12 +258,12 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
                 tooltip.add("");
             }
 
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.modal.slot_left_click"));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.modal.slot_right_click"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.modal.slot_left_click"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.modal.slot_right_click"));
         }
 
         if (localX >= 25 && localX < 170 && localY >= 5 && localY < 23) {
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.modal.name_click_toggle"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.modal.name_click_toggle"));
         }
 
         if (!tooltip.isEmpty()) {

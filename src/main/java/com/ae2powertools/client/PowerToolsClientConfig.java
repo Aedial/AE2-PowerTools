@@ -8,6 +8,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.features.scanner.data.ScannerTabId;
 
 
 /**
@@ -77,26 +78,26 @@ public class PowerToolsClientConfig {
         public int sortModeFatal = 0;
         public int sortModePatterns = 0;
 
-        public int getSortMode(int tabOrdinal) {
-            switch (tabOrdinal) {
-                case 0: return sortModeLoops;
-                case 1: return sortModeChunks;
-                case 2: return sortModeChokepoints;
-                case 3: return sortModeMissing;
-                case 4: return sortModeFatal;
-                case 5: return sortModePatterns;
+        public int getSortMode(ScannerTabId tabId) {
+            switch (tabId) {
+                case LOOPS: return sortModeLoops;
+                case UNLOADED_CHUNKS: return sortModeChunks;
+                case CHOKEPOINTS: return sortModeChokepoints;
+                case MISSING_CHANNELS: return sortModeMissing;
+                case FATAL_ERRORS: return sortModeFatal;
+                case PATTERNS: return sortModePatterns;
                 default: return 0;
             }
         }
 
-        public void setSortMode(int tabOrdinal, int value) {
-            switch (tabOrdinal) {
-                case 0: if (sortModeLoops == value) return; sortModeLoops = value; break;
-                case 1: if (sortModeChunks == value) return; sortModeChunks = value; break;
-                case 2: if (sortModeChokepoints == value) return; sortModeChokepoints = value; break;
-                case 3: if (sortModeMissing == value) return; sortModeMissing = value; break;
-                case 4: if (sortModeFatal == value) return; sortModeFatal = value; break;
-                case 5: if (sortModePatterns == value) return; sortModePatterns = value; break;
+        public void setSortMode(ScannerTabId tabId, int value) {
+            switch (tabId) {
+                case LOOPS: if (sortModeLoops == value) return; sortModeLoops = value; break;
+                case UNLOADED_CHUNKS: if (sortModeChunks == value) return; sortModeChunks = value; break;
+                case CHOKEPOINTS: if (sortModeChokepoints == value) return; sortModeChokepoints = value; break;
+                case MISSING_CHANNELS: if (sortModeMissing == value) return; sortModeMissing = value; break;
+                case FATAL_ERRORS: if (sortModeFatal == value) return; sortModeFatal = value; break;
+                case PATTERNS: if (sortModePatterns == value) return; sortModePatterns = value; break;
                 default: return;
             }
 

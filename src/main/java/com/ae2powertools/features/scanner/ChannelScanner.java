@@ -38,7 +38,10 @@ import appeng.parts.misc.PartStorageBus;
 import appeng.tile.networking.TileController;
 
 import com.ae2powertools.AE2PowerTools;
-import com.ae2powertools.features.scanner.ChannelChokepoint.DirectionFlow;
+import com.ae2powertools.features.scanner.data.ChannelChokepoint.DirectionFlow;
+import com.ae2powertools.features.scanner.data.ChannelChokepoint;
+import com.ae2powertools.features.scanner.data.FatalNetworkError;
+import com.ae2powertools.features.scanner.data.MissingChannelDevice;
 
 
 /**
@@ -543,7 +546,8 @@ public class ChannelScanner {
             hostTile = storageBus.getHost().getTile();
             facing = storageBus.getSide().getFacing();
             resourceType = ResourceType.FLUID;
-        } else {  // TODO: add Gas/Essentia storage buses (optional dependencies)
+        } else { 
+            // TODO: add Gas/Essentia storage buses (optional dependencies)
             return null;
         }
 

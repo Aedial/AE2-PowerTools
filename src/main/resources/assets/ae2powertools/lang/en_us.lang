@@ -109,8 +109,8 @@ gui.ae2powertools.scanner.sort_distance=Distance
 gui.ae2powertools.scanner.sort_name=Name
 gui.ae2powertools.scanner.sort_tooltip=Sort by: %s
 gui.ae2powertools.scanner.subnet.title=Subnet Scanning
-gui.ae2powertools.scanner.subnet.enabled=Enabled (includes subnets)
-gui.ae2powertools.scanner.subnet.disabled=Disabled (scanned network only)
+gui.ae2powertools.scanner.subnet.enabled=§aEnabled (includes subnets)
+gui.ae2powertools.scanner.subnet.disabled=§cDisabled (scanned network only)
 gui.ae2powertools.scanner.subnet.click_toggle=§bClick§7 to toggle
 gui.ae2powertools.scanner.subnet.hint=§bRescan§7 network to apply
 
@@ -196,20 +196,20 @@ gui.ae2powertools.maintainer.tooltip.empty=Empty slot
 gui.ae2powertools.maintainer.tooltip.click_add=§bClick§7 to add a recipe to maintain
 gui.ae2powertools.maintainer.tooltip.click_edit=§bLeft-click§7 to edit recipe settings
 gui.ae2powertools.maintainer.tooltip.right_click_toggle=§bRight-click§7 to toggle enabled
-gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift+Scroll to double/halve quantity
-gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl+Scroll to double/halve time
-gui.ae2powertools.maintainer.tooltip.batch_size=Crafts (at least) %d item(s) per run
-gui.ae2powertools.maintainer.tooltip.frequency=Runs every %s
+gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=§bShift+Scroll§7 to double/halve quantity
+gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=§bCtrl+Scroll§7 to double/halve time
+gui.ae2powertools.maintainer.tooltip.batch_size=§7Crafts (at least) %d item(s) per run
+gui.ae2powertools.maintainer.tooltip.frequency=§7Runs every %s
 
 # GUI - Maintainer Status Bar Tooltips
-gui.ae2powertools.maintainer.status.cpu_title=Crafting CPUs
-gui.ae2powertools.maintainer.status.cpu_active=Active: %d
-gui.ae2powertools.maintainer.status.cpu_total=Total: %d
-gui.ae2powertools.maintainer.status.recipe_title=Recipe Status
-gui.ae2powertools.maintainer.status.recipe_running=Running: %d
-gui.ae2powertools.maintainer.status.recipe_total=Total: %d
-gui.ae2powertools.maintainer.status.recipe_failed=Failed: %d
-gui.ae2powertools.maintainer.status.recipe_post_error=Output Errors: %d
+gui.ae2powertools.maintainer.status.cpu_title=§eCrafting CPUs
+gui.ae2powertools.maintainer.status.cpu_active=§aActive: %d
+gui.ae2powertools.maintainer.status.cpu_total=§7Total: %d
+gui.ae2powertools.maintainer.status.recipe_title=§eRecipe Status
+gui.ae2powertools.maintainer.status.recipe_running=§aRunning: %d
+gui.ae2powertools.maintainer.status.recipe_total=§7Total: %d
+gui.ae2powertools.maintainer.status.recipe_failed=§cFailed: %d
+gui.ae2powertools.maintainer.status.recipe_post_error=§5Output Errors: %d
 
 # GUI - Maintainer Modal
 gui.ae2powertools.maintainer.modal.target=Target Quantity
@@ -476,16 +476,16 @@ gui.ae2powertools.locator.click_deselect=§bClick§7 to deselect (hide overlay)
 
 # GUI - View Style Toggle
 gui.ae2powertools.locator.style.title=View Style
-gui.ae2powertools.locator.style.tall=Tall view
-gui.ae2powertools.locator.style.small=Compact view
-gui.ae2powertools.locator.style.click_toggle=§bClick§r to toggle
+gui.ae2powertools.locator.style.tall=§7Tall view
+gui.ae2powertools.locator.style.small=§7Compact view
+gui.ae2powertools.locator.style.click_toggle=§bClick§7 to toggle
 
 # GUI - Subnet Scanning Toggle
 gui.ae2powertools.locator.subnet.title=Subnet Scanning
-gui.ae2powertools.locator.subnet.enabled=Enabled (includes subnets)
-gui.ae2powertools.locator.subnet.disabled=Disabled (main network only)
+gui.ae2powertools.locator.subnet.enabled=§aEnabled (includes subnets)
+gui.ae2powertools.locator.subnet.disabled=§cDisabled (main network only)
 gui.ae2powertools.locator.subnet.click_toggle=§bClick§7 to toggle
-gui.ae2powertools.locator.subnet.hint=Rescan network to apply
+gui.ae2powertools.locator.subnet.hint=§7Rescan network to apply
 gui.ae2powertools.locator.hint_subnets=(+ subnets)
 
 # Config
@@ -549,11 +549,11 @@ gui.ae2powertools.storage_emitter.hysteresis.on=§aOn
 gui.ae2powertools.storage_emitter.hysteresis.off=§cOff
 gui.ae2powertools.storage_emitter.hysteresis.click_toggle=§bClick§7 to toggle hysteresis. Hysteresis prevents rapid toggling when quantity is near the threshold.
 gui.ae2powertools.storage_emitter.polling_rate.title=Polling Rate
-gui.ae2powertools.storage_emitter.polling_rate.tooltip=Polling Rate: %s
+gui.ae2powertools.storage_emitter.polling_rate.tooltip=§ePolling Rate: %s
 gui.ae2powertools.storage_emitter.polling_rate.description=§bClick§7 to configure how often the storage is polled.
 gui.ae2powertools.storage_emitter.strength=Strength
 gui.ae2powertools.storage_emitter.strength.tooltip=Redstone Strength
-gui.ae2powertools.storage_emitter.strength.description=Redstone Strength is the starting strength that the directly adjacent block receives. The signal then decays by 1 for each redstone dust it travels through.
+gui.ae2powertools.storage_emitter.strength.description=§7Redstone Strength is the starting strength that the directly adjacent block receives. The signal then decays by 1 for each redstone dust it travels through.
 gui.ae2powertools.storage_emitter.upgrade.fuzzy.description=§7Counts all matching item variants together instead of only the exact selected stack.
 gui.ae2powertools.storage_emitter.upgrade.crafting.description=§7Tracks items currently being crafted instead of items already stored in the network.
 gui.ae2powertools.storage_emitter.empty_slot=§7No resource selected

@@ -1,4 +1,4 @@
-package com.ae2powertools.features.scanner;
+package com.ae2powertools.features.scanner.data;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;

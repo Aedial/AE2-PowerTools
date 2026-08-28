@@ -1,4 +1,4 @@
-package com.ae2powertools.features.scanner;
+package com.ae2powertools.features.scanner.data;
 
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;

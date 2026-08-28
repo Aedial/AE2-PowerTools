@@ -16,22 +16,23 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.ae2powertools.features.scanner.ChannelChokepoint;
-import com.ae2powertools.features.scanner.ChannelChokepoint.DirectionFlow;
-import com.ae2powertools.features.scanner.ChunkLocation;
-import com.ae2powertools.features.scanner.FatalNetworkError;
-import com.ae2powertools.features.scanner.IssueLocation;
-import com.ae2powertools.features.scanner.MissingChannelDevice;
 import com.ae2powertools.features.scanner.NetworkScanner;
-import com.ae2powertools.features.scanner.PatternIssue;
 import com.ae2powertools.features.scanner.ScanSessionManager;
-import com.ae2powertools.features.scanner.ScannerClientState;
+import com.ae2powertools.features.scanner.ScannerSyncSnapshot;
 import com.ae2powertools.features.scanner.ScannerTextHelper;
-import com.ae2powertools.features.scanner.ScannerClientState.ChunkLocationClient;
-import com.ae2powertools.features.scanner.ScannerClientState.ChokeLocationClient;
-import com.ae2powertools.features.scanner.ScannerClientState.ConnectionFlowClient;
-import com.ae2powertools.features.scanner.ScannerClientState.LoopLocationClient;
-import com.ae2powertools.features.scanner.ScannerClientState.MissingDeviceClient;
+import com.ae2powertools.features.scanner.client.ScannerClientState;
+import com.ae2powertools.features.scanner.data.ChannelChokepoint.DirectionFlow;
+import com.ae2powertools.features.scanner.data.ChannelChokepoint;
+import com.ae2powertools.features.scanner.data.ChunkLocation;
+import com.ae2powertools.features.scanner.data.FatalNetworkError;
+import com.ae2powertools.features.scanner.data.IssueLocation;
+import com.ae2powertools.features.scanner.data.MissingChannelDevice;
+import com.ae2powertools.features.scanner.data.PatternIssue;
+import com.ae2powertools.features.scanner.data.client.ChokeLocationClient;
+import com.ae2powertools.features.scanner.data.client.ChunkLocationClient;
+import com.ae2powertools.features.scanner.data.client.ConnectionFlowClient;
+import com.ae2powertools.features.scanner.data.client.LoopLocationClient;
+import com.ae2powertools.features.scanner.data.client.MissingDeviceClient;
 
 
 /**
@@ -547,12 +548,12 @@ public class PacketScannerSync implements IMessage {
         public IMessage onMessage(PacketScannerSync message, MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 long deviceId = message.deviceId;
+                if (!message.hasSession) {
+                    ScannerClientState.removeSession(deviceId);
+                    return;
+                }
 
-                ScannerClientState.setActiveSession(deviceId, message.hasSession);
-                ScannerClientState.setScanComplete(deviceId, message.isComplete);
-                ScannerClientState.setSubnetScanEnabled(deviceId, message.subnetScanEnabled);
                 ITextComponent statusComponent = ScannerTextHelper.deserializeComponent(message.statusMessage);
-                ScannerClientState.setStatusMessage(deviceId, statusComponent);
 
                 // Set loop locations
                 List<LoopLocationClient> clientLoops = new ArrayList<>();
@@ -566,7 +567,6 @@ public class PacketScannerSync implements IMessage {
                         data.isLoaded
                     ));
                 }
-                ScannerClientState.setLoopLocations(deviceId, clientLoops);
 
                 // Set chunk locations
                 List<ChunkLocationClient> clientChunks = new ArrayList<>();
@@ -578,7 +578,6 @@ public class PacketScannerSync implements IMessage {
                         data.dimensionName
                     ));
                 }
-                ScannerClientState.setChunkLocations(deviceId, clientChunks);
 
                 // Set missing device locations
                 List<MissingDeviceClient> clientMissing = new ArrayList<>();
@@ -591,7 +590,6 @@ public class PacketScannerSync implements IMessage {
                         ScannerTextHelper.resolveForDisplay(data.description)
                     ));
                 }
-                ScannerClientState.setMissingDevices(deviceId, clientMissing);
 
                 // Set chokepoint locations
                 List<ChokeLocationClient> clientChokes = new ArrayList<>();
@@ -619,7 +617,6 @@ public class PacketScannerSync implements IMessage {
                         flows
                     ));
                 }
-                ScannerClientState.setChokeLocations(deviceId, clientChokes);
 
                 List<FatalNetworkError> clientFatal = new ArrayList<>();
                 for (FatalErrorData data : message.fatalErrors) {
@@ -633,7 +630,6 @@ public class PacketScannerSync implements IMessage {
                         data.sourcePos
                     ));
                 }
-                ScannerClientState.setFatalErrors(deviceId, clientFatal);
 
                 List<PatternIssue> clientPatternIssues = new ArrayList<>();
                 for (PatternIssueData data : message.patternIssues) {
@@ -647,7 +643,17 @@ public class PacketScannerSync implements IMessage {
                         ScannerTextHelper.resolveForDisplay(data.summary)
                     ));
                 }
-                ScannerClientState.setPatternIssues(deviceId, clientPatternIssues);
+
+                ScannerClientState.applySync(deviceId, true, new ScannerSyncSnapshot(
+                    message.isComplete,
+                    message.subnetScanEnabled,
+                    statusComponent,
+                    clientLoops,
+                    clientChunks,
+                    clientMissing,
+                    clientChokes,
+                    clientFatal,
+                    clientPatternIssues));
             });
 
             return null;

@@ -1,4 +1,4 @@
-package com.ae2powertools.features.scanner;
+package com.ae2powertools.features.scanner.data;
 
 import java.util.ArrayList;
 import java.util.List;

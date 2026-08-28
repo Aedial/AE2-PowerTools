@@ -350,7 +350,7 @@ public class GuiStorageMonitor extends WidgetGui {
         List<String> tt = new ArrayList<>();
         tt.add(I18n.format("gui.ae2powertools.storage_emitter.strength.tooltip"));
         tt.add("");
-        tt.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.strength.description"));
+        tt.add(I18n.format("gui.ae2powertools.storage_emitter.strength.description"));
         GuiUtils.drawHoveringText(tt, mouseX, mouseY, width, height, -1, fontRenderer);
     }
 
@@ -621,7 +621,7 @@ public class GuiStorageMonitor extends WidgetGui {
     private List<String> buildMatchModeTooltip() {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.storage_emitter.match_mode", container.getSyncMatchMode().name()));
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.match_mode.click_toggle"));
+        tooltip.add(I18n.format("gui.ae2powertools.storage_emitter.match_mode.click_toggle"));
         return tooltip;
     }
 
@@ -631,7 +631,7 @@ public class GuiStorageMonitor extends WidgetGui {
         tooltip.add(I18n.format(
             prefix,
             I18n.format(prefix + (container.isSyncHysteresisEnabled() ? ".on" : ".off"))));
-        tooltip.add("§7" + I18n.format(prefix + ".click_toggle"));
+        tooltip.add(I18n.format(prefix + ".click_toggle"));
         return tooltip;
     }
 
@@ -641,33 +641,34 @@ public class GuiStorageMonitor extends WidgetGui {
         tooltip.add(I18n.format(
             "gui.ae2powertools.storage_emitter.redstone_signal",
             I18n.format(redstonePower.getLangKey())));
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.redstone_signal.click_toggle"));
+        tooltip.add(I18n.format("gui.ae2powertools.storage_emitter.redstone_signal.click_toggle"));
         return tooltip;
     }
 
     private List<String> buildAlarmRegistrationTooltip() {
-        String prefix = "gui.ae2powertools.level_monitor_alarm.registration";
         List<String> tooltip = new ArrayList<>();
-        tooltip.add(I18n.format(container.isSyncPlayerRegistered() ? prefix + ".registered" : prefix + ".unregistered"));
-        tooltip.add("§7" + I18n.format(container.isSyncPlayerRegistered()
-            ? prefix + ".click_unregister"
-            : prefix + ".click_register"));
+        tooltip.add(I18n.format(container.isSyncPlayerRegistered()
+            ? "gui.ae2powertools.level_monitor_alarm.registration.registered"
+            : "gui.ae2powertools.level_monitor_alarm.registration.unregistered"));
+        tooltip.add(I18n.format(container.isSyncPlayerRegistered()
+            ? "gui.ae2powertools.level_monitor_alarm.registration.click_unregister"
+            : "gui.ae2powertools.level_monitor_alarm.registration.click_register"));
         return tooltip;
     }
 
     private List<String> buildPollingRateTooltip() {
         String interval = FormatUtil.formatTimeTicks(container.refreshRate);
         List<String> tooltip = new ArrayList<>();
-        tooltip.add("§e" + I18n.format("gui.ae2powertools.storage_emitter.polling_rate.tooltip", interval));
+        tooltip.add(I18n.format("gui.ae2powertools.storage_emitter.polling_rate.tooltip", interval));
         tooltip.add("");
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.storage_emitter.polling_rate.description"));
+        tooltip.add(I18n.format("gui.ae2powertools.storage_emitter.polling_rate.description"));
         return tooltip;
     }
 
     private List<String> buildManualPollTooltip() {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.poll_now.title"));
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.poll_now.description"));
+        tooltip.add(I18n.format("gui.ae2powertools.poll_now.description"));
         return tooltip;
     }
 

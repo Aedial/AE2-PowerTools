@@ -1,4 +1,4 @@
-package com.ae2powertools.features.scanner;
+package com.ae2powertools.features.scanner.data;
 
 import java.util.Objects;
 
@@ -57,6 +57,16 @@ public class FatalNetworkError extends AbstractLocation {
         return pos;
     }
 
+    @Override
+    public ScannerIssueKey getIssueKey() {
+        String source = sourcePos == null ? "" : sourcePos.getX() + ":"
+            + sourcePos.getY() + ":" + sourcePos.getZ();
+        return new ScannerIssueKey(ScannerTabId.FATAL_ERRORS,
+            category.name() + ':' + dimension + ':' + pos.getX() + ':' + pos.getY() + ':' + pos.getZ()
+                + ':' + source + ':' + description);
+    }
+
+    @Override
     public int getDimension() {
         return dimension;
     }

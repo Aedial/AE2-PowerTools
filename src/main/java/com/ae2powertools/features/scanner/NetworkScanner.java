@@ -18,8 +18,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-import com.google.common.collect.ImmutableSetMultimap;
-
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
@@ -41,13 +39,13 @@ import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.implementations.ICraftingPatternItem;
+import appeng.api.implementations.parts.IPartCable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
-import appeng.api.implementations.parts.IPartCable;
-import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingMedium;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.api.networking.pathing.ControllerState;
@@ -66,7 +64,14 @@ import appeng.me.cluster.IAEMultiBlock;
 import appeng.tile.networking.TileController;
 
 import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.features.scanner.data.ChannelChokepoint;
+import com.ae2powertools.features.scanner.data.ChunkLocation;
+import com.ae2powertools.features.scanner.data.FatalNetworkError;
+import com.ae2powertools.features.scanner.data.IssueLocation;
+import com.ae2powertools.features.scanner.data.MissingChannelDevice;
+import com.ae2powertools.features.scanner.data.PatternIssue;
 import com.ae2powertools.util.SubnetGridHelper;
+import com.google.common.collect.ImmutableSetMultimap;
 
 
 /**
@@ -820,10 +825,10 @@ public class NetworkScanner {
         return patternStack.getTagCompound().getString(PATTERN_TYPE_TAG);
     }
 
-    private String buildOutputSignature(appeng.api.storage.data.IAEItemStack[] stacks) {
+    private String buildOutputSignature(IAEItemStack[] stacks) {
         List<String> keys = new ArrayList<>();
 
-        for (appeng.api.storage.data.IAEItemStack stack : stacks) {
+        for (IAEItemStack stack : stacks) {
             if (stack == null) continue;
 
             keys.add(buildSizedItemKey(stack.createItemStack(), stack.getStackSize()));
@@ -833,10 +838,10 @@ public class NetworkScanner {
         return String.join("|", keys);
     }
 
-    private List<String> buildTypeKeys(appeng.api.storage.data.IAEItemStack[] stacks) {
+    private List<String> buildTypeKeys(IAEItemStack[] stacks) {
         List<String> keys = new ArrayList<>();
 
-        for (appeng.api.storage.data.IAEItemStack stack : stacks) {
+        for (IAEItemStack stack : stacks) {
             if (stack == null) continue;
 
             ItemStack itemStack = stack.createItemStack();

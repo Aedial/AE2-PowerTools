@@ -10,8 +10,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.ae2powertools.items.ItemNetworkHealthScanner;
 import com.ae2powertools.features.scanner.ScanSessionManager;
+import com.ae2powertools.items.ItemNetworkHealthScanner;
 
 
 /**

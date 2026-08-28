@@ -452,8 +452,8 @@ public class MaintainerEntryViewport extends Gui {
             tooltip.add(entry.getTargetItemStack().getDisplayName());
 
             tooltip.add("§a" + String.format("%s / %s", entry.getCurrentQuantity(), entry.getTargetQuantity()));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.tooltip.batch_size", entry.getBatchSize()));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.tooltip.frequency", entry.formatFrequency()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.batch_size", entry.getBatchSize()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.frequency", entry.formatFrequency()));
             tooltip.add("");
 
             MaintainerState state = entry.getState();
@@ -467,13 +467,13 @@ public class MaintainerEntryViewport extends Gui {
             }
 
             tooltip.add("");
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.tooltip.click_edit"));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.tooltip.right_click_toggle"));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity"));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.click_edit"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.right_click_toggle"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency"));
         } else {
             tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.empty"));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.tooltip.click_add"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.click_add"));
         }
 
         GuiUtils.drawHoveringText(
@@ -492,17 +492,17 @@ public class MaintainerEntryViewport extends Gui {
 
         List<String> tooltip = new ArrayList<>();
         if (mouseX >= cpuX && mouseX < cpuX + cpuTextWidth) {
-            tooltip.add("§e" + I18n.format("gui.ae2powertools.maintainer.status.cpu_title"));
-            tooltip.add("§a" + I18n.format("gui.ae2powertools.maintainer.status.cpu_active", container.getActiveCpuCount()));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.status.cpu_total", container.getTotalCpuCount()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.cpu_title"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.cpu_active", container.getActiveCpuCount()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.cpu_total", container.getTotalCpuCount()));
         }
 
         if (mouseX >= recipeX && mouseX < recipeX + recipeTextWidth) {
-            tooltip.add("§e" + I18n.format("gui.ae2powertools.maintainer.status.recipe_title"));
-            tooltip.add("§a" + I18n.format("gui.ae2powertools.maintainer.status.recipe_running", container.getRunningRecipeCount()));
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.maintainer.status.recipe_total", container.getTotalRecipeCount()));
-            tooltip.add("§c" + I18n.format("gui.ae2powertools.maintainer.status.recipe_failed", container.getFailedRecipeCount()));
-            tooltip.add("§5" + I18n.format("gui.ae2powertools.maintainer.status.recipe_post_error", container.getPostErrorRecipeCount()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.recipe_title"));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.recipe_running", container.getRunningRecipeCount()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.recipe_total", container.getTotalRecipeCount()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.recipe_failed", container.getFailedRecipeCount()));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.status.recipe_post_error", container.getPostErrorRecipeCount()));
         }
 
         if (!tooltip.isEmpty()) {

@@ -22,7 +22,7 @@ import com.ae2powertools.features.monitor.display.TESRStorageDisplay;
 import com.ae2powertools.features.monitor.display.TileStorageDisplay;
 import com.ae2powertools.features.locator.LocatorRenderer;
 import com.ae2powertools.features.remotemonitor.RemoteMonitorOverlay;
-import com.ae2powertools.features.scanner.ScannerRenderer;
+import com.ae2powertools.features.scanner.client.ScannerRenderer;
 
 
 /**

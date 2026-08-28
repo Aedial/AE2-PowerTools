@@ -109,8 +109,8 @@ gui.ae2powertools.scanner.sort_distance=距离
 gui.ae2powertools.scanner.sort_name=名称
 gui.ae2powertools.scanner.sort_tooltip=排序方式：%s
 gui.ae2powertools.scanner.subnet.title=子网络扫描
-gui.ae2powertools.scanner.subnet.enabled=已启用（包括子网络）
-gui.ae2powertools.scanner.subnet.disabled=已禁用（仅已扫描网络）
+gui.ae2powertools.scanner.subnet.enabled=§a已启用（包括子网络）
+gui.ae2powertools.scanner.subnet.disabled=§c已禁用（仅已扫描网络）
 gui.ae2powertools.scanner.subnet.click_toggle=§b点击§7切换
 gui.ae2powertools.scanner.subnet.hint=§b重新扫描网络§7以应用设置
 
@@ -196,20 +196,20 @@ gui.ae2powertools.maintainer.tooltip.empty=空槽位
 gui.ae2powertools.maintainer.tooltip.click_add=§b点击§7添加要维持的配方
 gui.ae2powertools.maintainer.tooltip.click_edit=§b左键点击§7编辑配方设置
 gui.ae2powertools.maintainer.tooltip.right_click_toggle=§b右键点击§7切换启用状态
-gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift+滚轮以加倍/减半数量
-gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl+滚轮以加倍/减半时间
-gui.ae2powertools.maintainer.tooltip.batch_size=每次运行（至少）合成%d个物品
-gui.ae2powertools.maintainer.tooltip.frequency=每%s运行一次
+gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=§bShift+滚轮§7以加倍/减半数量
+gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=§bCtrl+滚轮§7以加倍/减半时间
+gui.ae2powertools.maintainer.tooltip.batch_size=§7每次运行（至少）合成%d个物品
+gui.ae2powertools.maintainer.tooltip.frequency=§7每%s运行一次
 
 # GUI - Maintainer Status Bar Tooltips
-gui.ae2powertools.maintainer.status.cpu_title=合成CPU
-gui.ae2powertools.maintainer.status.cpu_active=活动中：%d
-gui.ae2powertools.maintainer.status.cpu_total=总计：%d
-gui.ae2powertools.maintainer.status.recipe_title=配方状态
-gui.ae2powertools.maintainer.status.recipe_running=运行中：%d
-gui.ae2powertools.maintainer.status.recipe_total=总计：%d
-gui.ae2powertools.maintainer.status.recipe_failed=失败：%d
-gui.ae2powertools.maintainer.status.recipe_post_error=输出错误：%d
+gui.ae2powertools.maintainer.status.cpu_title=§e合成CPU
+gui.ae2powertools.maintainer.status.cpu_active=§a活动中：%d
+gui.ae2powertools.maintainer.status.cpu_total=§7总计：%d
+gui.ae2powertools.maintainer.status.recipe_title=§e配方状态
+gui.ae2powertools.maintainer.status.recipe_running=§a运行中：%d
+gui.ae2powertools.maintainer.status.recipe_total=§7总计：%d
+gui.ae2powertools.maintainer.status.recipe_failed=§c失败：%d
+gui.ae2powertools.maintainer.status.recipe_post_error=§5输出错误：%d
 
 # GUI - Maintainer Modal
 gui.ae2powertools.maintainer.modal.target=目标数量
@@ -476,16 +476,16 @@ gui.ae2powertools.locator.click_deselect=§b点击§7取消选择（隐藏叠加
 
 # GUI - View Style Toggle
 gui.ae2powertools.locator.style.title=视图样式
-gui.ae2powertools.locator.style.tall=高视图
-gui.ae2powertools.locator.style.small=紧凑视图
-gui.ae2powertools.locator.style.click_toggle=§b点击§r切换
+gui.ae2powertools.locator.style.tall=§7高视图
+gui.ae2powertools.locator.style.small=§7紧凑视图
+gui.ae2powertools.locator.style.click_toggle=§b点击§7切换
 
 # GUI - Subnet Scanning Toggle
 gui.ae2powertools.locator.subnet.title=子网络扫描
-gui.ae2powertools.locator.subnet.enabled=已启用（包含子网络）
-gui.ae2powertools.locator.subnet.disabled=已禁用（仅主网络）
+gui.ae2powertools.locator.subnet.enabled=§a已启用（包含子网络）
+gui.ae2powertools.locator.subnet.disabled=§c已禁用（仅主网络）
 gui.ae2powertools.locator.subnet.click_toggle=§b点击§7切换
-gui.ae2powertools.locator.subnet.hint=重新扫描网络以应用设置
+gui.ae2powertools.locator.subnet.hint=§7重新扫描网络以应用设置
 gui.ae2powertools.locator.hint_subnets=（+ 子网络）
 
 # Config
@@ -549,11 +549,11 @@ gui.ae2powertools.storage_emitter.hysteresis.on=§a开
 gui.ae2powertools.storage_emitter.hysteresis.off=§c关
 gui.ae2powertools.storage_emitter.hysteresis.click_toggle=§b点击§7切换迟滞模式。迟滞可防止数量接近阈值时频繁切换状态。
 gui.ae2powertools.storage_emitter.polling_rate.title=轮询率
-gui.ae2powertools.storage_emitter.polling_rate.tooltip=轮询率：%s
+gui.ae2powertools.storage_emitter.polling_rate.tooltip=§e轮询率：%s
 gui.ae2powertools.storage_emitter.polling_rate.description=§b点击§7配置存储内容的轮询频率。
 gui.ae2powertools.storage_emitter.strength=强度
 gui.ae2powertools.storage_emitter.strength.tooltip=红石强度
-gui.ae2powertools.storage_emitter.strength.description=红石强度指直接相邻方块接收到的初始强度。随后每传导一个红石粉，信号强度衰减1。
+gui.ae2powertools.storage_emitter.strength.description=§7红石强度指直接相邻方块接收到的初始强度。随后每传导一个红石粉，信号强度衰减1。
 gui.ae2powertools.storage_emitter.upgrade.fuzzy.description=§7将所有匹配的物品变种合并计数，而不只是精确匹配所选的物品堆叠。
 gui.ae2powertools.storage_emitter.upgrade.crafting.description=§7追踪当前正在合成的物品，而非网络中已存储的物品。
 gui.ae2powertools.storage_emitter.empty_slot=§7未选择资源

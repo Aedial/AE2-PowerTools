@@ -1,4 +1,4 @@
-package com.ae2powertools.features.scanner;
+package com.ae2powertools.features.scanner.data;
 
 import java.util.Objects;
 
@@ -53,6 +53,14 @@ public class PatternIssue extends AbstractLocation {
         return pos;
     }
 
+    @Override
+    public ScannerIssueKey getIssueKey() {
+        return new ScannerIssueKey(ScannerTabId.PATTERNS,
+            category.name() + ':' + dimension + ':' + pos.getX() + ':' + pos.getY() + ':' + pos.getZ()
+                + ':' + description + ':' + summary);
+    }
+
+    @Override
     public int getDimension() {
         return dimension;
     }

@@ -15,6 +15,9 @@ import net.minecraft.util.text.TextComponentTranslation;
 
 import appeng.api.networking.IGrid;
 
+import com.ae2powertools.features.scanner.data.ChunkLocation;
+import com.ae2powertools.features.scanner.data.IssueLocation;
+
 
 /**
  * Manages network scan sessions for players.

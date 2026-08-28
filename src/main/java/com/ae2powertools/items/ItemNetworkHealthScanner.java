@@ -35,11 +35,11 @@ import appeng.api.util.AEPartLocation;
 
 import com.ae2powertools.PowerToolsCreativeTab;
 import com.ae2powertools.Tags;
+import com.ae2powertools.features.scanner.ScanSessionManager;
+import com.ae2powertools.features.scanner.client.ScannerClientState;
+import com.ae2powertools.features.scanner.gui.GuiNetworkHealthScanner;
 import com.ae2powertools.network.PacketScannerSync;
 import com.ae2powertools.network.PowerToolsNetwork;
-import com.ae2powertools.features.scanner.GuiNetworkHealthScanner;
-import com.ae2powertools.features.scanner.ScannerClientState;
-import com.ae2powertools.features.scanner.ScanSessionManager;
 import com.ae2powertools.util.DeviceItemAccess;
 
 
@@ -253,9 +253,8 @@ public class ItemNetworkHealthScanner extends Item {
 
     @SideOnly(Side.CLIENT)
     private void openGui(long deviceId, boolean subnetScanEnabled) {
-        ScannerClientState.setActiveDeviceId(deviceId);
         ScannerClientState.initSubnetState(deviceId, subnetScanEnabled);
-        Minecraft.getMinecraft().displayGuiScreen(new GuiNetworkHealthScanner());
+        Minecraft.getMinecraft().displayGuiScreen(new GuiNetworkHealthScanner(deviceId));
     }
 
     /**

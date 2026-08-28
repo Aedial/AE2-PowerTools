@@ -266,11 +266,11 @@ public class GuiComponentLocator extends GuiScreen {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.locator.style.title"));
         if (useTallView) {
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.tall"));
+            tooltip.add(I18n.format("gui.ae2powertools.locator.style.tall"));
         } else {
-            tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.small"));
+            tooltip.add(I18n.format("gui.ae2powertools.locator.style.small"));
         }
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.style.click_toggle"));
+        tooltip.add(I18n.format("gui.ae2powertools.locator.style.click_toggle"));
 
         drawHoveringText(tooltip, mouseX, mouseY);
     }
@@ -318,13 +318,11 @@ public class GuiComponentLocator extends GuiScreen {
         boolean subnetEnabled = LocatorClientState.isSubnetScanEnabled();
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.locator.subnet.title"));
-        if (subnetEnabled) {
-            tooltip.add("§a" + I18n.format("gui.ae2powertools.locator.subnet.enabled"));
-        } else {
-            tooltip.add("§c" + I18n.format("gui.ae2powertools.locator.subnet.disabled"));
-        }
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.subnet.click_toggle"));
-        tooltip.add("§7" + I18n.format("gui.ae2powertools.locator.subnet.hint"));
+        tooltip.add(subnetEnabled ?
+            I18n.format("gui.ae2powertools.locator.subnet.enabled") :
+            I18n.format("gui.ae2powertools.locator.subnet.disabled"));
+        tooltip.add(I18n.format("gui.ae2powertools.locator.subnet.click_toggle"));
+        tooltip.add(I18n.format("gui.ae2powertools.locator.subnet.hint"));
 
         drawHoveringText(tooltip, mouseX, mouseY);
     }
@@ -685,9 +683,9 @@ public class GuiComponentLocator extends GuiScreen {
         }
 
         boolean isSelected = LocatorClientState.isLocationSelected(originalIdx);
-        tooltip.add(isSelected ?
-            "§b" + I18n.format("gui.ae2powertools.locator.click_deselect") :
-            "§b" + I18n.format("gui.ae2powertools.locator.click_select"));
+        tooltip.add(I18n.format(isSelected ?
+            "gui.ae2powertools.locator.click_deselect" :
+            "gui.ae2powertools.locator.click_select"));
 
         drawHoveringText(tooltip, mouseX, mouseY);
     }

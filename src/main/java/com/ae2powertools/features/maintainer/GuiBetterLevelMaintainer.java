@@ -122,8 +122,8 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
     private List<String> buildStyleButtonTooltip() {
         return Arrays.asList(
             I18n.format("gui.ae2powertools.maintainer.style.title"),
-            "§7" + I18n.format("gui.ae2powertools.maintainer.style." + (useTallView ? "tall" : "small")),
-            "§7" + I18n.format("gui.ae2powertools.maintainer.style.click_toggle")
+            I18n.format("gui.ae2powertools.maintainer.style." + (useTallView ? "tall" : "small")),
+            I18n.format("gui.ae2powertools.maintainer.style.click_toggle")
         );
     }
 
@@ -334,5 +334,4 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
     public List<Rectangle> getJEIExclusionArea() {
         return Collections.singletonList(styleButton.getBounds());
     }
-
 }

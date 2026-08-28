@@ -161,20 +161,20 @@ gui.ae2powertools.maintainer.tooltip.empty=Пустой слот
 gui.ae2powertools.maintainer.tooltip.click_add=§bНажмите§7, чтобы добавить рецепт для поддержания
 gui.ae2powertools.maintainer.tooltip.click_edit=§bЛКМ§7 для изменения настроек рецепта
 gui.ae2powertools.maintainer.tooltip.right_click_toggle=§bПКМ§7 для включения/отключения
-gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift + колёсико: удвоить/уменьшить вдвое количество
-gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl + колёсико: удвоить/уменьшить вдвое время
-gui.ae2powertools.maintainer.tooltip.batch_size=Крафтит (минимум) %d шт. за цикл
-gui.ae2powertools.maintainer.tooltip.frequency=Запуск каждые %s
+gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=§bShift + колёсико§7: удвоить/уменьшить вдвое количество
+gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=§bCtrl + колёсико§7: удвоить/уменьшить вдвое время
+gui.ae2powertools.maintainer.tooltip.batch_size=§7Крафтит (минимум) %d шт. за цикл
+gui.ae2powertools.maintainer.tooltip.frequency=§7Запуск каждые %s
 
 # Интерфейс - Подсказки к строке состояния
-gui.ae2powertools.maintainer.status.cpu_title=Процессоры крафта
-gui.ae2powertools.maintainer.status.cpu_active=Активных: %d
-gui.ae2powertools.maintainer.status.cpu_total=Всего: %d
-gui.ae2powertools.maintainer.status.recipe_title=Состояние рецептов
-gui.ae2powertools.maintainer.status.recipe_running=Выполняется: %d
-gui.ae2powertools.maintainer.status.recipe_total=Всего: %d
-gui.ae2powertools.maintainer.status.recipe_failed=Неудачно: %d
-gui.ae2powertools.maintainer.status.recipe_post_error=Ошибок вывода: %d
+gui.ae2powertools.maintainer.status.cpu_title=§eПроцессоры крафта
+gui.ae2powertools.maintainer.status.cpu_active=§aАктивных: %d
+gui.ae2powertools.maintainer.status.cpu_total=§7Всего: %d
+gui.ae2powertools.maintainer.status.recipe_title=§eСостояние рецептов
+gui.ae2powertools.maintainer.status.recipe_running=§aВыполняется: %d
+gui.ae2powertools.maintainer.status.recipe_total=§7Всего: %d
+gui.ae2powertools.maintainer.status.recipe_failed=§cНеудачно: %d
+gui.ae2powertools.maintainer.status.recipe_post_error=§5Ошибок вывода: %d
 
 # Интерфейс - Модальное окно стабилизатора
 gui.ae2powertools.maintainer.modal.target=Целевое количество
@@ -357,16 +357,16 @@ gui.ae2powertools.locator.click_deselect=§bНажмите§7 для сняти�
 
 # Интерфейс - Переключение стиля вида
 gui.ae2powertools.locator.style.title=Стиль вида
-gui.ae2powertools.locator.style.tall=Высокий вид
-gui.ae2powertools.locator.style.small=Компактный вид
-gui.ae2powertools.locator.style.click_toggle=§bНажмите§r для переключения
+gui.ae2powertools.locator.style.tall=§7Высокий вид
+gui.ae2powertools.locator.style.small=§7Компактный вид
+gui.ae2powertools.locator.style.click_toggle=§bНажмите§7 для переключения
 
 # Интерфейс - Переключение сканирования подсетей
 gui.ae2powertools.locator.subnet.title=Сканирование подсетей
-gui.ae2powertools.locator.subnet.enabled=Включено (включая подсети)
-gui.ae2powertools.locator.subnet.disabled=Отключено (только основная сеть)
+gui.ae2powertools.locator.subnet.enabled=§aВключено (включая подсети)
+gui.ae2powertools.locator.subnet.disabled=§cОтключено (только основная сеть)
 gui.ae2powertools.locator.subnet.click_toggle=§bНажмите§7 для переключения
-gui.ae2powertools.locator.subnet.hint=Пересканируйте сеть для применения
+gui.ae2powertools.locator.subnet.hint=§7Пересканируйте сеть для применения
 gui.ae2powertools.locator.hint_subnets=(+ подсети)
 
 # Конфигурация
@@ -418,7 +418,7 @@ gui.ae2powertools.storage_emitter.hysteresis.on=§aВкл
 gui.ae2powertools.storage_emitter.hysteresis.off=§cВыкл
 gui.ae2powertools.storage_emitter.hysteresis.click_toggle=§bНажмите§7, чтобы переключить гистерезис. Гистерезис предотвращает частое переключение, когда количество находится вблизи порога.
 gui.ae2powertools.storage_emitter.polling_rate.title=Частота опроса
-gui.ae2powertools.storage_emitter.polling_rate.tooltip=Частота опроса: %s
+gui.ae2powertools.storage_emitter.polling_rate.tooltip=§eЧастота опроса: %s
 gui.ae2powertools.storage_emitter.polling_rate.description=§bНажмите§7, чтобы настроить частоту опроса хранилища.
 gui.ae2powertools.storage_emitter.empty_slot=§7Ресурс не выбран
 gui.ae2powertools.storage_emitter.current_quantity=§7Текущее количество: %s
@@ -454,8 +454,8 @@ gui.ae2powertools.scanner.pattern.nested_input_output.tooltip=Шаблоны, в
 gui.ae2powertools.scanner.pattern.unknown_output=Неизвестный результат
 gui.ae2powertools.scanner.pattern.more_outputs=+%d ещё
 gui.ae2powertools.scanner.subnet.title=Сканирование подсетей
-gui.ae2powertools.scanner.subnet.enabled=Включено (включая подсети)
-gui.ae2powertools.scanner.subnet.disabled=Отключено (только сканируемая сеть)
+gui.ae2powertools.scanner.subnet.enabled=§aВключено (включая подсети)
+gui.ae2powertools.scanner.subnet.disabled=§cОтключено (только сканируемая сеть)
 gui.ae2powertools.scanner.subnet.click_toggle=§bНажмите§7, чтобы переключить
 gui.ae2powertools.scanner.subnet.hint=§bПовторно сканируйте§7 сеть для применения
 ae2powertools.scanner.complete.summary.line6=- Найдено %d проблем с шаблонами
@@ -508,7 +508,7 @@ item.ae2powertools.level_monitor_alarm_locator.tip1=§bДержите в люб�
 gui.ae2powertools.level_monitor_alarm.title=Сигнализация контроля уровня
 gui.ae2powertools.storage_emitter.strength=Сила
 gui.ae2powertools.storage_emitter.strength.tooltip=Сила красного камня
-gui.ae2powertools.storage_emitter.strength.description=Сила красного камня — это начальная сила, которую получает непосредственно соседний блок. Затем сигнал ослабевает на 1 за каждый блок красной пыли, через который проходит.
+gui.ae2powertools.storage_emitter.strength.description=§7Сила красного камня — это начальная сила, которую получает непосредственно соседний блок. Затем сигнал ослабевает на 1 за каждый блок красной пыли, через который проходит.
 gui.ae2powertools.level_monitor_alarm.registration.registered=Получение предупреждений от этой сигнализации
 gui.ae2powertools.level_monitor_alarm.registration.unregistered=Не получать предупреждения от этой сигнализации
 gui.ae2powertools.level_monitor_alarm.registration.click_register=§bНажмите§7, чтобы зарегистрироваться для получения предупреждений
