@@ -5,9 +5,9 @@ itemGroup.ae2powertools=AE2 PowerTools
 ae2powertools.common.unknown=未知
 ae2powertools.common.upgrade.title=选择升级卡
 ae2powertools.common.upgrade.empty=点击选择一项升级卡。
-ae2powertools.common.upgrade.compatible=兼容：
-ae2powertools.common.upgrade.action.select=左键点击选择另一升级卡
-ae2powertools.common.upgrade.action.remove=右键点击移除升级卡
+ae2powertools.common.upgrade.compatible=§b兼容：
+ae2powertools.common.upgrade.action.select=§b左键点击§7选择另一升级卡
+ae2powertools.common.upgrade.action.remove=§b右键点击§7移除升级卡
 
 # Config GUI and keys for the config factory
 ae2powertools.config.title=AE2 PowerTools设置
@@ -26,13 +26,13 @@ ae2powertools.config.server.interfaceTerminal=接口终端
 
 # Items
 item.ae2powertools.priority_tuner.name=优先级调节器
-item.ae2powertools.priority_tuner.stored=已储存优先级：%s
-item.ae2powertools.priority_tuner.tip1=潜行+右击以打开优先级GUI
-item.ae2powertools.priority_tuner.tip2=右击以应用储存的优先级
-item.ae2powertools.priority_tuner.tip3=副手持有时：放置方块时自动应用
+item.ae2powertools.priority_tuner.stored=§6已储存优先级：§f%s§6
+item.ae2powertools.priority_tuner.tip1=§b潜行+右击§7以打开优先级GUI
+item.ae2powertools.priority_tuner.tip2=§b右击§7以应用储存的优先级
+item.ae2powertools.priority_tuner.tip3=§b副手持有时§7：放置方块时自动应用
 
 # Messages
-ae2powertools.priority.applied=已将优先级%d应用于[%d, %d, %d]
+ae2powertools.priority.applied=§a已将优先级%d应用于[%d, %d, %d]
 
 # GUI
 gui.ae2powertools.priority_tuner.title=优先级调节器
@@ -43,11 +43,11 @@ gui.ae2powertools.priority_tuner.title=优先级调节器
 
 # Items
 item.ae2powertools.network_health_scanner.name=网络健康扫描器
-item.ae2powertools.network_health_scanner.tip1=右击网络以开始扫描
-item.ae2powertools.network_health_scanner.tip2=右击空气以查看结果
-item.ae2powertools.network_health_scanner.tip3=潜行+右击以切换叠加层（%s）
-item.ae2powertools.network_health_scanner.overlay_on=开
-item.ae2powertools.network_health_scanner.overlay_off=关
+item.ae2powertools.network_health_scanner.tip1=§b右击§7网络以开始扫描
+item.ae2powertools.network_health_scanner.tip2=§b右击空气§7以查看结果
+item.ae2powertools.network_health_scanner.tip3=§b潜行+右击§7以切换叠加层（%s§7）
+item.ae2powertools.network_health_scanner.overlay_on=§a开
+item.ae2powertools.network_health_scanner.overlay_off=§c关
 item.ae2powertools.network_health_scanner.overlay_enabled=叠加层已启用
 item.ae2powertools.network_health_scanner.overlay_disabled=叠加层已禁用
 
@@ -68,7 +68,7 @@ ae2powertools.config.client.scanner.adaptiveTextScaleMaxPercent.tooltip=使用�
 # Messages
 item.ae2powertools.network_health_scanner.started=网络扫描已开始……
 item.ae2powertools.network_health_scanner.no_network=该位置未找到AE2网络。
-item.ae2powertools.network_health_scanner.no_session=无激活的扫描会话。右击网络以开始。
+item.ae2powertools.network_health_scanner.no_session=无激活的扫描会话。§b右击§r网络以开始。
 item.ae2powertools.network_health_scanner.already_scanning=已有扫描正在进行中。
 item.ae2powertools.network_health_scanner.cancelled=扫描已取消，已处理%d个节点。
 
@@ -111,8 +111,8 @@ gui.ae2powertools.scanner.sort_tooltip=排序方式：%s
 gui.ae2powertools.scanner.subnet.title=子网络扫描
 gui.ae2powertools.scanner.subnet.enabled=已启用（包括子网络）
 gui.ae2powertools.scanner.subnet.disabled=已禁用（仅已扫描网络）
-gui.ae2powertools.scanner.subnet.click_toggle=点击切换
-gui.ae2powertools.scanner.subnet.hint=重新扫描网络以应用设置
+gui.ae2powertools.scanner.subnet.click_toggle=§b点击§7切换
+gui.ae2powertools.scanner.subnet.hint=§b重新扫描网络§7以应用设置
 
 # Scanner Status Messages
 ae2powertools.scanner.session_started=开始网络扫描……
@@ -154,8 +154,8 @@ ae2powertools.scanner.complete.summary.end=§b右键点击扫描器来打开GUI�
 
 # Blocks
 tile.ae2powertools.better_level_maintainer.name=更好的缓存指令器
-tile.ae2powertools.better_level_maintainer.tooltip=自动合成指定物品，以维持网络中目标物品的数量。
-tile.ae2powertools.better_level_maintainer.warning=警告：如果放置在大型网络，或用于复杂配方，该方块可能导致显著的服务器卡顿。请在小型的子网络中使用，并搭配简单配方。
+tile.ae2powertools.better_level_maintainer.tooltip=§b自动合成指定物品，以维持网络中目标物品的数量。
+tile.ae2powertools.better_level_maintainer.warning=§e警告：如果放置在大型网络，或用于复杂配方，该方块可能导致显著的服务器卡顿。请在小型的子网络中使用，并搭配简单配方。
 tile.ae2powertools.better_level_maintainer.memory_card.tooltip=缓存目标
 
 # Config
@@ -193,9 +193,9 @@ gui.ae2powertools.maintainer.frequency=每%s运行一次
 
 # GUI - Maintainer Entry Tooltips
 gui.ae2powertools.maintainer.tooltip.empty=空槽位
-gui.ae2powertools.maintainer.tooltip.click_add=点击添加要维持的配方
-gui.ae2powertools.maintainer.tooltip.click_edit=左键点击编辑配方设置
-gui.ae2powertools.maintainer.tooltip.right_click_toggle=右键点击切换启用状态
+gui.ae2powertools.maintainer.tooltip.click_add=§b点击§7添加要维持的配方
+gui.ae2powertools.maintainer.tooltip.click_edit=§b左键点击§7编辑配方设置
+gui.ae2powertools.maintainer.tooltip.right_click_toggle=§b右键点击§7切换启用状态
 gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=Shift+滚轮以加倍/减半数量
 gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=Ctrl+滚轮以加倍/减半时间
 gui.ae2powertools.maintainer.tooltip.batch_size=每次运行（至少）合成%d个物品
@@ -218,9 +218,9 @@ gui.ae2powertools.maintainer.modal.frequency=频率
 gui.ae2powertools.maintainer.modal.select_item=点击槽位来选择物品……
 
 # GUI - Maintainer Modal Tooltips
-gui.ae2powertools.maintainer.modal.slot_left_click=左键点击：选择配方
-gui.ae2powertools.maintainer.modal.slot_right_click=右键点击：清除
-gui.ae2powertools.maintainer.modal.name_click_toggle=点击以切换启用/禁用
+gui.ae2powertools.maintainer.modal.slot_left_click=§b左键点击§7：选择配方
+gui.ae2powertools.maintainer.modal.slot_right_click=§b右键点击§7：清除
+gui.ae2powertools.maintainer.modal.name_click_toggle=§b点击§r以切换启用/禁用
 gui.ae2powertools.maintainer.modal.target_tooltip=当数量达到该值时停止合成
 gui.ae2powertools.maintainer.modal.batch_tooltip=每次运行时合成物品的数量
 gui.ae2powertools.maintainer.modal.frequency_tooltip=合成检查之间的时间间隔
@@ -233,7 +233,7 @@ gui.ae2powertools.maintainer.selector.title=选择配方
 gui.ae2powertools.maintainer.style.title=视图样式
 gui.ae2powertools.maintainer.style.tall=高视图
 gui.ae2powertools.maintainer.style.small=紧凑视图
-gui.ae2powertools.maintainer.style.click_toggle=点击切换
+gui.ae2powertools.maintainer.style.click_toggle=§b点击§r切换
 
 # GUI - Maintainer Error Messages
 gui.ae2powertools.maintainer.error.no_recipe=未找到该物品的样板
@@ -255,11 +255,11 @@ gui.ae2powertools.maintainer.error.extraction_failed=物品可见但无法提取
 
 # Items
 item.ae2powertools.cards_distributor.name=升级卡分配器
-item.ae2powertools.cards_distributor.tip1=对网络右击以从物品栏中分配升级卡
-item.ae2powertools.cards_distributor.tip1bis=对网络右击以从物品栏和链接的AE2存储中分配升级卡
-item.ae2powertools.cards_distributor.tip2=支持分子装配室（加速卡）
+item.ae2powertools.cards_distributor.tip1=对网络§b右击§7以从物品栏中分配升级卡
+item.ae2powertools.cards_distributor.tip1bis=对网络§b右击§7以从物品栏和链接的AE2存储中分配升级卡
+item.ae2powertools.cards_distributor.tip2=§7支持分子装配室（加速卡）
 item.ae2powertools.cards_distributor.no_network=该位置未找到AE2网络。
-item.ae2powertools.cards_distributor.use_on_network=对网络组件右击以分配加速卡。
+item.ae2powertools.cards_distributor.use_on_network=对网络组件§b右击§r以分配加速卡。
 
 # Messages
 item.ae2powertools.cards_distributor.success_accelerator=向%2$d个装配室分配了%1$d张加速卡。
@@ -273,24 +273,26 @@ item.ae2powertools.cards_distributor.pulled_from_ae2=从AE2网络存储中取出
 
 # Items
 item.ae2powertools.remote_storage_monitor.name=远程存储监控器
-item.ae2powertools.remote_storage_monitor.tip1=右击打开远程监控器
-item.ae2powertools.remote_storage_monitor.tip2=手持或装备时，以叠加层形式显示数量变化
-item.ae2powertools.remote_storage_monitor.tip3=每§a%s§7刷新一次，比较最近§a%s§7内的数量变化
+item.ae2powertools.remote_storage_monitor.tip1=§b右击§7打开远程监控器
+item.ae2powertools.remote_storage_monitor.tip2=§7手持或装备时，以叠加层形式显示数量变化
+item.ae2powertools.remote_storage_monitor.tip3=§7每§a%s§7刷新一次，比较最近§a%s§7内的数量变化
 
 # GUI
 gui.ae2powertools.remote_monitor.title=远程存储监控器
-gui.ae2powertools.remote_monitor.empty_slot=空槽位
-gui.ae2powertools.remote_monitor.slot_left_click=左键点击选择内容
-gui.ae2powertools.remote_monitor.slot_right_click=右键点击清除
+gui.ae2powertools.remote_monitor.empty_slot=§7空槽位
+gui.ae2powertools.remote_monitor.slot_left_click=§b左键§7点击选择内容
+gui.ae2powertools.remote_monitor.slot_right_click=§b右键§7点击清除
 gui.ae2powertools.remote_monitor.polling_rate.title=轮询率
 gui.ae2powertools.remote_monitor.polling_rate.tooltip=与%s前状态进行对比
 gui.ae2powertools.remote_monitor.polling_rate.description=设置用于衡量数量变化的时间跨度
 gui.ae2powertools.remote_monitor.refresh_interval.title=刷新间隔
-gui.ae2powertools.remote_monitor.refresh_interval.tooltip=每隔%s刷新一次采样数量
-gui.ae2powertools.remote_monitor.refresh_interval.description=设置远程监控器轮询网络的频率
+gui.ae2powertools.remote_monitor.refresh_interval.tooltip=§b每隔§a%s刷新一次采样数量
+gui.ae2powertools.remote_monitor.refresh_interval.description=§7设置远程监控器轮询网络的频率
+gui.ae2powertools.poll_now.title=立即刷新
+gui.ae2powertools.poll_now.description=§7立即触发一次该监控器的网络轮询
 gui.ae2powertools.remote_monitor.sliding_window.title=滑动窗口
-gui.ae2powertools.remote_monitor.sliding_window.tooltip=与最近%s进行对比
-gui.ae2powertools.remote_monitor.sliding_window.description=设置用于衡量数量变化的时间跨度
+gui.ae2powertools.remote_monitor.sliding_window.tooltip=§b与最近§a%s进行对比
+gui.ae2powertools.remote_monitor.sliding_window.description=§7设置用于衡量数量变化的时间跨度
 gui.ae2powertools.remote_monitor.selector.title=选择内容
 
 # Config
@@ -325,8 +327,8 @@ ae2powertools.config.client.remoteMonitor.lossColor.tooltip=用于负数量增�
 
 # Blocks
 tile.ae2powertools.auto_crafter.name=AE2自动合成器
-tile.ae2powertools.auto_crafter.tooltip=使用样板自动合成物品（类似其他模组的自动合成器）。
-tile.ae2powertools.auto_crafter.tooltip2=支持可重复使用的物品、具有耐久度的工具，以及复制配方。
+tile.ae2powertools.auto_crafter.tooltip=§b使用样板自动合成物品（类似其他模组的自动合成器）。
+tile.ae2powertools.auto_crafter.tooltip2=§e支持可重复使用的物品、具有耐久度的工具，以及复制配方。
 
 # Memory Card
 tile.ae2powertools.auto_crafter.memory_card.tooltip=自动合成器设置+样板
@@ -337,11 +339,11 @@ tile.ae2powertools.auto_crafter.memory_card.no_blanks= - 物品栏中缺少%d个
 tile.ae2powertools.auto_crafter.memory_card.no_slots= - 自动合成器中缺少%d个空闲槽位。
 
 # Items - Speed Upgrades
-item.ae2powertools.crafter_speed_upgrade_i.name=速度升级 I
-item.ae2powertools.crafter_speed_upgrade_ii.name=速度升级 II
-item.ae2powertools.crafter_speed_upgrade_iii.name=速度升级 III
-item.ae2powertools.crafter_speed_upgrade_iv.name=速度升级 IV
-item.ae2powertools.crafter_speed_upgrade.tooltip=批量大小x%d。放入自动合成器以增加吞吐量。
+item.ae2powertools.crafter_speed_upgrade_i.name=速度升级卡 I
+item.ae2powertools.crafter_speed_upgrade_ii.name=速度升级卡 II
+item.ae2powertools.crafter_speed_upgrade_iii.name=速度升级卡 III
+item.ae2powertools.crafter_speed_upgrade_iv.name=速度升级卡 IV
+item.ae2powertools.crafter_speed_upgrade.tooltip=批量大小§ax%d§7。放入自动合成器以增加吞吐量。
 
 # Config
 ae2powertools.config.server.crafter.tooltip=自动合成器平衡性设置
@@ -387,18 +389,20 @@ gui.ae2powertools.crafter.page.previous=上一页
 gui.ae2powertools.crafter.page.next=下一页
 gui.ae2powertools.crafter.page=页码 %d/%d
 gui.ae2powertools.crafter.empty_slot=槽位 %d - 空
-gui.ae2powertools.crafter.click_to_view=左键点击以查看
-gui.ae2powertools.crafter.right_click_toggle=右键点击以开关
+gui.ae2powertools.crafter.click_to_view.muted=§b左键点击§7以查看
+gui.ae2powertools.crafter.click_to_view.action=§b左键点击§7以查看
+gui.ae2powertools.crafter.right_click_toggle.muted=§b右键点击§7以开关
+gui.ae2powertools.crafter.right_click_toggle.action=§b右键点击§7以开关
 
 # GUI - Batch
 gui.ae2powertools.crafter.batch.title=批量大小
-gui.ae2powertools.crafter.batch.desc=当前：%d
-gui.ae2powertools.crafter.batch.explanation=每次操作进行的合成数与耗时的倍数（吞吐量相同）
+gui.ae2powertools.crafter.batch.desc=§7当前：%d
+gui.ae2powertools.crafter.batch.explanation=§8每次操作进行的合成数与耗时的倍数（吞吐量相同）
 
 # GUI - Speed
 gui.ae2powertools.crafter.speed.title=合成速度
-gui.ae2powertools.crafter.speed.desc=当前：%s
-gui.ae2powertools.crafter.speed.explanation=操作间隔时间（数值越高 = 吞吐量越低）
+gui.ae2powertools.crafter.speed.desc=§7当前：%s
+gui.ae2powertools.crafter.speed.explanation=§8操作间隔时间（数值越高 = 吞吐量越低）
 
 # GUI - States
 gui.ae2powertools.crafter.state.no_pattern=无样板
@@ -411,14 +415,16 @@ gui.ae2powertools.crafter.state.simulation_failed=配方模拟失败
 gui.ae2powertools.crafter.state.holding_output=暂存输出（等待空间）
 
 # GUI - Metrics
-gui.ae2powertools.crafter.state=状态
-gui.ae2powertools.crafter.occupancy=占用率：
-gui.ae2powertools.crafter.error_rate=错误率：
+gui.ae2powertools.crafter.state=§7状态：§r%s
+gui.ae2powertools.crafter.occupancy=§a占用率：
+gui.ae2powertools.crafter.error_rate.good=§a错误率：
+gui.ae2powertools.crafter.error_rate.warning=§e错误率：
+gui.ae2powertools.crafter.error_rate.critical=§c错误率：
 gui.ae2powertools.crafter.metrics_format=%s%% | %s%%
-gui.ae2powertools.crafter.occupancy_desc=实际完成量占请求批量的百分比（受资源限制影响）
-gui.ae2powertools.crafter.error_rate_desc=配方无法执行（错误状态）的操作占总尝试次数的比例
+gui.ae2powertools.crafter.occupancy_desc=§7实际完成量占请求批量的百分比（受资源限制影响）
+gui.ae2powertools.crafter.error_rate_desc=§7配方无法执行（错误状态）的操作占总尝试次数的比例
 gui.ae2powertools.crafter.crafts_per_operation=每%2$s合成%1$s
-gui.ae2powertools.crafter.issues=问题
+gui.ae2powertools.crafter.issues=§c问题：
 gui.ae2powertools.crafter.crafts_per_operation=§2%s§8 物品 / %s
 
 # GUI - Errors
@@ -427,8 +433,8 @@ gui.ae2powertools.crafter.error.invalid_pattern=样板无效或损坏
 gui.ae2powertools.crafter.error.processing_pattern=仅支持合成样板，不支持处理样板
 
 # GUI - Warnings (tooltips)
-gui.ae2powertools.crafter.warning.processing_pattern_title=警告：处理样板！
-gui.ae2powertools.crafter.warning.processing_pattern_desc=自动合成器仅接受合成样板。
+gui.ae2powertools.crafter.warning.processing_pattern_title=§c警告：处理样板！
+gui.ae2powertools.crafter.warning.processing_pattern_desc=§c自动合成器仅接受合成样板。
 gui.ae2powertools.crafter.error.need_have=§b%s§7（需要§r%d§7，现有§r%d§7）
 gui.ae2powertools.crafter.error.limited_by=受限于§b%s§7（分配§r%d§7，需要§r%d§7）
 gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
@@ -438,7 +444,7 @@ gui.ae2powertools.crafter.error.pending_output=无法将%d§7 x %s§7插入网�
 gui.ae2powertools.crafter.error.inputs_changed=所需输入原料在提取前从网络中消失了（你的网络中可能存在幽灵物品）
 gui.ae2powertools.crafter.error.catalyst_recipe_mismatch=当前催化剂物品与编码样板不再匹配
 gui.ae2powertools.crafter.error.output_mismatch=当前催化剂物品导致的产物与编码样板不同
-jei.ae2powertools.reusable=可重复使用
+jei.ae2powertools.reusable=§a可重复使用
 
 # =====================================================
 # Network Advanced Component Locator
@@ -446,39 +452,39 @@ jei.ae2powertools.reusable=可重复使用
 
 # Items
 item.ae2powertools.network_component_locator.name=网络高级部件定位器
-item.ae2powertools.network_component_locator.tip1=右键点击网络以扫描部件
-item.ae2powertools.network_component_locator.tip2=右键点击空气以重新打开结果
-item.ae2powertools.network_component_locator.tip3=潜行+右键点击以切换叠加层（%s）
-item.ae2powertools.network_component_locator.overlay_on=开
-item.ae2powertools.network_component_locator.overlay_off=关
+item.ae2powertools.network_component_locator.tip1=§b右键点击§7网络以扫描部件
+item.ae2powertools.network_component_locator.tip2=§b右键点击空气§7以重新打开结果
+item.ae2powertools.network_component_locator.tip3=§b潜行+右键点击§7以切换叠加层（%s§7）
+item.ae2powertools.network_component_locator.overlay_on=§a开
+item.ae2powertools.network_component_locator.overlay_off=§c关
 item.ae2powertools.network_component_locator.overlay_enabled=叠加层已启用
 item.ae2powertools.network_component_locator.overlay_disabled=叠加层已禁用
 item.ae2powertools.network_component_locator.no_network=该位置未找到AE2网络。
 
 # GUI
 gui.ae2powertools.locator.title=网络部件定位器
-gui.ae2powertools.locator.hint_empty=右键点击网络进行扫描。
+gui.ae2powertools.locator.hint_empty=§1右键点击§r网络进行扫描。
 gui.ae2powertools.locator.hint_components=找到部件类型：%s
 gui.ae2powertools.locator.hint_nodes=扫描节点数量：%s
-gui.ae2powertools.locator.hint_click=点击部件查看所有位置
+gui.ae2powertools.locator.hint_click=§1点击§r部件查看所有位置
 gui.ae2powertools.locator.tooltip_count=已找到：%s
 gui.ae2powertools.locator.back=返回
-gui.ae2powertools.locator.detail_hint=点击选择，Esc键返回
+gui.ae2powertools.locator.detail_hint=§1点击§8选择，§1Esc§8键返回
 gui.ae2powertools.locator.selected_count=已选择%s个
-gui.ae2powertools.locator.click_select=点击选择（显示叠加层）
-gui.ae2powertools.locator.click_deselect=点击取消选择（隐藏叠加层）
+gui.ae2powertools.locator.click_select=§b点击§7选择（显示叠加层）
+gui.ae2powertools.locator.click_deselect=§b点击§7取消选择（隐藏叠加层）
 
 # GUI - View Style Toggle
 gui.ae2powertools.locator.style.title=视图样式
 gui.ae2powertools.locator.style.tall=高视图
 gui.ae2powertools.locator.style.small=紧凑视图
-gui.ae2powertools.locator.style.click_toggle=点击切换
+gui.ae2powertools.locator.style.click_toggle=§b点击§r切换
 
 # GUI - Subnet Scanning Toggle
 gui.ae2powertools.locator.subnet.title=子网络扫描
 gui.ae2powertools.locator.subnet.enabled=已启用（包含子网络）
 gui.ae2powertools.locator.subnet.disabled=已禁用（仅主网络）
-gui.ae2powertools.locator.subnet.click_toggle=点击切换
+gui.ae2powertools.locator.subnet.click_toggle=§b点击§7切换
 gui.ae2powertools.locator.subnet.hint=重新扫描网络以应用设置
 gui.ae2powertools.locator.hint_subnets=（+ 子网络）
 
@@ -494,16 +500,16 @@ ae2powertools.config.client.locator.useTallView.tooltip=使用高视图（行数
 
 # Blocks
 tile.ae2powertools.storage_level_emitter.name=ME存储发信器
-tile.ae2powertools.storage_level_emitter.tooltip=根据监控物品的数量输出红石信号。
+tile.ae2powertools.storage_level_emitter.tooltip=§b根据监控物品的数量输出红石信号。
 tile.ae2powertools.storage_level_emitter.memory_card.tooltip=存储监控器过滤项
 
 tile.ae2powertools.level_monitor_alarm.name=发信警报器
-tile.ae2powertools.level_monitor_alarm.tooltip=当任意配置的警报条目触发时，向已注册的玩家发出警告。
-tile.ae2powertools.level_monitor_alarm.tooltip2=可通过内存卡接受来自任意更好的缓存指令器、AE2自动合成器、存储发信器或存储显示器的过滤项。
+tile.ae2powertools.level_monitor_alarm.tooltip=§b当任意配置的警报条目触发时，向已注册的玩家发出警告。
+tile.ae2powertools.level_monitor_alarm.tooltip2=§b可通过内存卡接受来自任意更好的缓存指令器、AE2自动合成器、存储发信器或存储显示器的过滤项。
 tile.ae2powertools.level_monitor_alarm.memory_card.tooltip=警报器过滤项
 
 tile.ae2powertools.storage_display.name=ME存储显示器
-tile.ae2powertools.storage_display.tooltip=显示网络中监控物品的数量。
+tile.ae2powertools.storage_display.tooltip=§b显示网络中监控物品的数量。
 tile.ae2powertools.storage_display.memory_card.tooltip=存储显示器过滤项
 
 # Items
@@ -512,7 +518,7 @@ item.ae2powertools.storage_display_part.name=ME存储显示器
 item.ae2powertools.storage_display_part_smaller.name=ME存储显示器（小型）
 item.ae2powertools.storage_display_part_smallerer.name=ME存储显示器（超小型）
 item.ae2powertools.level_monitor_alarm_locator.name=发信警报器定位器
-item.ae2powertools.level_monitor_alarm_locator.tip1=手持该物品时，渲染指向活动中警报位置的箭头。
+item.ae2powertools.level_monitor_alarm_locator.tip1=§b手持该物品时，渲染指向活动中警报位置的箭头。
 
 # Config
 ae2powertools.config.client.monitor=存储监控
@@ -533,38 +539,38 @@ gui.ae2powertools.storage_emitter.refresh_rate=刷新：%s
 gui.ae2powertools.storage_emitter.condition_met=条件已满足
 gui.ae2powertools.storage_emitter.condition_not_met=条件未满足
 gui.ae2powertools.storage_emitter.select_content=资源
-gui.ae2powertools.storage_emitter.match_mode.click_toggle=点击切换“与/或”模式
+gui.ae2powertools.storage_emitter.match_mode.click_toggle=§b点击§7切换“与/或”模式
 gui.ae2powertools.storage_emitter.redstone_signal=红石输出：%s
 gui.ae2powertools.storage_emitter.redstone_signal.weak=§b弱
 gui.ae2powertools.storage_emitter.redstone_signal.strong=§d强
-gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=点击切换弱/强输出。强输出信号会通过受影响的方块传播，而弱输出仅影响直接相邻的方块。
+gui.ae2powertools.storage_emitter.redstone_signal.click_toggle=§b点击§7切换弱/强输出。强输出信号会通过受影响的方块传播，而弱输出仅影响直接相邻的方块。
 gui.ae2powertools.storage_emitter.hysteresis=迟滞：%s
 gui.ae2powertools.storage_emitter.hysteresis.on=§a开
 gui.ae2powertools.storage_emitter.hysteresis.off=§c关
-gui.ae2powertools.storage_emitter.hysteresis.click_toggle=点击切换迟滞模式。迟滞可防止数量接近阈值时频繁切换状态。
+gui.ae2powertools.storage_emitter.hysteresis.click_toggle=§b点击§7切换迟滞模式。迟滞可防止数量接近阈值时频繁切换状态。
 gui.ae2powertools.storage_emitter.polling_rate.title=轮询率
 gui.ae2powertools.storage_emitter.polling_rate.tooltip=轮询率：%s
-gui.ae2powertools.storage_emitter.polling_rate.description=点击配置存储内容的轮询频率。
+gui.ae2powertools.storage_emitter.polling_rate.description=§b点击§7配置存储内容的轮询频率。
 gui.ae2powertools.storage_emitter.strength=强度
 gui.ae2powertools.storage_emitter.strength.tooltip=红石强度
 gui.ae2powertools.storage_emitter.strength.description=红石强度指直接相邻方块接收到的初始强度。随后每传导一个红石粉，信号强度衰减1。
-gui.ae2powertools.storage_emitter.upgrade.fuzzy.description=将所有匹配的物品变种合并计数，而不只是精确匹配所选的物品堆叠。
-gui.ae2powertools.storage_emitter.upgrade.crafting.description=追踪当前正在合成的物品，而非网络中已存储的物品。
-gui.ae2powertools.storage_emitter.empty_slot=未选择资源
-gui.ae2powertools.storage_emitter.current_quantity=当前：%s
-gui.ae2powertools.storage_emitter.current_target=目标：%s %s (%s)
-gui.ae2powertools.storage_emitter.active_target=生效目标：%s %s (%s)
-gui.ae2powertools.storage_emitter.increasing_target=上升目标：%s %s
-gui.ae2powertools.storage_emitter.decreasing_target=下降目标：%s %s
+gui.ae2powertools.storage_emitter.upgrade.fuzzy.description=§7将所有匹配的物品变种合并计数，而不只是精确匹配所选的物品堆叠。
+gui.ae2powertools.storage_emitter.upgrade.crafting.description=§7追踪当前正在合成的物品，而非网络中已存储的物品。
+gui.ae2powertools.storage_emitter.empty_slot=§7未选择资源
+gui.ae2powertools.storage_emitter.current_quantity=§7当前：%s
+gui.ae2powertools.storage_emitter.current_target=§7目标：%s %s (%s)
+gui.ae2powertools.storage_emitter.active_target=§7生效目标：%s %s (%s)
+gui.ae2powertools.storage_emitter.increasing_target=§7上升目标：%s %s
+gui.ae2powertools.storage_emitter.decreasing_target=§7下降目标：%s %s
 gui.ae2powertools.storage_emitter.target_label=目标：
 gui.ae2powertools.storage_emitter.increasing_label=上升：
 gui.ae2powertools.storage_emitter.decreasing_label=下降：
-gui.ae2powertools.storage_emitter.controls.title=控制
-gui.ae2powertools.storage_emitter.controls.scroll=Shift+滚轮：加倍/减半目标值
-gui.ae2powertools.storage_emitter.controls.toggle=右键点击：切换启用状态
+gui.ae2powertools.storage_emitter.controls.title=§b控制
+gui.ae2powertools.storage_emitter.controls.scroll=§bShift+滚轮§7：加倍/减半目标值
+gui.ae2powertools.storage_emitter.controls.toggle=§b右键点击§7：切换启用状态
 gui.ae2powertools.level_monitor_alarm.registration.registered=接收来自此警报器的警告
 gui.ae2powertools.level_monitor_alarm.registration.unregistered=不接收来自此警报器的警告
-gui.ae2powertools.level_monitor_alarm.registration.click_register=点击以注册接收警告
-gui.ae2powertools.level_monitor_alarm.registration.click_unregister=点击以停止接收警告
+gui.ae2powertools.level_monitor_alarm.registration.click_register=§b点击§7以注册接收警告
+gui.ae2powertools.level_monitor_alarm.registration.click_unregister=§b点击§7以停止接收警告
 gui.ae2powertools.level_monitor_alarm.overlay.single=警报器位置：%s
 gui.ae2powertools.level_monitor_alarm.overlay.multiple=警报器位置：%s
