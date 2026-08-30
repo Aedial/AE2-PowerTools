@@ -516,3 +516,27 @@ gui.ae2powertools.level_monitor_alarm.registration.click_unregister=§bНажм�
 gui.ae2powertools.level_monitor_alarm.overlay.single=Сигнализация в %s
 gui.ae2powertools.level_monitor_alarm.overlay.multiple=Сигнализации в %s
 
+###
+
+ae2powertools.common.upgrade.title=Выберите карту улучшения
+ae2powertools.common.upgrade.empty=Нажмите, чтобы выбрать карту улучшения.
+ae2powertools.common.upgrade.compatible=§bСовместимо:
+ae2powertools.common.upgrade.action.select=§bЛКМ§7 для выбора другой карты
+ae2powertools.common.upgrade.action.remove=§bПКМ§7 для удаления карты
+ae2powertools.config.client.tooltip=Клиентская конфигурация
+ae2powertools.config.server.tooltip=Серверная конфигурация
+ae2powertools.config.server.interfaceTerminal=Терминал интерфейсов
+gui.ae2powertools.scanner.pattern.conflicting_output_entry=%1$s (%2$d вариантов)
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.title=Мультиблоки на границах чанков
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.tooltip=Этот мультиблок AE2 пересекает границы чанков. Он может не собраться обратно или выйти из строя при несинхронной загрузке этих чанков.
+gui.ae2powertools.scanner.fatal.chunk_boundary_multiblock.entry=%s
+ae2powertools.scanner.complete.summary.end=§bНажмите ПКМ по сканеру, чтобы открыть GUI и отфильтровать результаты.
+item.ae2powertools.remote_storage_monitor.tip3=§7Обновляется каждые §a%s§7, сравнивает количества за последние §a%s§7
+gui.ae2powertools.remote_monitor.refresh_interval.title=Интервал обновления
+gui.ae2powertools.remote_monitor.refresh_interval.tooltip=§bОбновлять выборку количества каждые §a%s
+gui.ae2powertools.remote_monitor.refresh_interval.description=§7Установите, как часто монитор опрашивает сеть
+gui.ae2powertools.poll_now.title=Обновить сейчас
+gui.ae2powertools.poll_now.description=§7Запустить немедленный опрос сети для этого монитора
+gui.ae2powertools.remote_monitor.sliding_window.title=Скользящее окно
+gui.ae2powertools.remote_monitor.sliding_window.tooltip=§bСравнивать с последними §a%s
+gui.ae2powertools.remote
