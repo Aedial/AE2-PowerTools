@@ -435,6 +435,8 @@ gui.ae2powertools.crafter.error.processing_pattern=Only crafting patterns are su
 # GUI - Warnings (tooltips)
 gui.ae2powertools.crafter.warning.processing_pattern_title=§cWARNING: Processing Pattern!
 gui.ae2powertools.crafter.warning.processing_pattern_desc=§cAutoCrafter only accepts Crafting Patterns.
+gui.ae2powertools.crafter.overlay.default_batch_warning=Warning: AutoCrafter is set to %s batch size (see top-right button).
+gui.ae2powertools.crafter.overlay.default_batch_warning_desc=This is can be quite laggy. Set it as high as you are comfortable with.
 gui.ae2powertools.crafter.error.need_have=§b%s§7 (need §r%d§7, have §r%d§7)
 gui.ae2powertools.crafter.error.limited_by=Limited by §b%s§7 (allocated §r%d§7, need §r%d§7)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network

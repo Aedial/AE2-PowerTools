@@ -11,7 +11,9 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -42,18 +44,36 @@ public final class HudOverlayManager {
 
 
     /**
-     * Render all registered overlays in the correct order and position.
+     * Render HUD overlays when no screen is open.
      * <p>
-     * The event is fired after ALL other HUD elements have been rendered,
-     * so overlays can be drawn on top of everything else.
+     * Minecraft renders the in-game overlay before the active GuiScreen, so
+     * overlays that should appear on top of screens need a separate GUI-post pass.
      */
-    @SubscribeEvent
-    public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onRenderHudOverlay(RenderGameOverlayEvent.Post event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
 
         Minecraft mc = Minecraft.getMinecraft();
+        if (mc.currentScreen != null) return;
         if (mc.fontRenderer == null) return;
 
+        renderOverlays(mc);
+    }
+
+    /**
+     * Render screen-safe overlays after the current GUI has finished drawing.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onDrawScreenPost(GuiScreenEvent.DrawScreenEvent.Post event) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.currentScreen == null) return;
+        if (event.getGui() != mc.currentScreen) return;
+        if (mc.fontRenderer == null) return;
+
+        renderOverlays(mc);
+    }
+
+    private void renderOverlays(Minecraft mc) {
         for (HudOverlayProvider provider : this.providers) provider.onOverlayRendered(0);
 
         List<ActiveOverlay> topLeftBoxed = new ArrayList<>();
@@ -72,6 +92,14 @@ public final class HudOverlayManager {
             ActiveOverlay overlay = new ActiveOverlay(provider, provider.getAnchor(), provider.getStyle(), lines);
             bucketOverlay(overlay, topLeftBoxed, topLeftUnboxed, aboveXpBoxed, aboveXpUnboxed);
         }
+
+        // Item and GUI renderers often leave depth, lighting, or tint state dirty.
+        // Reset to a flat 2D overlay state before we draw screen-space panels.
+        GlStateManager.pushMatrix();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.enableBlend();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         ScaledResolution resolution = new ScaledResolution(mc);
         int topLeftHeight = 0;
@@ -99,6 +127,11 @@ public final class HudOverlayManager {
             aboveXpHeight += renderedHeight;
             overlay.provider.onOverlayRendered(renderedHeight);
         }
+
+        GlStateManager.disableBlend();
+        GlStateManager.enableDepth();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.popMatrix();
     }
 
     private void bucketOverlay(ActiveOverlay overlay, List<ActiveOverlay> topLeftBoxed,

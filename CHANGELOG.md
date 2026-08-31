@@ -20,6 +20,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Add chunk-boundary checks for AE2 multiblocks to the Network Health Scanner's fatal errors.
 - Add support for all Molecular Assembler-like machines to the Cards Distributor, for Acceleration Card distribution.
+- Add a warning overlay if the AutoCrafter is still at the default batch size (1), nudging players to raise it to a more performance-friendly value.
 
 ### Fixed
 - Fix tooltip leaking from under the Maintainer modal when it is open.

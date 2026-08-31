@@ -16,6 +16,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import com.ae2powertools.client.BlockHighlightRenderer;
 import com.ae2powertools.client.DisplayBlockColor;
 import com.ae2powertools.client.HudOverlayManager;
+import com.ae2powertools.features.crafter.AutoCrafterDefaultBatchOverlay;
 import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmArrowRenderer;
 import com.ae2powertools.features.monitor.alarm.LevelMonitorAlarmOverlay;
 import com.ae2powertools.features.monitor.display.DisplayRenderHelper;
@@ -52,12 +53,14 @@ public class ClientProxy extends CommonProxy {
         ScannerRenderer scannerRenderer = new ScannerRenderer();
         LocatorRenderer locatorRenderer = new LocatorRenderer();
         RemoteMonitorOverlay remoteMonitorOverlay = new RemoteMonitorOverlay();
+        AutoCrafterDefaultBatchOverlay autoCrafterDefaultBatchOverlay = new AutoCrafterDefaultBatchOverlay();
         LevelMonitorAlarmOverlay levelMonitorAlarmOverlay = new LevelMonitorAlarmOverlay();
         LevelMonitorAlarmArrowRenderer levelMonitorAlarmArrowRenderer = new LevelMonitorAlarmArrowRenderer();
 
         HudOverlayManager.register(scannerRenderer);
         HudOverlayManager.register(locatorRenderer);
         HudOverlayManager.register(remoteMonitorOverlay);
+        HudOverlayManager.register(autoCrafterDefaultBatchOverlay);
         HudOverlayManager.register(levelMonitorAlarmOverlay);
         HudOverlayManager.register(levelMonitorAlarmArrowRenderer);
 
