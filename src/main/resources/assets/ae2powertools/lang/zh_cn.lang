@@ -435,6 +435,8 @@ gui.ae2powertools.crafter.error.processing_pattern=仅支持合成样板，不�
 # GUI - Warnings (tooltips)
 gui.ae2powertools.crafter.warning.processing_pattern_title=§c警告：处理样板！
 gui.ae2powertools.crafter.warning.processing_pattern_desc=§c自动合成器仅接受合成样板。
+gui.ae2powertools.crafter.overlay.default_batch_warning=警告：自动合成器当前批量大小为%s（见右上角按钮）。
+gui.ae2powertools.crafter.overlay.default_batch_warning_desc=这可能会导致较严重的卡顿。请尽量调高此值。
 gui.ae2powertools.crafter.error.need_have=§b%s§7（需要§r%d§7，现有§r%d§7）
 gui.ae2powertools.crafter.error.limited_by=受限于§b%s§7（分配§r%d§7，需要§r%d§7）
 gui.ae2powertools.crafter.error.no_items_in_network=网络中无可用物品
