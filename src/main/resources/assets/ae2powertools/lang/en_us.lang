@@ -171,13 +171,13 @@ gui.ae2powertools.maintainer.failed=failed
 gui.ae2powertools.maintainer.post_error=output error
 
 # GUI - Maintainer States
-gui.ae2powertools.maintainer.state.disabled=Disabled
-gui.ae2powertools.maintainer.state.idle=Idle - Waiting for next run
-gui.ae2powertools.maintainer.state.scheduled=Scheduled - Calculating crafting tree
-gui.ae2powertools.maintainer.state.running=Running - Crafting in progress
-gui.ae2powertools.maintainer.state.stalled=Stalled - Waiting for free machine(s)
-gui.ae2powertools.maintainer.state.error=Error
-gui.ae2powertools.maintainer.state.post_error=Output Error (no space for crafted items)
+gui.ae2powertools.maintainer.state.disabled=§8Disabled
+gui.ae2powertools.maintainer.state.idle=§7Idle - Waiting for next run
+gui.ae2powertools.maintainer.state.scheduled=§bScheduled - Calculating crafting tree
+gui.ae2powertools.maintainer.state.running=§aRunning - Crafting in progress
+gui.ae2powertools.maintainer.state.stalled=§eStalled - Waiting for free machine(s)
+gui.ae2powertools.maintainer.state.error=§cError
+gui.ae2powertools.maintainer.state.post_error=§5Output Error (no space for crafted items)
 
 # GUI - Maintainer Short States (for compact tall view entries)
 gui.ae2powertools.maintainer.state.short.disabled=Disabled
@@ -200,6 +200,9 @@ gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=§bShift+Scroll§7 to
 gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=§bCtrl+Scroll§7 to double/halve time
 gui.ae2powertools.maintainer.tooltip.batch_size=§7Crafts (at least) %d item(s) per run
 gui.ae2powertools.maintainer.tooltip.frequency=§7Runs every %s
+gui.ae2powertools.maintainer.tooltip.run_now=§aRun Now
+gui.ae2powertools.maintainer.tooltip.run_now_click=§bClick§7 to start this maintainer task immediately
+gui.ae2powertools.maintainer.tooltip.run_now_busy=§cThis maintainer task is already active
 
 # GUI - Maintainer Status Bar Tooltips
 gui.ae2powertools.maintainer.status.cpu_title=§eCrafting CPUs
@@ -236,18 +239,18 @@ gui.ae2powertools.maintainer.style.small=Compact view
 gui.ae2powertools.maintainer.style.click_toggle=§bClick§r to toggle
 
 # GUI - Maintainer Error Messages
-gui.ae2powertools.maintainer.error.no_recipe=No pattern found for this item
-gui.ae2powertools.maintainer.error.no_network=Network not available
-gui.ae2powertools.maintainer.error.no_cpu=No crafting CPU available
-gui.ae2powertools.maintainer.error.cpu_too_small=No CPU with enough storage (%s/%s)
-gui.ae2powertools.maintainer.error.simulation_failed=Crafting simulation failed
-gui.ae2powertools.maintainer.error.job_failed=Failed to calculate crafting job
-gui.ae2powertools.maintainer.error.cancelled=Crafting was cancelled
-gui.ae2powertools.maintainer.error.no_space=No space for crafted items
-gui.ae2powertools.maintainer.error.missing_resources=Not enough items to start crafting
-gui.ae2powertools.maintainer.error.calculation_timeout=Job calculation timed out (recipe too complex)
-gui.ae2powertools.maintainer.error.cpu_retry_limit=CPU wait retry limit exceeded
-gui.ae2powertools.maintainer.error.extraction_failed=Items visible but not extractable (check external storage)
+gui.ae2powertools.maintainer.error.no_recipe=§cNo pattern found for this item
+gui.ae2powertools.maintainer.error.no_network=§cNetwork not available
+gui.ae2powertools.maintainer.error.no_cpu=§cNo crafting CPU available
+gui.ae2powertools.maintainer.error.cpu_too_small=§cNo CPU with enough storage (%s/%s)
+gui.ae2powertools.maintainer.error.simulation_failed=§cCrafting simulation failed
+gui.ae2powertools.maintainer.error.job_failed=§cFailed to calculate crafting job
+gui.ae2powertools.maintainer.error.cancelled=§cCrafting was cancelled
+gui.ae2powertools.maintainer.error.no_space=§cNo space for crafted items
+gui.ae2powertools.maintainer.error.missing_resources=§cNot enough items to start crafting
+gui.ae2powertools.maintainer.error.calculation_timeout=§cJob calculation timed out (recipe too complex)
+gui.ae2powertools.maintainer.error.cpu_retry_limit=§cCPU wait retry limit exceeded
+gui.ae2powertools.maintainer.error.extraction_failed=§cItems visible but not extractable (check external storage)
 
 # =====================================================
 # Cards Distributor

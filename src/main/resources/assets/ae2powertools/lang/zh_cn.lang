@@ -171,13 +171,13 @@ gui.ae2powertools.maintainer.failed=失败
 gui.ae2powertools.maintainer.post_error=输出错误
 
 # GUI - Maintainer States
-gui.ae2powertools.maintainer.state.disabled=已禁用
-gui.ae2powertools.maintainer.state.idle=空闲 - 等待下次运行
-gui.ae2powertools.maintainer.state.scheduled=已调度 - 计算合成树
-gui.ae2powertools.maintainer.state.running=运行中 - 合成进行中
-gui.ae2powertools.maintainer.state.stalled=停滞 - 等待空闲机器
-gui.ae2powertools.maintainer.state.error=错误
-gui.ae2powertools.maintainer.state.post_error=输出错误（无空间用于存储合成产物）
+gui.ae2powertools.maintainer.state.disabled=§8已禁用
+gui.ae2powertools.maintainer.state.idle=§7空闲 - 等待下次运行
+gui.ae2powertools.maintainer.state.scheduled=§b已调度 - 计算合成树
+gui.ae2powertools.maintainer.state.running=§a运行中 - 合成进行中
+gui.ae2powertools.maintainer.state.stalled=§e停滞 - 等待空闲机器
+gui.ae2powertools.maintainer.state.error=§c错误
+gui.ae2powertools.maintainer.state.post_error=§5输出错误（无空间用于存储合成产物）
 
 # GUI - Maintainer Short States (for compact tall view entries)
 gui.ae2powertools.maintainer.state.short.disabled=已禁用
@@ -236,18 +236,18 @@ gui.ae2powertools.maintainer.style.small=紧凑视图
 gui.ae2powertools.maintainer.style.click_toggle=§b点击§r切换
 
 # GUI - Maintainer Error Messages
-gui.ae2powertools.maintainer.error.no_recipe=未找到该物品的样板
-gui.ae2powertools.maintainer.error.no_network=无可用网络
-gui.ae2powertools.maintainer.error.no_cpu=无可用合成CPU
-gui.ae2powertools.maintainer.error.cpu_too_small=没有足够存储空间的CPU（%s/%s）
-gui.ae2powertools.maintainer.error.simulation_failed=合成模拟失败
-gui.ae2powertools.maintainer.error.job_failed=计算合成任务失败
-gui.ae2powertools.maintainer.error.cancelled=合成已取消
-gui.ae2powertools.maintainer.error.no_space=无空间用于存储合成产物
-gui.ae2powertools.maintainer.error.missing_resources=开始合成所需的物品不足
-gui.ae2powertools.maintainer.error.calculation_timeout=任务计算超时（配方过于复杂）
-gui.ae2powertools.maintainer.error.cpu_retry_limit=已超出CPU等待重试限制
-gui.ae2powertools.maintainer.error.extraction_failed=物品可见但无法提取（请检查外部存储）
+gui.ae2powertools.maintainer.error.no_recipe=§c未找到该物品的样板
+gui.ae2powertools.maintainer.error.no_network=§c无可用网络
+gui.ae2powertools.maintainer.error.no_cpu=§c无可用合成CPU
+gui.ae2powertools.maintainer.error.cpu_too_small=§c没有足够存储空间的CPU（%s/%s）
+gui.ae2powertools.maintainer.error.simulation_failed=§c合成模拟失败
+gui.ae2powertools.maintainer.error.job_failed=§c计算合成任务失败
+gui.ae2powertools.maintainer.error.cancelled=§c合成已取消
+gui.ae2powertools.maintainer.error.no_space=§c无空间用于存储合成产物
+gui.ae2powertools.maintainer.error.missing_resources=§c开始合成所需的物品不足
+gui.ae2powertools.maintainer.error.calculation_timeout=§c任务计算超时（配方过于复杂）
+gui.ae2powertools.maintainer.error.cpu_retry_limit=§c已超出CPU等待重试限制
+gui.ae2powertools.maintainer.error.extraction_failed=§c物品可见但无法提取（请检查外部存储）
 
 # =====================================================
 # Cards Distributor

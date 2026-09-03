@@ -365,19 +365,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 // Check if it's time for next run
                 if (worldTime < entry.getNextRunTime()) continue;
 
-                // Update current quantity
-                long currentQty = getStoredQuantity(storageGrid, entry.getTargetItem());
-                entry.setCurrentQuantity(currentQty);
-
-                // Check if crafting is needed
-                if (entry.needsCrafting()) {
-                    scheduleCrafting(i, entry);
-                } else {
-                    // Schedule next check
-                    entry.setNextRunTime(worldTime + entry.getFrequencyTicks());
-                    entry.setState(MaintainerState.IDLE);
-                    entry.clearError();
-                }
+                runEntryCheck(i, entry, storageGrid, worldTime);
             }
         } catch (GridAccessException e) {
             // Grid not available
@@ -385,6 +373,41 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         }
 
         return didWork;
+    }
+
+    /**
+     * Checks a single entry and schedules crafting if needed. Disabled entries are ignored.
+     */
+    private void runEntryCheck(int entryIndex, MaintainerEntry entry, IStorageGrid storageGrid, long worldTime) {
+        runEntryCheck(entryIndex, entry, storageGrid, worldTime, false);
+    }
+
+    /**
+     * Checks a single entry and schedules crafting if needed.
+     */
+    private void runEntryCheck(int entryIndex, MaintainerEntry entry, IStorageGrid storageGrid, long worldTime,
+            boolean allowDisabledEntry) {
+        // Update current quantity
+        long currentQty = getStoredQuantity(storageGrid, entry.getTargetItem());
+        entry.setCurrentQuantity(currentQty);
+
+        if (entry.needsCrafting(allowDisabledEntry)) {
+            scheduleCrafting(entryIndex, entry);
+            return;
+        }
+
+        // Schedule next check
+        entry.setNextRunTime(worldTime + entry.getFrequencyTicks());
+        entry.clearError();
+        restoreEntryState(entry);
+    }
+
+    /**
+     * Restores the entry state to the correct value after a run, since the entry
+     * may start running from various states.
+     */
+    private void restoreEntryState(MaintainerEntry entry) {
+        entry.setState(entry.isEnabled() ? MaintainerState.IDLE : MaintainerState.DISABLED);
     }
 
     /**
@@ -480,7 +503,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
             IAEItemStack target = entry.getTargetItem();
             if (target == null) {
-                entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_recipe");
+                entry.setError(MaintainerEntry.ErrorState.NO_RECIPE);
                 return;
             }
 
@@ -495,7 +518,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                         entryIndex, targetItem, entry.getBatchSize(), world.getTotalWorldTime());
                 task.setWaitingForCpu(true);
                 activeTasks.add(task);
-                entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
+                entry.setError(MaintainerEntry.ErrorState.NO_CPU);
                 return;
             }
 
@@ -530,7 +553,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             activeTasks.add(task);
 
         } catch (GridAccessException e) {
-            entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_network");
+            entry.setError(MaintainerEntry.ErrorState.NO_NETWORK);
         }
     }
 
@@ -569,7 +592,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             if (!future.isDone() && elapsed > JOB_CALCULATION_TIMEOUT) {
                 didWork = true;
                 MaintainerEntry entry = entries.get(task.getEntryIndex());
-                entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.calculation_timeout");
+                entry.setError(MaintainerEntry.ErrorState.CALCULATION_TIMEOUT);
                 entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                 task.cancel();
                 taskIter.remove();
@@ -585,7 +608,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
                 if (job == null) {
                     MaintainerEntry entry = entries.get(task.getEntryIndex());
-                    entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
+                    entry.setError(MaintainerEntry.ErrorState.JOB_FAILED);
                     entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                     taskIter.remove();
                     continue;
@@ -596,26 +619,18 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
                     // Determine if this is a "no pattern" or "missing resources" issue
                     // by checking if any pattern exists for this item
-                    String errorKey;
+                    MaintainerEntry.ErrorState errorState = MaintainerEntry.ErrorState.MISSING_RESOURCES;
                     try {
                         ICraftingGrid craftingGrid = gridProxy.getCrafting();
                         IAEItemStack lookupTarget = Ae2FluidCraftingCompat.canonicalize(task.getTargetItem());
                         if (lookupTarget == null) lookupTarget = task.getTargetItem();
-                        boolean hasPattern = !craftingGrid.getCraftingFor(
-                            lookupTarget, null, 0, world).isEmpty();
 
-                        if (hasPattern) {
-                            // Pattern exists but resources are missing
-                            errorKey = "gui.ae2powertools.maintainer.error.missing_resources";
-                        } else {
-                            // No pattern found for this item
-                            errorKey = "gui.ae2powertools.maintainer.error.no_recipe";
-                        }
+                        boolean hasNoPattern = craftingGrid.getCraftingFor(lookupTarget, null, 0, world).isEmpty();
+                        if (hasNoPattern) errorState = MaintainerEntry.ErrorState.NO_RECIPE;
                     } catch (GridAccessException e) {
-                        errorKey = "gui.ae2powertools.maintainer.error.missing_resources";
                     }
 
-                    entry.setError(MaintainerState.ERROR, errorKey);
+                    entry.setError(errorState);
                     entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                     taskIter.remove();
                     continue;
@@ -631,13 +646,33 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             } catch (Exception e) {
                 AE2PowerTools.LOGGER.error("Error processing crafting job", e);
                 MaintainerEntry entry = entries.get(task.getEntryIndex());
-                entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.job_failed");
+                entry.setError(MaintainerEntry.ErrorState.JOB_FAILED);
                 entry.setNextRunTime(currentTime + entry.getFrequencyTicks());
                 taskIter.remove();
             }
         }
 
         return didWork;
+    }
+
+    /**
+     * Picks the smallest free CPU that can hold the given job.
+     */
+    @Nullable
+    private ICraftingCPU findSmallestFreeCpu(Iterable<ICraftingCPU> cpus, long jobBytes) {
+        ICraftingCPU selectedCpu = null;
+        for (ICraftingCPU cpu : cpus) {
+            if (cpu.isBusy() || cpu.getAvailableStorage() < jobBytes) continue;
+
+            if (selectedCpu == null
+                    || cpu.getAvailableStorage() < selectedCpu.getAvailableStorage()
+                    || (cpu.getAvailableStorage() == selectedCpu.getAvailableStorage()
+                    && cpu.getCoProcessors() < selectedCpu.getCoProcessors())) {
+                selectedCpu = cpu;
+            }
+        }
+
+        return selectedCpu;
     }
 
     /**
@@ -648,16 +683,18 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         try {
             ICraftingGrid craftingGrid = gridProxy.getCrafting();
             MaintainerEntry entry = entries.get(task.getEntryIndex());
+            ImmutableSet<ICraftingCPU> cpus = craftingGrid.getCpus();
 
             // Determine if the issue is "job too large for any CPU" BEFORE trying to submit
             // This allows us to fail fast without waiting for a CPU that will never work
             long jobBytes = job.getByteTotal();
-            boolean cpuTooSmall = craftingGrid.getCpus().stream()
+            ICraftingCPU selectedCpu = findSmallestFreeCpu(cpus, jobBytes);
+            boolean cpuTooSmall = selectedCpu == null && cpus.stream()
                     .noneMatch(cpu -> cpu.getAvailableStorage() >= jobBytes);
 
             if (cpuTooSmall) {
                 String jobSize = ReadableNumberConverter.INSTANCE.toWideReadableForm(jobBytes);
-                int bestCpuStorage = (int) craftingGrid.getCpus().stream()
+                int bestCpuStorage = (int) cpus.stream()
                         .mapToLong(ICraftingCPU::getAvailableStorage)
                         .max().orElse(0);
                 String cpuSize = ReadableNumberConverter.INSTANCE.toWideReadableForm(bestCpuStorage);
@@ -672,34 +709,27 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 return true;  // Permanent failure - remove task
             }
 
-            // Try to submit the job
-            ICraftingLink link = craftingGrid.submitJob(job, this, null, false, actionSource);
-
-            if (link == null) {
-                // submitJob returned null - this could be CPU starvation OR extraction failure.
-                // Re-check CPU availability to distinguish the two cases. Since Minecraft is
-                // single-threaded, CPU state cannot change between submitJob and this check.
-                boolean hasFreeCpuWithStorage = craftingGrid.getCpus().stream()
-                        .anyMatch(cpu -> !cpu.isBusy() && cpu.getAvailableStorage() >= jobBytes);
-
-                if (hasFreeCpuWithStorage) {
-                    // A suitable CPU exists but submitJob still failed - this means extraction
-                    // failed during commit (e.g., items visible but not extractable).
-                    // This is a permanent failure for this cycle - wait for next scheduled run.
-                    entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.extraction_failed");
-                    entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
-
-                    return true;  // Permanent failure - remove task, wait for next cycle
-                }
-
-                // No suitable CPU available - mark as waiting and cache the job
-                // so we can retry without expensive recalculation
+            if (selectedCpu == null) {
+                // No suitable CPU is currently free - keep the calculated job and retry once the
+                // smallest fitting CPU becomes available.
                 task.setWaitingForCpu(true);
                 task.setCachedJob(job);
                 task.incrementCpuRetryCount();
-                entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_cpu");
+                entry.setError(MaintainerEntry.ErrorState.NO_CPU);
 
                 return false;  // Keep in activeTasks, waiting for CPU
+            }
+
+            // Try to submit the job to the smallest free CPU that can hold it.
+            ICraftingLink link = craftingGrid.submitJob(job, this, selectedCpu, false, actionSource);
+
+            if (link == null) {
+                // A suitable CPU was selected explicitly, so a null link here means the
+                // submission failed during commit (e.g., extraction failed).
+                entry.setError(MaintainerEntry.ErrorState.EXTRACTION_FAILED);
+                entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
+
+                return true;  // Permanent failure - remove task, wait for next cycle
             }
 
             // Successfully submitted - task stays in activeTasks to track completion
@@ -713,7 +743,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         } catch (GridAccessException e) {
             MaintainerEntry entry = entries.get(task.getEntryIndex());
-            entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.no_network");
+            entry.setError(MaintainerEntry.ErrorState.NO_NETWORK);
             entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
 
             return true;  // Permanent failure - remove task
@@ -731,13 +761,13 @@ public class TileBetterLevelMaintainer extends AEBaseTile
     private boolean processCpuWaitQueue() {
         try {
             ICraftingGrid craftingGrid = gridProxy.getCrafting();
+            ImmutableSet<ICraftingCPU> cpus = craftingGrid.getCpus();
 
-            // Check if any CPU is free
-            boolean hasFreeCpu = craftingGrid.getCpus().stream().anyMatch(cpu -> !cpu.isBusy());
-            if (!hasFreeCpu) return false;
+            // Check if any CPU is free for tasks that still need their first calculation.
+            boolean hasFreeCpu = cpus.stream().anyMatch(cpu -> !cpu.isBusy());
 
-            // Find ONE task waiting for CPU to process this tick
-            // Also clean up cancelled tasks while iterating
+            // Find ONE waiting task that we can procress this tick.
+            // Also clean up cancelled tasks while iterating.
             MaintainerTask taskToProcess = null;
             Iterator<MaintainerTask> iter = activeTasks.iterator();
 
@@ -755,7 +785,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                 if (task.getCpuRetryCount() >= PowerToolsServerConfig.maintainer.getMaxCpuRetryCount()) {
                     MaintainerEntry entry = entries.get(task.getEntryIndex());
                     if (entry != null) {
-                        entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cpu_retry_limit");
+                        entry.setError(MaintainerEntry.ErrorState.CPU_RETRY_LIMIT);
                         entry.setNextRunTime(world.getTotalWorldTime() + entry.getFrequencyTicks());
                     }
 
@@ -764,42 +794,53 @@ public class TileBetterLevelMaintainer extends AEBaseTile
                     continue;
                 }
 
+                ICraftingJob cachedJob = task.getCachedJob();
+                if (cachedJob != null) {
+                    if (findSmallestFreeCpu(cpus, cachedJob.getByteTotal()) == null) continue;
+                } else if (!hasFreeCpu) {
+                    continue;
+                }
+
                 taskToProcess = task;
                 break;  // Only process one per tick
             }
 
             if (taskToProcess == null) return false;
-
-            // If we have a cached job, try to resubmit it directly
-            ICraftingJob cachedJob = taskToProcess.getCachedJob();
-            if (cachedJob != null) {
-                // Try to submit the cached job
-                taskToProcess.setWaitingForCpu(false);
-                if (submitCraftingJob(taskToProcess, cachedJob)) {
-                    // Permanent failure - remove task
-                    activeTasks.remove(taskToProcess);
-                }
-
-                // else: task stays in activeTasks (either running or waiting again)
-                return true;
-            }
-
-            // No cached job - need to reschedule for calculation
-            // This only happens for tasks that were created waiting for CPU from the start
-            int entryIndex = taskToProcess.getEntryIndex();
-            activeTasks.remove(taskToProcess);
-
-            MaintainerEntry entry = entries.get(entryIndex);
-            if (entry != null && entry.hasRecipe() && entry.isEnabled()) {
-                scheduleCrafting(entryIndex, entry);
-            }
-
-            return true;
+            return retryWaitingTask(taskToProcess);
 
         } catch (GridAccessException e) {
             // Grid not available
             return false;
         }
+    }
+
+    /**
+     * Retries a task that is waiting for a CPU, reusing the cached job if it already exists.
+     */
+    private boolean retryWaitingTask(MaintainerTask task) {
+        ICraftingJob cachedJob = task.getCachedJob();
+        if (cachedJob != null) {
+            // Try to submit the cached job
+            task.setWaitingForCpu(false);
+            if (submitCraftingJob(task, cachedJob)) {
+                // Permanent failure - remove task
+                activeTasks.remove(task);
+            }
+
+            return true;
+        }
+
+        // No cached job - need to reschedule for calculation
+        // This only happens for tasks that were created waiting for CPU from the start
+        int entryIndex = task.getEntryIndex();
+        activeTasks.remove(task);
+
+        MaintainerEntry entry = entries.get(entryIndex);
+        if (entry != null && entry.hasRecipe() && entry.isEnabled()) {
+            scheduleCrafting(entryIndex, entry);
+        }
+
+        return true;
     }
 
     /**
@@ -836,11 +877,11 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         long worldTime = world.getTotalWorldTime();
 
         if (link.isCanceled()) {
-            entry.setError(MaintainerState.ERROR, "gui.ae2powertools.maintainer.error.cancelled");
+            entry.setError(MaintainerEntry.ErrorState.CANCELLED);
         } else {
             entry.setLastRunTime(worldTime);
-            entry.setState(MaintainerState.IDLE);
             entry.clearError();
+            restoreEntryState(entry);
             refreshEntryQuantity(entryIndex);
         }
 
@@ -952,6 +993,62 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         updateOpenRows();
         markDirty();
+    }
+
+    /**
+     * Immediately checks and runs the entry at the given index.
+     */
+    public void runEntryNow(int index) {
+        if (world.isRemote) return;
+        if (index < 0 || index >= entries.size()) return;
+        if (shouldPauseRequestsForNetworkInitialization()) return;
+
+        MaintainerEntry entry = entries.get(index);
+        if (!entry.hasRecipe()) return;
+
+        MaintainerTask activeTask = getActiveTask(index);
+        if (activeTask != null) {
+            if (!activeTask.isWaitingForCpu()) return;
+
+            try {
+                ICraftingGrid craftingGrid = gridProxy.getCrafting();
+                ImmutableSet<ICraftingCPU> cpus = craftingGrid.getCpus();
+                ICraftingJob cachedJob = activeTask.getCachedJob();
+                boolean canRetry = cachedJob != null
+                        ? findSmallestFreeCpu(cpus, cachedJob.getByteTotal()) != null
+                        : cpus.stream().anyMatch(cpu -> !cpu.isBusy());
+                if (!canRetry) return;
+
+                retryWaitingTask(activeTask);
+            } catch (GridAccessException e) {
+                entry.setError(MaintainerEntry.ErrorState.NO_NETWORK);
+            }
+
+            markDirty();
+            markForUpdate();
+            return;
+        }
+
+        entry.clearScheduleDirty();
+
+        try {
+            IStorageGrid storageGrid = gridProxy.getStorage();
+            runEntryCheck(index, entry, storageGrid, world.getTotalWorldTime(), true);
+        } catch (GridAccessException e) {
+            entry.setError(MaintainerEntry.ErrorState.NO_NETWORK);
+        }
+
+        markDirty();
+        markForUpdate();
+    }
+
+    @Nullable
+    private MaintainerTask getActiveTask(int entryIndex) {
+        for (MaintainerTask task : activeTasks) {
+            if (task.getEntryIndex() == entryIndex && !task.isCancelled()) return task;
+        }
+
+        return null;
     }
 
     public void clearEntry(int index) {

@@ -21,6 +21,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add chunk-boundary checks for AE2 multiblocks to the Network Health Scanner's fatal errors.
 - Add support for all Molecular Assembler-like machines to the Cards Distributor, for Acceleration Card distribution.
 - Add a warning overlay if the AutoCrafter is still at the default batch size (1), nudging players to raise it to a more performance-friendly value.
+- Add a "Run Now" button to entries of the Better Level Maintainer GUI.
 
 ### Fixed
 - Fix tooltip leaking from under the Maintainer modal when it is open.
@@ -31,6 +32,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Changed
 - Improve tooltips everywhere to highlight the actions (in AQUA) and the times (in GREEN).
 - Improve the visuals on the AE2 AutoCrafter's catalysts, making the item a proper ghost item instead of a full-slot overlay.
+- Make the Maintainer use the smallest available CPU for a task instead of letting the system decide.
 
 
 ## [1.6.7-hotfix2] - 2026-08-11

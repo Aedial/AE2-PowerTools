@@ -20,6 +20,7 @@ import com.ae2powertools.Tags;
 import com.ae2powertools.client.PowerToolsClientConfig;
 import com.ae2powertools.features.maintainer.widgets.MaintainerEntryEditorOverlay;
 import com.ae2powertools.features.maintainer.widgets.MaintainerEntryViewport;
+import com.ae2powertools.network.PacketRunMaintainerEntry;
 import com.ae2powertools.network.PacketSelectRecipe;
 import com.ae2powertools.network.PacketUpdateMaintainerEntry;
 import com.ae2powertools.network.PowerToolsNetwork;
@@ -72,7 +73,7 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
         super(container, GUI_WIDTH, GUI_HEIGHT, null);
 
         this.container = container;
-        this.entryViewport = new MaintainerEntryViewport(this, container);
+        this.entryViewport = new MaintainerEntryViewport(this, container, this::runEntryNow);
         this.entryEditorOverlay = new MaintainerEntryEditorOverlay(
             this,
             container::getCraftableItems,
@@ -205,16 +206,15 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
     protected void afterWidgetGuiMouseClicked(int mouseX, int mouseY, int mouseButton) {
         searchField.mouseClicked(mouseX, mouseY, mouseButton);
 
+        if (entryViewport.handleRunButtonClick(useTallView, guiLeft, guiTop, xSize,
+                searchField.getText(), mouseX, mouseY, mouseButton)) {
+            return;
+        }
+
         if (entryViewport.beginScrollbarDrag(useTallView, guiLeft, guiTop, mouseX, mouseY)) return;
 
-        int clickedEntry = entryViewport.getEntryAtPosition(
-            useTallView,
-            guiLeft,
-            guiTop,
-            xSize,
-            searchField.getText(),
-            mouseX,
-            mouseY);
+        int clickedEntry = entryViewport.getEntryAtPosition(useTallView, guiLeft, guiTop, xSize,
+            searchField.getText(), mouseX, mouseY);
         if (clickedEntry < 0) return;
 
         if (mouseButton == 0) {
@@ -249,14 +249,8 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
 
     @Override
     protected void handleWidgetGuiMouseWheel(int mouseX, int mouseY, int scroll) {
-        int hoveredEntry = entryViewport.getEntryAtPosition(
-            useTallView,
-            guiLeft,
-            guiTop,
-            xSize,
-            searchField.getText(),
-            mouseX,
-            mouseY);
+        int hoveredEntry = entryViewport.getEntryAtPosition(useTallView, guiLeft, guiTop, xSize,
+            searchField.getText(), mouseX, mouseY);
 
         if (hoveredEntry >= 0) {
             MaintainerEntry entry = container.getMaintainer().getEntry(hoveredEntry);
@@ -312,6 +306,11 @@ public class GuiBetterLevelMaintainer extends WidgetGui {
             container.getMaintainer().getPos(),
             entryIndex,
             item));
+    }
+
+    private void runEntryNow(int entryIndex) {
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketRunMaintainerEntry(
+            container.getMaintainer().getPos(), entryIndex));
     }
 
     private void sendModalEntryUpdate(int entryIndex, IAEItemStack targetItem, long targetQty,

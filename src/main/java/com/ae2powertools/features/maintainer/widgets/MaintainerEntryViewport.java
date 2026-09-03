@@ -2,22 +2,26 @@ package com.ae2powertools.features.maintainer.widgets;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.util.ReadableNumberConverter;
 
+import com.ae2powertools.Tags;
 import com.ae2powertools.features.maintainer.ContainerBetterLevelMaintainer;
 import com.ae2powertools.features.maintainer.MaintainerEntry;
 import com.ae2powertools.features.maintainer.MaintainerState;
 import com.ae2powertools.features.maintainer.TileBetterLevelMaintainer;
 import com.ae2powertools.widgets.QueuedItemRenderer;
+import com.ae2powertools.widgets.SmallVanillaButton;
 import com.ae2powertools.widgets.WidgetContext;
 import com.ae2powertools.widgets.WidgetDrawHelper;
 
@@ -77,6 +81,35 @@ public class MaintainerEntryViewport extends Gui {
         }
     }
 
+    private static final class EntryRunButton extends SmallVanillaButton {
+
+        private static final ResourceLocation TEXTURE = new ResourceLocation(Tags.MODID,
+            "textures/guis/run.png");
+
+        public static final int SIZE = 8;
+        private static final int ICON_SIZE = 4;
+        private static final int TEXTURE_ICON_SIZE = 8;        
+        private static final int TEXTURE_SIZE = 16;
+        private static final int HOVER_V = 8;
+
+        private EntryRunButton(int entryIndex, int x, int y) {
+            super(entryIndex, x, y, SIZE, "");
+        }
+
+        @Override
+        protected void drawWidget(WidgetContext context, int mouseX, int mouseY) {
+            super.drawWidget(context, mouseX, mouseY);
+
+            GlStateManager.disableLighting();
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            context.getWidgetMinecraft().getTextureManager().bindTexture(TEXTURE);
+            drawScaledCustomSizeModalRect(
+                getX() + 2, getY() + 2,
+                0, isEnabled() && isHovered() ? HOVER_V : 0, TEXTURE_ICON_SIZE, TEXTURE_ICON_SIZE,
+                ICON_SIZE, ICON_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
+        }
+    }
+
     private static final int ENTRY_START_X = 9;
     private static final int ENTRY_START_Y = 18;
     private static final int ENTRY_WIDTH = 68;
@@ -95,9 +128,13 @@ public class MaintainerEntryViewport extends Gui {
     private static final int TALL_SLICE_START_Y = 19;
     private static final int TALL_SLICE_HEIGHT = 23;
     private static final int TALL_STATUS_OFFSET = 18;
+    private static final int RUN_BUTTON_SPACING = 2;
+
 
     private final WidgetContext context;
     private final ContainerBetterLevelMaintainer container;
+    private final IntConsumer runEntryHandler;
+    private final List<EntryRunButton> visibleRunButtons = new ArrayList<>();
 
     private int scrollOffset;
     private int maxScroll;
@@ -110,9 +147,11 @@ public class MaintainerEntryViewport extends Gui {
     private int tallVisibleRows = 6;
     private int tallScrollbarHeight;
 
-    public MaintainerEntryViewport(WidgetContext context, ContainerBetterLevelMaintainer container) {
+    public MaintainerEntryViewport(WidgetContext context, ContainerBetterLevelMaintainer container,
+            IntConsumer runEntryHandler) {
         this.context = context;
         this.container = container;
+        this.runEntryHandler = runEntryHandler;
     }
 
     public void setTallLayout(int tallVisibleRows, int tallScrollbarHeight) {
@@ -141,7 +180,9 @@ public class MaintainerEntryViewport extends Gui {
         EntryLayout layout = createLayout(useTallView, guiTop, ySize);
         List<VisibleEntry> visibleEntries = collectVisibleEntries(layout, guiLeft, guiTop, xSize, searchTerm);
 
+        rebuildRunButtons(layout, visibleEntries);
         drawEntries(layout, visibleEntries, modalOpen, suppressItemRendering, mouseX, mouseY);
+        drawRunButtons(mouseX, mouseY);
         drawScrollbar(guiLeft, layout);
         drawStatusBar(guiLeft, xSize, layout.statusY);
     }
@@ -150,8 +191,23 @@ public class MaintainerEntryViewport extends Gui {
             boolean modalOpen, int mouseX, int mouseY) {
         if (modalOpen) return;
 
+        if (drawRunButtonTooltip(mouseX, mouseY)) return;
+
         drawEntryTooltips(mouseX, mouseY);
         drawStatusBarTooltips(useTallView, guiTop, ySize, mouseX, mouseY);
+    }
+
+    public boolean handleRunButtonClick(boolean useTallView, int guiLeft, int guiTop, int xSize,
+            String searchTerm, int mouseX, int mouseY, int mouseButton) {
+        EntryLayout layout = createLayout(useTallView, guiTop, 0);
+        List<VisibleEntry> visibleEntries = collectVisibleEntries(layout, guiLeft, guiTop, xSize, searchTerm);
+        rebuildRunButtons(layout, visibleEntries);
+
+        for (EntryRunButton button : visibleRunButtons) {
+            if (button.mouseClicked(mouseX, mouseY, mouseButton)) return true;
+        }
+
+        return false;
     }
 
     public boolean beginScrollbarDrag(boolean useTallView, int guiLeft, int guiTop, int mouseX, int mouseY) {
@@ -341,13 +397,14 @@ public class MaintainerEntryViewport extends Gui {
             visibleEntry.y + 4,
             visibleEntry.entry.isEnabled() ? 0x000000 : 0x808080);
 
+        int frequencyRightX = maxWidth - getRunButtonWidth(visibleEntry);
         String frequencyText = visibleEntry.entry.formatFrequency();
-        if (context.getWidgetFontRenderer().getStringWidth(frequencyText) > maxWidth) {
+        if (context.getWidgetFontRenderer().getStringWidth(frequencyText) > frequencyRightX) {
             frequencyText = context.getWidgetFontRenderer().trimStringToWidth(
                 frequencyText,
-                maxWidth - context.getWidgetFontRenderer().getStringWidth("...")) + "...";
+                frequencyRightX - context.getWidgetFontRenderer().getStringWidth("...")) + "...";
         }
-        int frequencyX = visibleEntry.x + maxWidth - context.getWidgetFontRenderer().getStringWidth(frequencyText);
+        int frequencyX = visibleEntry.x + frequencyRightX - context.getWidgetFontRenderer().getStringWidth(frequencyText);
         context.getWidgetFontRenderer().drawString(frequencyText, frequencyX, visibleEntry.y + 15, 0x000000);
     }
 
@@ -360,9 +417,7 @@ public class MaintainerEntryViewport extends Gui {
         if (!visibleEntry.entry.hasRecipe()) {
             context.getWidgetFontRenderer().drawString(
                 I18n.format("gui.ae2powertools.maintainer.tooltip.empty"),
-                visibleEntry.x + 4,
-                visibleEntry.y + 7,
-                0x808080);
+                visibleEntry.x + 4, visibleEntry.y + 7, 0x808080);
             return;
         }
 
@@ -371,40 +426,87 @@ public class MaintainerEntryViewport extends Gui {
 
         if (!suppressItemRendering) {
             itemQueue.queue(widgetContext -> widgetContext.getWidgetItemRenderer().renderItemAndEffectIntoGUI(
-                stack,
-                visibleEntry.x + 2,
-                visibleEntry.y + 2));
+                stack, visibleEntry.x + 2, visibleEntry.y + 2));
         }
-
-        String name = stack.getDisplayName();
-        int nameMaxWidth = visibleEntry.width - 24 - 100;
-        if (context.getWidgetFontRenderer().getStringWidth(name) > nameMaxWidth) {
-            name = context.getWidgetFontRenderer().trimStringToWidth(name, nameMaxWidth - 6) + "...";
-        }
-        context.getWidgetFontRenderer().drawString(
-            name,
-            visibleEntry.x + 22,
-            visibleEntry.y + 3,
-            visibleEntry.entry.isEnabled() ? 0x000000 : 0x808080);
-
-        MaintainerState state = visibleEntry.entry.getState();
-        String stateText = I18n.format("gui.ae2powertools.maintainer.state.short." + state.name().toLowerCase());
-        context.getWidgetFontRenderer().drawString(stateText, visibleEntry.x + 22, visibleEntry.y + 12, state.getTextColor());
 
         String quantityText = String.format(
             "%s / %s",
             ReadableNumberConverter.INSTANCE.toWideReadableForm(visibleEntry.entry.getCurrentQuantity()),
             ReadableNumberConverter.INSTANCE.toWideReadableForm(visibleEntry.entry.getTargetQuantity()));
         int quantityX = visibleEntry.x + visibleEntry.width - context.getWidgetFontRenderer().getStringWidth(quantityText) - 2;
-        context.getWidgetFontRenderer().drawString(
-            quantityText,
-            quantityX,
-            visibleEntry.y + 3,
+
+        String name = stack.getDisplayName();
+        int nameX = visibleEntry.x + 22;
+        int nameMaxWidth = quantityX - nameX - 4;
+        if (context.getWidgetFontRenderer().getStringWidth(name) > nameMaxWidth) {
+            name = context.getWidgetFontRenderer().trimStringToWidth(name, nameMaxWidth - 6) + "...";
+        }
+        context.getWidgetFontRenderer().drawString(name, nameX, visibleEntry.y + 3,
             visibleEntry.entry.isEnabled() ? 0x000000 : 0x808080);
 
+        MaintainerState state = visibleEntry.entry.getState();
+        String stateText = I18n.format("gui.ae2powertools.maintainer.state.short." + state.name().toLowerCase());
+        context.getWidgetFontRenderer().drawString(stateText, visibleEntry.x + 22, visibleEntry.y + 12, state.getTextColor());
+
+        context.getWidgetFontRenderer().drawString(quantityText, quantityX, visibleEntry.y + 3,
+            visibleEntry.entry.isEnabled() ? 0x000000 : 0x808080);
+
+        int frequencyRightX = visibleEntry.x + visibleEntry.width - 2 - getRunButtonWidth(visibleEntry);
         String frequencyText = visibleEntry.entry.formatFrequency();
-        int frequencyX = visibleEntry.x + visibleEntry.width - context.getWidgetFontRenderer().getStringWidth(frequencyText) - 2;
+        int frequencyX = frequencyRightX - context.getWidgetFontRenderer().getStringWidth(frequencyText);
         context.getWidgetFontRenderer().drawString(frequencyText, frequencyX, visibleEntry.y + 12, 0x606060);
+    }
+
+    private void rebuildRunButtons(EntryLayout layout, List<VisibleEntry> visibleEntries) {
+        visibleRunButtons.clear();
+
+        for (VisibleEntry visibleEntry : visibleEntries) {
+            if (!visibleEntry.entry.hasRecipe()) continue;
+
+            int entryIndex = visibleEntry.entryIndex;
+            MaintainerEntry entry = visibleEntry.entry;
+            EntryRunButton button = new EntryRunButton(
+                entryIndex,
+                visibleEntry.x + visibleEntry.width - EntryRunButton.SIZE - 2,
+                layout.tall ? visibleEntry.y + 10 : visibleEntry.y + 14);
+            button.setEnabled(!entry.getState().isActive());
+            button.setOnClick(() -> runEntryHandler.accept(entryIndex));
+            button.setTooltipProvider(() -> buildRunButtonTooltip(entry));
+            visibleRunButtons.add(button);
+        }
+    }
+
+    private void drawRunButtons(int mouseX, int mouseY) {
+        for (EntryRunButton button : visibleRunButtons) button.draw(context, mouseX, mouseY);
+    }
+
+    private boolean drawRunButtonTooltip(int mouseX, int mouseY) {
+        for (EntryRunButton button : visibleRunButtons) {
+            if (!button.isHovered()) continue;
+
+            button.drawTooltip(context, mouseX, mouseY);
+            return true;
+        }
+
+        return false;
+    }
+
+    private List<String> buildRunButtonTooltip(MaintainerEntry entry) {
+        List<String> tooltip = new ArrayList<>();
+        tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.run_now"));
+        tooltip.add("");
+
+        if (entry.getState().isActive()) {
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.run_now_busy"));
+        } else {
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.tooltip.run_now_click"));
+        }
+
+        return tooltip;
+    }
+
+    private int getRunButtonWidth(VisibleEntry visibleEntry) {
+        return visibleEntry.entry.hasRecipe() ? EntryRunButton.SIZE + RUN_BUTTON_SPACING : 0;
     }
 
     private void drawScrollbar(int guiLeft, EntryLayout layout) {
@@ -457,13 +559,12 @@ public class MaintainerEntryViewport extends Gui {
             tooltip.add("");
 
             MaintainerState state = entry.getState();
-            String stateKey = "gui.ae2powertools.maintainer.state." + state.name().toLowerCase();
-            tooltip.add(state.getColorCode() + I18n.format(stateKey));
+            tooltip.add(I18n.format("gui.ae2powertools.maintainer.state." + state.name().toLowerCase()));
 
             // Show error message for error states. The component is built server-side as a
             // TextComponentTranslation, so we just resolve it here using the client's locale.
             if (state.isError() && entry.getErrorComponent() != null) {
-                tooltip.add("§c" + entry.getErrorComponent().getFormattedText());
+                tooltip.add(entry.getErrorComponent().getFormattedText());
             }
 
             tooltip.add("");

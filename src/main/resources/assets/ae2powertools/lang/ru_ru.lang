@@ -136,13 +136,13 @@ gui.ae2powertools.maintainer.failed=неудачно
 gui.ae2powertools.maintainer.post_error=ошибка вывода
 
 # Интерфейс - Состояния стабилизатора
-gui.ae2powertools.maintainer.state.disabled=Отключён
-gui.ae2powertools.maintainer.state.idle=Ожидание - ждёт следующего запуска
-gui.ae2powertools.maintainer.state.scheduled=Запланирован - расчёт дерева крафта
-gui.ae2powertools.maintainer.state.running=Работает - выполняется крафт
-gui.ae2powertools.maintainer.state.stalled=Приостановлен - ожидание свободных машин
-gui.ae2powertools.maintainer.state.error=Ошибка
-gui.ae2powertools.maintainer.state.post_error=Ошибка вывода (нет места для скрафченных предметов)
+gui.ae2powertools.maintainer.state.disabled=§8Отключён
+gui.ae2powertools.maintainer.state.idle=§7Ожидание - ждёт следующего запуска
+gui.ae2powertools.maintainer.state.scheduled=§bЗапланирован - расчёт дерева крафта
+gui.ae2powertools.maintainer.state.running=§aРаботает - выполняется крафт
+gui.ae2powertools.maintainer.state.stalled=§eПриостановлен - ожидание свободных машин
+gui.ae2powertools.maintainer.state.error=§cОшибка
+gui.ae2powertools.maintainer.state.post_error=§5Ошибка вывода (нет места для скрафченных предметов)
 
 # Интерфейс - Краткие состояния стабилизатора (для записей в высоком виде)
 gui.ae2powertools.maintainer.state.short.disabled=Откл
@@ -201,18 +201,18 @@ gui.ae2powertools.maintainer.style.small=Компактный вид
 gui.ae2powertools.maintainer.style.click_toggle=§bНажмите§r для переключения
 
 # Интерфейс - Сообщения об ошибках стабилизатора
-gui.ae2powertools.maintainer.error.no_recipe=Не найдено шаблона для этого предмета
-gui.ae2powertools.maintainer.error.no_network=Сеть недоступна
-gui.ae2powertools.maintainer.error.no_cpu=Нет доступного процессора крафта
-gui.ae2powertools.maintainer.error.cpu_too_small=Нет процессора с достаточным хранилищем (%s/%s)
-gui.ae2powertools.maintainer.error.simulation_failed=Симуляция крафта провалена
-gui.ae2powertools.maintainer.error.job_failed=Не удалось рассчитать задание крафта
-gui.ae2powertools.maintainer.error.cancelled=Крафт был отменён
-gui.ae2powertools.maintainer.error.no_space=Нет места для скрафченных предметов
-gui.ae2powertools.maintainer.error.missing_resources=Недостаточно предметов для начала крафта
-gui.ae2powertools.maintainer.error.calculation_timeout=Время расчёта задания истекло (рецепт слишком сложный)
-gui.ae2powertools.maintainer.error.cpu_retry_limit=Превышен лимит попыток ожидания процессора
-gui.ae2powertools.maintainer.error.extraction_failed=Предметы видны, но не могут быть извлечены (проверьте внешнее хранилище)
+gui.ae2powertools.maintainer.error.no_recipe=§cНе найдено шаблона для этого предмета
+gui.ae2powertools.maintainer.error.no_network=§cСеть недоступна
+gui.ae2powertools.maintainer.error.no_cpu=§cНет доступного процессора крафта
+gui.ae2powertools.maintainer.error.cpu_too_small=§cНет процессора с достаточным хранилищем (%s/%s)
+gui.ae2powertools.maintainer.error.simulation_failed=§cСимуляция крафта провалена
+gui.ae2powertools.maintainer.error.job_failed=§cНе удалось рассчитать задание крафта
+gui.ae2powertools.maintainer.error.cancelled=§cКрафт был отменён
+gui.ae2powertools.maintainer.error.no_space=§cНет места для скрафченных предметов
+gui.ae2powertools.maintainer.error.missing_resources=§cНедостаточно предметов для начала крафта
+gui.ae2powertools.maintainer.error.calculation_timeout=§cВремя расчёта задания истекло (рецепт слишком сложный)
+gui.ae2powertools.maintainer.error.cpu_retry_limit=§cПревышен лимит попыток ожидания процессора
+gui.ae2powertools.maintainer.error.extraction_failed=§cПредметы видны, но не могут быть извлечены (проверьте внешнее хранилище)
 
 # =====================================================
 # Распределитель ускорителей

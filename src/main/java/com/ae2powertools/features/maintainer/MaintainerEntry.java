@@ -20,6 +20,32 @@ import com.ae2powertools.util.Ae2FluidCraftingCompat;
  */
 public class MaintainerEntry {
 
+    public enum ErrorState {
+        NO_ERROR(null),
+        NO_RECIPE("gui.ae2powertools.maintainer.error.no_recipe"),
+        NO_NETWORK("gui.ae2powertools.maintainer.error.no_network"),
+        NO_CPU("gui.ae2powertools.maintainer.error.no_cpu"),
+        CPU_TOO_SMALL("gui.ae2powertools.maintainer.error.cpu_too_small"),
+        SIMULATION_FAILED("gui.ae2powertools.maintainer.error.simulation_failed"),
+        JOB_FAILED("gui.ae2powertools.maintainer.error.job_failed"),
+        CANCELLED("gui.ae2powertools.maintainer.error.cancelled"),
+        NO_SPACE("gui.ae2powertools.maintainer.error.no_space"),
+        MISSING_RESOURCES("gui.ae2powertools.maintainer.error.missing_resources"),
+        CALCULATION_TIMEOUT("gui.ae2powertools.maintainer.error.calculation_timeout"),
+        CPU_RETRY_LIMIT("gui.ae2powertools.maintainer.error.cpu_retry_limit"),
+        EXTRACTION_FAILED("gui.ae2powertools.maintainer.error.extraction_failed");
+
+        private final String translationKey;
+
+        ErrorState(String translationKey) {
+            this.translationKey = translationKey;
+        }
+
+        TextComponentTranslation getErrorComponent() {
+            return new TextComponentTranslation(translationKey);
+        }
+    }
+
     /**
      * The item stack representing the recipe output to maintain.
      * Null if no recipe is set for this entry.
@@ -199,6 +225,20 @@ public class MaintainerEntry {
         this.errorComponent = component;
     }
 
+    /**
+     * Convenience setter that takes an {@link ErrorState} enum value.
+     * Wraps the translation key into a TextComponentTranslation so client-side
+     * localization still works.
+     */
+    public void setError(ErrorState errorStateEnum) {
+        if (errorStateEnum == ErrorState.NO_ERROR) {
+            clearError();
+        } else {
+            this.state = MaintainerState.ERROR;
+            this.errorComponent = errorStateEnum.getErrorComponent();
+        }
+    }
+
     public void clearError() {
         if (this.state.isError()) {
             this.state = this.enabled ? MaintainerState.IDLE : MaintainerState.DISABLED;
@@ -268,11 +308,18 @@ public class MaintainerEntry {
     /**
      * Checks if crafting is needed based on current vs target quantity.
      */
-    public boolean needsCrafting() {
-        if (!hasRecipe() || !enabled) return false;
+    public boolean needsCrafting(boolean allowDisabled) {
+        if (!hasRecipe() || (!allowDisabled && !enabled)) return false;
 
         // Craft if current quantity is below target
         return currentQuantity < targetQuantity;
+    }
+
+    /**
+     * Checks if crafting is needed based on current vs target quantity.
+     */
+    public boolean needsCrafting() {
+        return needsCrafting(false);
     }
 
     /**

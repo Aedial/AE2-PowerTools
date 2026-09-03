@@ -46,6 +46,7 @@ public class PowerToolsNetwork {
         // Better Level Maintainer packets
         INSTANCE.registerMessage(PacketOpenMaintainerGui.Handler.class, PacketOpenMaintainerGui.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketUpdateMaintainerEntry.Handler.class, PacketUpdateMaintainerEntry.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRunMaintainerEntry.Handler.class, PacketRunMaintainerEntry.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSelectRecipe.Handler.class, PacketSelectRecipe.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketCraftableItemsSync.Handler.class, PacketCraftableItemsSync.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketMaintainerEntrySync.Handler.class, PacketMaintainerEntrySync.class, packetId++, Side.CLIENT);
