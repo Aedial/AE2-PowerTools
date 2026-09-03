@@ -200,6 +200,9 @@ gui.ae2powertools.maintainer.tooltip.shift_scroll_quantity=§bShift+滚轮§7以
 gui.ae2powertools.maintainer.tooltip.ctrl_scroll_frequency=§bCtrl+滚轮§7以加倍/减半时间
 gui.ae2powertools.maintainer.tooltip.batch_size=§7每次运行（至少）合成%d个物品
 gui.ae2powertools.maintainer.tooltip.frequency=§7每%s运行一次
+gui.ae2powertools.maintainer.tooltip.run_now=§a立即运行
+gui.ae2powertools.maintainer.tooltip.run_now_click=§b点击§7来立即启动该缓存指令器任务
+gui.ae2powertools.maintainer.tooltip.run_now_busy=§c该缓存指令器任务已处于活动状态
 
 # GUI - Maintainer Status Bar Tooltips
 gui.ae2powertools.maintainer.status.cpu_title=§e合成CPU
@@ -444,6 +447,8 @@ gui.ae2powertools.crafter.error.missing_catalyst_slot=槽位%d缺失催化剂§7
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=槽位%d物品错误§7：应当是§b%s§7，实际为%s
 gui.ae2powertools.crafter.error.pending_output=无法将%d§7 x %s§7插入网络
 gui.ae2powertools.crafter.error.inputs_changed=所需输入原料在提取前从网络中消失了（你的网络中可能存在幽灵物品）
+gui.ae2powertools.crafter.error.no_matching_recipe=未找到与该样板匹配的配方
+gui.ae2powertools.crafter.error.no_output=配方不产生任何产物
 gui.ae2powertools.crafter.error.catalyst_recipe_mismatch=当前催化剂物品与编码样板不再匹配
 gui.ae2powertools.crafter.error.output_mismatch=当前催化剂物品导致的产物与编码样板不同
 jei.ae2powertools.reusable=§a可重复使用
