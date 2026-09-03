@@ -22,6 +22,8 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add support for all Molecular Assembler-like machines to the Cards Distributor, for Acceleration Card distribution.
 - Add a warning overlay if the AutoCrafter is still at the default batch size (1), nudging players to raise it to a more performance-friendly value.
 - Add a "Run Now" button to entries of the Better Level Maintainer GUI.
+- Allow the AutoCrafter to use tools with different durability values than the one encoded in the pattern, as long as it's the only same item. The setting is per-entry and enabled by default, but can be disabled if the user wants to enforce exact durability matching. Once the tools with partial durability have been consumed, we should only be left with 1 item to match (steady-state), which is almost as performant as the exact durability matching, but allows for more flexibility in the tools used.
+- Add more details to some error messages in the AutoCrafter GUI, so new users can understand what is going on and how to fix it.
 
 ### Fixed
 - Fix tooltip leaking from under the Maintainer modal when it is open.

@@ -1267,7 +1267,9 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             // Inject items into network storage and return any remainder.
             // Don't set error states here - transient capacity issues are normal during crafting.
             // The craft completion is tracked via ICraftingLink state in updateActiveTaskStates.
-            // FIXME: still need to track if item, fluid, or gas storage rejected output, to properly set error state on entry
+
+            // TODO: Still need to track if item, fluid, or gas storage rejected output, to properly set error state on entry.
+            //       Without invasive Mixins, I don't really see a way to detect this without making *huge* assumptions.
             return storage.injectItems(items, mode, actionSource);
 
         } catch (GridAccessException e) {

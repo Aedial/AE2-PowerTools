@@ -1,6 +1,7 @@
 package com.ae2powertools.features.crafter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +41,10 @@ public final class CrafterRecipeSnapshot {
         new IAEItemStack[9],
         Collections.emptyList(),
         Collections.emptyList(),
+        Collections.emptyList(),
         false,
+        false,
+        true,
         ItemStack.EMPTY,
         new ItemStack[CrafterEntry.CATALYST_SLOTS]
     );
@@ -80,12 +84,18 @@ public final class CrafterRecipeSnapshot {
     private final ItemStack[] catalystStacks;
     private final List<CatalystExpectation> catalysts;
     private final List<ITextComponent> errorDetails;
+    private final List<ITextComponent> hints;
     private final boolean hasDisplayData;
+    private final boolean hasDurabilityItems;
+    private final boolean fuzzyDurabilityEnabled;
 
     public CrafterRecipeSnapshot(IAEItemStack[] inputGrid,
                                  List<CatalystExpectation> catalysts,
                                  List<ITextComponent> errorDetails,
+                                 List<ITextComponent> hints,
                                  boolean hasDisplayData,
+                                 boolean hasDurabilityItems,
+                                 boolean fuzzyDurabilityEnabled,
                                  ItemStack patternStack,
                                  ItemStack[] catalystStacks) {
         this.inputGrid = inputGrid;
@@ -93,7 +103,10 @@ public final class CrafterRecipeSnapshot {
         this.catalystStacks = copyCatalystStacks(catalystStacks);
         this.catalysts = catalysts;
         this.errorDetails = errorDetails;
+        this.hints = hints;
         this.hasDisplayData = hasDisplayData;
+        this.hasDurabilityItems = hasDurabilityItems;
+        this.fuzzyDurabilityEnabled = fuzzyDurabilityEnabled;
     }
 
     /**
@@ -107,7 +120,8 @@ public final class CrafterRecipeSnapshot {
             // Even when there is no recipe info, we still want to send error details
             // (the entry might be in SIMULATION_FAILED state with helpful messages).
             return new CrafterRecipeSnapshot(new IAEItemStack[9], Collections.emptyList(),
-                copyComponents(entry.getErrorDetails()), false, patternStack, catalystStacks);
+                copyComponents(entry.getErrorDetails()), copyComponents(entry.getHints()),
+                false, false, true, patternStack, catalystStacks);
         }
 
         IAEItemStack[] grid = new IAEItemStack[9];
@@ -131,7 +145,10 @@ public final class CrafterRecipeSnapshot {
             grid,
             catalysts,
             copyComponents(entry.getErrorDetails()),
+            copyComponents(entry.getHints()),
             true,
+            info != null && info.hasDurabilityItems(),
+            entry.isFuzzyDurabilityEnabled(),
             patternStack,
             catalystStacks);
     }
@@ -162,6 +179,8 @@ public final class CrafterRecipeSnapshot {
 
     public void writeToBuf(ByteBuf buf) throws IOException {
         buf.writeBoolean(hasDisplayData);
+        buf.writeBoolean(hasDurabilityItems);
+        buf.writeBoolean(fuzzyDurabilityEnabled);
 
         // Input grid (9 slots, presence-flagged)
         for (int i = 0; i < 9; i++) {
@@ -188,10 +207,15 @@ public final class CrafterRecipeSnapshot {
         // it in its own locale.
         buf.writeShort(errorDetails.size());
         for (ITextComponent comp : errorDetails) writeString(buf, ITextComponent.Serializer.componentToJson(comp));
+
+        buf.writeShort(hints.size());
+        for (ITextComponent comp : hints) writeString(buf, ITextComponent.Serializer.componentToJson(comp));
     }
 
     public static CrafterRecipeSnapshot readFromBuf(ByteBuf buf) {
         boolean hasDisplay = buf.readBoolean();
+        boolean hasDurabilityItems = buf.readBoolean();
+        boolean fuzzyDurabilityEnabled = buf.readBoolean();
 
         IAEItemStack[] grid = new IAEItemStack[9];
         for (int i = 0; i < 9; i++) {
@@ -217,11 +241,16 @@ public final class CrafterRecipeSnapshot {
         List<ITextComponent> errors = new ArrayList<>(errCount);
         for (int i = 0; i < errCount; i++) errors.add(ITextComponent.Serializer.jsonToComponent(readString(buf)));
 
-        return new CrafterRecipeSnapshot(grid, catalysts, errors, hasDisplay, patternStack, catalystStacks);
+        int hintCount = buf.readShort() & 0xFFFF;
+        List<ITextComponent> hints = new ArrayList<>(hintCount);
+        for (int i = 0; i < hintCount; i++) hints.add(ITextComponent.Serializer.jsonToComponent(readString(buf)));
+
+        return new CrafterRecipeSnapshot(grid, catalysts, errors, hints, hasDisplay,
+            hasDurabilityItems, fuzzyDurabilityEnabled, patternStack, catalystStacks);
     }
 
     private static void writeString(ByteBuf buf, String s) {
-        byte[] bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
         buf.writeShort(bytes.length);
         buf.writeBytes(bytes);
     }
@@ -230,7 +259,7 @@ public final class CrafterRecipeSnapshot {
         int len = buf.readShort() & 0xFFFF;
         byte[] bytes = new byte[len];
         buf.readBytes(bytes);
-        return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     public IAEItemStack[] getInputGrid() { return inputGrid; }
@@ -238,7 +267,10 @@ public final class CrafterRecipeSnapshot {
     public ItemStack[] getCatalystStacks() { return catalystStacks; }
     public List<CatalystExpectation> getCatalysts() { return catalysts; }
     public List<ITextComponent> getErrorDetails() { return errorDetails; }
+    public List<ITextComponent> getHints() { return hints; }
     public boolean hasDisplayData() { return hasDisplayData; }
+    public boolean hasDurabilityItems() { return hasDurabilityItems; }
+    public boolean isFuzzyDurabilityEnabled() { return fuzzyDurabilityEnabled; }
 
     @Override
     public boolean equals(Object o) {
@@ -247,6 +279,8 @@ public final class CrafterRecipeSnapshot {
 
         CrafterRecipeSnapshot that = (CrafterRecipeSnapshot) o;
         if (hasDisplayData != that.hasDisplayData) return false;
+        if (hasDurabilityItems != that.hasDurabilityItems) return false;
+        if (fuzzyDurabilityEnabled != that.fuzzyDurabilityEnabled) return false;
         if (!errorDetails.equals(that.errorDetails)) return false;
         if (!catalysts.equals(that.catalysts)) return false;
         if (!itemStackEquals(patternStack, that.patternStack)) return false;
@@ -269,6 +303,8 @@ public final class CrafterRecipeSnapshot {
     public int hashCode() {
         // Hash should be stable enough for diff caching; exact hash precision not critical.
         int h = Boolean.hashCode(hasDisplayData);
+        h = 31 * h + Boolean.hashCode(hasDurabilityItems);
+        h = 31 * h + Boolean.hashCode(fuzzyDurabilityEnabled);
         h = 31 * h + errorDetails.hashCode();
         h = 31 * h + catalysts.hashCode();
         h = 31 * h + itemStackHash(patternStack);

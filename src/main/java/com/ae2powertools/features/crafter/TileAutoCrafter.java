@@ -2,6 +2,9 @@ package com.ae2powertools.features.crafter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -31,6 +34,7 @@ import net.minecraftforge.common.util.FakePlayerFactory;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
+import appeng.api.config.FuzzyMode;
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.implementations.IPowerChannelState;
 import appeng.api.networking.GridFlags;
@@ -184,9 +188,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         processPendingOutputs();
         processAllEntries();
 
-        if (startedAt > 0L) {
-            operationTimingStats.recordSample(System.nanoTime() - startedAt);
-        }
+        if (startedAt > 0L) operationTimingStats.recordSample(System.nanoTime() - startedAt);
     }
 
     private boolean hasTimingWorkload() {
@@ -198,7 +200,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     private long getCraftIntervalTicks() {
-        // The user-facing timer already supports intervals beyond Integer.MAX_VALUE.
+        // The user-facing timer supports intervals beyond Integer.MAX_VALUE.
         // Keep the server scheduler in long space as well so large batch values do not wrap.
         return Math.max(1L, SaturatingMath.saturatingMultiply(speedTicks, batchSize));
     }
@@ -315,7 +317,9 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Phase 2: Extract all inputs from network
         List<CraftSimulation> successfulExtractions = new ArrayList<>();
         for (CraftSimulation sim : simulations) {
-            if (extractInputs(itemStorage, sim.entry, sim.info, sim.crafts)) {
+            DurabilityExtraction durabilityExtraction = extractInputs(itemStorage, sim.entry, sim.info, sim.crafts);
+            if (durabilityExtraction != null) {
+                sim.durabilityExtraction = durabilityExtraction;
                 successfulExtractions.add(sim);
             } else {
                 // Should never happen, as it means MODULATE does not agree with SIMULATE.
@@ -327,7 +331,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Phase 3: Run all crafts
         List<CraftResult> results = new ArrayList<>();
         for (CraftSimulation sim : successfulExtractions) {
-            List<IAEItemStack> outputs = performCraftInternal(sim.entry, sim.info, sim.crafts);
+            List<IAEItemStack> outputs = performCraftInternal(sim.entry, sim.info, sim.crafts,
+                sim.durabilityExtraction);
             if (outputs != null && !outputs.isEmpty()) {
                 results.add(new CraftResult(sim.entry, outputs));
             } else {
@@ -400,7 +405,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             Map<ItemStackKey, long[]> missingInputs = new LinkedHashMap<>();
             Map<ItemStackKey, ItemStack> missingStacks = new HashMap<>();
 
-            Map<ItemStackKey, Long> demand = calculateResourceDemand(candidate.info, 1L);
+            Map<ItemStackKey, Long> demand = calculateResourceDemand(candidate.entry, candidate.info, 1L);
             for (Map.Entry<ItemStackKey, Long> resource : demand.entrySet()) {
                 ItemStackKey key = resource.getKey();
                 long available = sharedPool.getOrDefault(key, 0L);
@@ -412,7 +417,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                     long[] counts = missingInputs.computeIfAbsent(key, ignored -> new long[]{needed, available});
                     counts[0] = Math.max(counts[0], needed);
                     counts[1] = Math.min(counts[1], available);
-                    ItemStack stack = candidate.info.getResourceStack(key);
+                    ItemStack stack = getResourceStack(candidate.entry, candidate.info, key);
                     if (stack != null) missingStacks.putIfAbsent(key, stack);
                 }
             }
@@ -432,6 +437,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                     candidate.entry.addErrorDetail(CrafterEntry.CrafterErrorState.MISSING_INPUT,
                         stack.getDisplayName(), counts[0], counts[1]);
                 }
+
+                candidate.entry.addHint(CrafterEntry.CrafterHint.NBT_MISMATCH_HINT);
             }
         }
     }
@@ -453,10 +460,13 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             } else if (entry.hasPendingOutputs()) {             // Skip entries with pending outputs
                 refreshPendingOutputDetails(entry);
             } else if (!entry.hasValidRecipeInfo()) {           // Check recipe validity
-                ;
+                entry.resetState(CrafterState.SIMULATION_FAILED);
             } else if (isEntryAtTarget(entry, storageList)) {   // Check target quantity
+                // TODO: If we ever set a target different than 2.1B, we might want to check
+                //       the *real* quantity, instead of the cache (because of ghost items).
+                //       This means doing a SIMULATE extraction of the output.
                 entry.resetState(CrafterState.IDLE);
-            } else {
+            } else {                                            // Check catalysts and inputs for allocation
                 CrafterRecipeInfo info = entry.getRecipeInfo();
                 if (info == null || ensureCatalystsValid(entryIndex, entry, info)) {
                     entry.resetState(CrafterState.IDLE);
@@ -475,11 +485,40 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         final CrafterEntry entry;
         final CrafterRecipeInfo info;
         final long crafts;
+        DurabilityExtraction durabilityExtraction;
 
         CraftSimulation(CrafterEntry entry, CrafterRecipeInfo info, long crafts) {
             this.entry = entry;
             this.info = info;
             this.crafts = crafts;
+        }
+    }
+
+    /**
+     * Damaged tool variants extracted for each recipe slot.
+     */
+    private static class DurabilityExtraction {
+        private final Map<Integer, List<IAEItemStack>> stacksBySlot = new HashMap<>();
+
+        void add(int slotIndex, IAEItemStack stack) {
+            stacksBySlot.computeIfAbsent(slotIndex, ignored -> new ArrayList<>()).add(stack);
+        }
+
+        List<IAEItemStack> get(int slotIndex) {
+            return stacksBySlot.getOrDefault(slotIndex, Collections.emptyList());
+        }
+    }
+
+    /**
+     * Shared resource associated with its requesting recipe entry and ingredient.
+     */
+    private static class ResourceRequest {
+        final CrafterEntry entry;
+        final CrafterRecipeInfo.IngredientInfo ingredient;
+
+        ResourceRequest(CrafterEntry entry, CrafterRecipeInfo.IngredientInfo ingredient) {
+            this.entry = entry;
+            this.ingredient = ingredient;
         }
     }
 
@@ -523,37 +562,50 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                                                          @Nullable IMEMonitor<IAEItemStack> itemStorage,
                                                          long effectiveMaxBatchSize) {
         Map<ItemStackKey, Long> pool = new HashMap<>();
-        Map<ItemStackKey, IAEItemStack> requests = new LinkedHashMap<>();
+        Map<ItemStackKey, ResourceRequest> requests = new LinkedHashMap<>();
         Map<ItemStackKey, Long> totalDemand = new LinkedHashMap<>();
 
         // Collect all unique items needed by all candidates
         for (CraftCandidate candidate : candidates) {
             for (CrafterRecipeInfo.IngredientInfo ingredient : candidate.info.getConsumedItems()) {
-                IAEItemStack item = ingredient.getItem();
-                if (item == null) continue;
-
-                ItemStackKey key = ingredient.getItemKey();
+                ItemStackKey key = getResourceKey(candidate.entry, ingredient);
                 if (key == null) continue;
 
-                requests.putIfAbsent(key, item);
-                long needed = calculateItemsNeededForCrafts(ingredient, effectiveMaxBatchSize);
-                totalDemand.merge(key, needed, SaturatingMath::saturatingAdd);
+                requests.putIfAbsent(key, new ResourceRequest(candidate.entry, ingredient));
+            }
+
+            Map<ItemStackKey, Long> demand = calculateResourceDemand(
+                candidate.entry, candidate.info, effectiveMaxBatchSize);
+            for (Map.Entry<ItemStackKey, Long> entry : demand.entrySet()) {
+                totalDemand.merge(entry.getKey(), entry.getValue(), SaturatingMath::saturatingAdd);
             }
         }
 
         // Align the demand with the live network state for each unique item
-        for (Map.Entry<ItemStackKey, IAEItemStack> entry : requests.entrySet()) {
+        for (Map.Entry<ItemStackKey, ResourceRequest> entry : requests.entrySet()) {
             long requested = totalDemand.getOrDefault(entry.getKey(), 0L);
             if (requested <= 0L) {
                 pool.put(entry.getKey(), 0L);
                 continue;
             }
 
-            IAEItemStack request = entry.getValue().copy();
-            request.setStackSize(requested);
+            ResourceRequest request = entry.getValue();
+            long available;
+            if (request.ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) {
+                available = getAvailableDurability(itemStorage, request.entry, request.ingredient);
+            } else {
+                IAEItemStack item = request.ingredient.getItem();
+                if (item == null) {
+                    pool.put(entry.getKey(), 0L);
+                    continue;
+                }
 
-            IAEItemStack result = tryExtractFromNetwork(itemStorage, request, Actionable.SIMULATE);
-            long available = result != null ? Math.min(requested, result.getStackSize()) : 0L;
+                IAEItemStack simulatedRequest = item.copy();
+                simulatedRequest.setStackSize(requested);
+                IAEItemStack result = tryExtractFromNetwork(itemStorage, simulatedRequest, Actionable.SIMULATE);
+                available = result != null ? Math.min(requested, result.getStackSize()) : 0L;
+            }
+
             pool.put(entry.getKey(), Math.max(0L, available));
         }
 
@@ -586,12 +638,13 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         Map<CraftCandidate, Map<ItemStackKey, Long>> candidateDemand = new HashMap<>();
 
         for (CraftCandidate candidate : candidates) {
-            Map<ItemStackKey, Long> demand = calculateResourceDemand(candidate.info, effectiveMaxBatchSize);
+            Map<ItemStackKey, Long> demand = calculateResourceDemand(candidate.entry, candidate.info, effectiveMaxBatchSize);
             candidateDemand.put(candidate, demand);
 
             for (Map.Entry<ItemStackKey, Long> entry : demand.entrySet()) {
                 ItemStackKey key = entry.getKey();
                 long needed = entry.getValue();
+                if (needed <= 0L) continue;
 
                 resourceUsers.computeIfAbsent(key, k -> new ArrayList<>()).add(candidate);
                 totalDemand.merge(key, needed, SaturatingMath::saturatingAdd);
@@ -646,7 +699,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 if (allocated == null) allocated = 0L;
 
                 // Convert the complete per-craft demand for this item into crafts
-                long craftsFromAllocation = calculateCraftsFromResource(candidate.info, key, allocated,
+                long craftsFromAllocation = calculateCraftsFromResource(candidate.entry, candidate.info, key, allocated,
                     effectiveMaxBatchSize);
 
                 if (craftsFromAllocation < finalCrafts) {
@@ -655,7 +708,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                         long[] counts = limitingFactors.computeIfAbsent(key, ignored -> new long[]{allocatedCount, 0L});
                         counts[0] = Math.min(counts[0], allocatedCount);
                         counts[1] = SaturatingMath.saturatingAdd(counts[1], needed);
-                        ItemStack stack = candidate.info.getResourceStack(key);
+                        ItemStack stack = getResourceStack(candidate.entry, candidate.info, key);
                         if (stack != null) limitingStacks.putIfAbsent(key, stack);
                     }
                 }
@@ -668,7 +721,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             if (finalCrafts > 0) {
                 // Deduct from shared pool
-                deductFromPool(candidate.info, pool, finalCrafts);
+                deductFromPool(candidate.entry, candidate.info, pool, finalCrafts);
                 simulations.add(new CraftSimulation(candidate.entry, candidate.info, finalCrafts));
 
                 // If crafts were reduced, add info about why
@@ -698,6 +751,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                     candidate.entry.addErrorDetail(CrafterEntry.CrafterErrorState.NO_ITEMS_IN_NETWORK);
                 }
 
+                candidate.entry.addHint(CrafterEntry.CrafterHint.NBT_MISMATCH_HINT);
+
                 // Record as error (no crafts possible)
                 candidate.entry.recordMetrics(true, 0, 0);
             }
@@ -707,19 +762,25 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     /**
-     * Calculate the total items required for each resource in a recipe.
+     * Calculate the network supply required for each resource in a recipe.
+     * For non-durability items, this is simply the number of crafts multiplied by the per-craft consumption.
+     * For durability items, this depends on the durability of the tools, and the consumption per craft.
      */
-    private Map<ItemStackKey, Long> calculateResourceDemand(CrafterRecipeInfo info, long crafts) {
+    private Map<ItemStackKey, Long> calculateResourceDemand(CrafterEntry entry, CrafterRecipeInfo info,
+                                                            long crafts) {
         Map<ItemStackKey, Long> demand = new LinkedHashMap<>();
 
         for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
-            IAEItemStack item = ingredient.getItem();
-            if (item == null) continue;
-
-            ItemStackKey ingredientKey = ingredient.getItemKey();
+            ItemStackKey ingredientKey = getResourceKey(entry, ingredient);
             if (ingredientKey == null) continue;
 
-            long needed = calculateItemsNeededForCrafts(ingredient, crafts);
+            long needed = crafts;
+            if (ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) {
+                long required = SaturatingMath.saturatingMultiply(crafts, ingredient.getDurabilityPerCraft());
+                long leftover = getLeftoverDurability(entry, ingredient.getSlotIndex(), ingredient.getItem());
+                needed = Math.max(0L, required - leftover);
+            }
+
             demand.merge(ingredientKey, needed, SaturatingMath::saturatingAdd);
         }
 
@@ -729,82 +790,68 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     /**
      * Calculate the largest batch that fits the allocated quantity of a resource.
      */
-    private long calculateCraftsFromResource(CrafterRecipeInfo info, ItemStackKey key, long items,
-                                             long effectiveMaxBatchSize) {
-        if (items <= 0L || effectiveMaxBatchSize <= 0L) return 0L;
+    private long calculateCraftsFromResource(CrafterEntry entry, CrafterRecipeInfo info, ItemStackKey key,
+                                             long items, long effectiveMaxBatchSize) {
+        if (effectiveMaxBatchSize <= 0L) return 0L;
+
+        if (key.isDurabilityResource()) {
+            return calculateCraftsFromDurability(entry, info, key, items, effectiveMaxBatchSize);
+        }
+
+        if (items <= 0L) return 0L;
 
         long consumedPerCraft = 0L;
-        long durabilityItems = 0L;
-        long craftsPerDurabilityItem = Long.MAX_VALUE;
 
         for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
-            ItemStackKey ingredientKey = ingredient.getItemKey();
+            ItemStackKey ingredientKey = getResourceKey(entry, ingredient);
             if (!key.equals(ingredientKey)) continue;
 
-            if (ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) {
-                IAEItemStack item = ingredient.getItem();
-                if (item == null) continue;
-
-                // Durability items: calculate how many crafts can be done per item
-                ItemStack stack = item.createItemStack();
-                long craftsPerItem = stack.getMaxDamage() / (long) ingredient.getDurabilityPerCraft();
-                if (craftsPerItem <= 0L) craftsPerItem = 1L;
-
-                durabilityItems++;
-                craftsPerDurabilityItem = Math.min(craftsPerDurabilityItem, craftsPerItem);
-            } else {
-                // Regular items: 1 item per craft
-                consumedPerCraft++;
-            }
+            consumedPerCraft++;
         }
 
-        if (durabilityItems == 0L) return Math.min(effectiveMaxBatchSize, items / consumedPerCraft);
-
-        long consumedPerCycle = SaturatingMath.saturatingMultiply(consumedPerCraft, craftsPerDurabilityItem);
-        long itemsPerCycle = SaturatingMath.saturatingAdd(consumedPerCycle, durabilityItems);
-        long fullCycles = items / itemsPerCycle;
-        long remainingItems = items % itemsPerCycle;
-        long extraCrafts = 0L;
-
-        if (remainingItems >= durabilityItems) {
-            if (consumedPerCraft == 0L) {
-                extraCrafts = craftsPerDurabilityItem - 1L;
-            } else {
-                long availableItems = (remainingItems - durabilityItems) / consumedPerCraft;
-                extraCrafts = Math.min(craftsPerDurabilityItem - 1L, availableItems);
-            }
-        }
-
-        long craftsFromFullCycles = SaturatingMath.saturatingMultiply(fullCycles, craftsPerDurabilityItem);
-        long totalCrafts = SaturatingMath.saturatingAdd(craftsFromFullCycles, extraCrafts);
-        return Math.min(effectiveMaxBatchSize, totalCrafts);
+        return consumedPerCraft > 0L ? Math.min(effectiveMaxBatchSize, items / consumedPerCraft) : 0L;
     }
 
     /**
-     * Calculate how many items are needed for a given number of crafts.
-     * <p>
-     * For most items: 1 item per craft.
-     * For DURABILITY items: depends on durability per craft and max durability.
+     * Calculate the largest batch that fits the allocated durability.
      */
-    private long calculateItemsNeededForCrafts(CrafterRecipeInfo.IngredientInfo ingredient, long crafts) {
-        if (ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) {
-            IAEItemStack item = ingredient.getItem();
-            if (item != null) {
-                ItemStack template = item.createItemStack();
-                int maxDurability = template.getMaxDamage();
-                int durabilityPerCraft = ingredient.getDurabilityPerCraft();
+    private long calculateCraftsFromDurability(CrafterEntry entry, CrafterRecipeInfo info, ItemStackKey key,
+                                               long durability, long effectiveMaxBatchSize) {
+        long previousThreshold = 0L;
 
-                if (maxDurability > 0 && durabilityPerCraft > 0) {
-                    long craftsPerItem = maxDurability / (long) durabilityPerCraft;
-                    if (craftsPerItem <= 0) craftsPerItem = 1;
+        while (previousThreshold < effectiveMaxBatchSize) {
+            long nextThreshold = effectiveMaxBatchSize;
+            long durabilityPerCraft = 0L;
+            long leftoverDurability = 0L;
 
-                    return CrafterMath.ceilDivPositive(crafts, craftsPerItem);
+            for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
+                if (ingredient.getType() != CrafterRecipeInfo.IngredientType.DURABILITY) continue;
+                if (!key.equals(getResourceKey(entry, ingredient))) continue;
+
+                long perCraft = ingredient.getDurabilityPerCraft();
+                long leftover = getLeftoverDurability(entry, ingredient.getSlotIndex(), ingredient.getItem());
+                long threshold = Math.min(effectiveMaxBatchSize, leftover / perCraft);
+                if (threshold <= previousThreshold) {
+                    durabilityPerCraft = SaturatingMath.saturatingAdd(durabilityPerCraft, perCraft);
+                    leftoverDurability = SaturatingMath.saturatingAdd(leftoverDurability, leftover);
+                } else {
+                    nextThreshold = Math.min(nextThreshold, threshold);
                 }
             }
+
+            if (durabilityPerCraft == 0L) {
+                previousThreshold = nextThreshold;
+                continue;
+            }
+
+            long crafts = SaturatingMath.saturatingAdd(durability, leftoverDurability) / durabilityPerCraft;
+            if (crafts <= previousThreshold) return previousThreshold;
+            if (crafts <= nextThreshold) return crafts;
+
+            previousThreshold = nextThreshold;
         }
 
-        // Regular items: 1 item per craft
-        return crafts;
+        return effectiveMaxBatchSize;
     }
 
     private void refreshPendingOutputDetails(CrafterEntry entry) {
@@ -820,42 +867,13 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     /**
-     * Deduct items from the shared pool after allocating crafts to an entry.
-     * <p>
-     * For most items: deduct 1 item per craft.
-     * For DURABILITY items: deduct based on how many items are actually needed.
+     * Deduct a candidate's network demand from the shared pool.
      */
-    private void deductFromPool(CrafterRecipeInfo info, Map<ItemStackKey, Long> pool, long crafts) {
-        for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
-            IAEItemStack item = ingredient.getItem();
-            if (item == null) continue;
-
-            ItemStackKey key = ingredient.getItemKey();
-            if (key == null) continue;
-
-            long current = pool.getOrDefault(key, 0L);
-
-            long itemsToDeduct;
-            if (ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) {
-                // Durability items: calculate actual items needed
-                ItemStack template = item.createItemStack();
-                int maxDurability = template.getMaxDamage();
-                int durabilityPerCraft = ingredient.getDurabilityPerCraft();
-
-                if (maxDurability > 0 && durabilityPerCraft > 0) {
-                    long craftsPerItem = maxDurability / (long) durabilityPerCraft;
-                    if (craftsPerItem <= 0) craftsPerItem = 1;
-
-                    itemsToDeduct = CrafterMath.ceilDivPositive(crafts, craftsPerItem);
-                } else {
-                    itemsToDeduct = crafts;
-                }
-            } else {
-                // Regular items: 1 item per craft
-                itemsToDeduct = crafts;
-            }
-
-            pool.put(key, Math.max(0, current - itemsToDeduct));
+    private void deductFromPool(CrafterEntry entry, CrafterRecipeInfo info, Map<ItemStackKey, Long> pool,
+                                long crafts) {
+        for (Map.Entry<ItemStackKey, Long> demand : calculateResourceDemand(entry, info, crafts).entrySet()) {
+            long current = pool.getOrDefault(demand.getKey(), 0L);
+            pool.put(demand.getKey(), Math.max(0L, current - demand.getValue()));
         }
     }
 
@@ -907,6 +925,27 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         return errorDetails;
     }
 
+    @Nullable
+    private ItemStackKey getResourceKey(CrafterEntry entry, CrafterRecipeInfo.IngredientInfo ingredient) {
+        IAEItemStack item = ingredient.getItem();
+        if (item == null) return null;
+
+        boolean durability = ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY;
+        return new ItemStackKey(item, durability, durability && entry.isFuzzyDurabilityEnabled(),
+            durability ? ingredient.getDurabilityPerCraft() : 0);
+    }
+
+    @Nullable
+    private ItemStack getResourceStack(CrafterEntry entry, CrafterRecipeInfo info, ItemStackKey key) {
+        for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
+            if (!key.equals(getResourceKey(entry, ingredient)) || ingredient.getItem() == null) continue;
+
+            return ingredient.getItem().createItemStack();
+        }
+
+        return null;
+    }
+
     /**
      * Get the remaining durability of a leftover item in the internal inventory.
      * Internal inventory mirrors the crafting grid 1:1 (slot 0-8 = crafting slot 0-8).
@@ -916,81 +955,94 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * @param expectedItem The expected item type (durability items can vary in damage)
      * @return The remaining durability, or 0 if no matching leftover found
      */
-    private int getLeftoverDurability(CrafterEntry entry, int recipeSlotIndex, IAEItemStack expectedItem) {
+    private int getLeftoverDurability(CrafterEntry entry, int recipeSlotIndex,
+                                      IAEItemStack expectedItem) {
         if (recipeSlotIndex < 0 || recipeSlotIndex >= CrafterEntry.CATALYST_SLOTS) return 0;
-        
+
         ItemStack leftover = entry.getCatalystStack(recipeSlotIndex);
         if (leftover.isEmpty()) return 0;
-        
-        // Check if it's the same item type
+
         ItemStack expected = expectedItem.createItemStack();
-        if (leftover.getItem() != expected.getItem()) return 0;
-        
-        // Calculate remaining durability
-        int maxDurability = leftover.getMaxDamage();
-        int currentDamage = leftover.getItemDamage();
-        return Math.max(0, maxDurability - currentDamage);
+        // Match the item and NBT while allowing the durability damage to differ
+        if (!areDamageableItemStacksMatching(expected, leftover)) return 0;
+
+        // Calculate the remaining durability
+        return getRemainingDurability(leftover);
+    }
+
+    private int getRemainingDurability(ItemStack stack) {
+        if (stack.isEmpty() || stack.getMaxDamage() <= 0) return 0;
+
+        return Math.max(0, stack.getMaxDamage() - stack.getItemDamage());
+    }
+
+    private long getAvailableDurability(@Nullable IMEMonitor<IAEItemStack> itemStorage,
+                                        CrafterEntry entry,
+                                        CrafterRecipeInfo.IngredientInfo ingredient) {
+        long availableDurability = 0L;
+        for (IAEItemStack variant : getDurabilityVariants(itemStorage, entry, ingredient)) {
+            int durabilityPerItem = getRemainingDurability(variant.createItemStack());
+            long durabilityPerStack = SaturatingMath.saturatingMultiply(durabilityPerItem, variant.getStackSize());
+            availableDurability = SaturatingMath.saturatingAdd(availableDurability, durabilityPerStack);
+        }
+
+        return availableDurability;
+    }
+
+    private List<IAEItemStack> getDurabilityVariants(@Nullable IMEMonitor<IAEItemStack> itemStorage,
+                                                      CrafterEntry entry,
+                                                      CrafterRecipeInfo.IngredientInfo ingredient) {
+        IAEItemStack item = ingredient.getItem();
+        IItemList<IAEItemStack> storageList = getNetworkStorageList(itemStorage);
+        if (item == null || storageList == null) return Collections.emptyList();
+
+        Collection<IAEItemStack> matches;
+        if (entry.isFuzzyDurabilityEnabled()) {
+            matches = storageList.findFuzzy(item, FuzzyMode.IGNORE_ALL);
+        } else {
+            IAEItemStack precise = storageList.findPrecise(item);
+            matches = precise == null ? Collections.emptyList() : Collections.singletonList(precise);
+        }
+
+        ItemStack required = item.createItemStack();
+        List<IAEItemStack> variants = new ArrayList<>();
+        for (IAEItemStack match : matches) {
+            if (match == null || match.getStackSize() <= 0L) continue;
+            if (!areDamageableItemStacksMatching(required, match.createItemStack())) continue;
+
+            variants.add(match.copy());
+        }
+
+        variants.sort(Comparator.comparingInt(
+            (IAEItemStack variant) -> variant.createItemStack().getItemDamage()
+        ).reversed());
+        return variants;
     }
 
     /**
      * Extract required inputs from the network.
      * <p>
      * For most items: 1 item per slot per craft.
-     * For DURABILITY items: 
-     * - First check for leftover durability in catalyst slots
-     * - Calculate how many additional items needed from network
-     * - May need multiple items if total durability exceeds available
+     * For DURABILITY items, damaged variants are selected before undamaged variants.
      * 
      * @param crafts Number of individual crafts to perform
-     * @return true if all extractions succeeded, false if any failed.
-     *         Any partial extraction is considered a failure.
+     * @return The extracted durability variants, or null when an extraction failed.
      */
-    private boolean extractInputs(@Nullable IMEMonitor<IAEItemStack> itemStorage,
-                                  CrafterEntry entry,
-                                  CrafterRecipeInfo info,
-                                  long crafts) {
-        // Build the exact inputs selected by the shared pool
-        List<IAEItemStack> toExtract = new ArrayList<>();
+    @Nullable
+    private DurabilityExtraction extractInputs(@Nullable IMEMonitor<IAEItemStack> itemStorage,
+                                               CrafterEntry entry,
+                                               CrafterRecipeInfo info,
+                                               long crafts) {
+        List<IAEItemStack> extracted = new ArrayList<>();
+        DurabilityExtraction durabilityExtraction = new DurabilityExtraction();
 
         for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
             IAEItemStack item = ingredient.getItem();
             if (item == null) continue;
+            if (ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) continue;
 
             IAEItemStack request = item.copy();
-
-            if (ingredient.getType() == CrafterRecipeInfo.IngredientType.DURABILITY) {
-                // Durability items: check for leftover first
-                // Internal inventory mirrors crafting grid 1:1
-                int recipeSlot = ingredient.getSlotIndex();
-                int leftoverDurability = getLeftoverDurability(entry, recipeSlot, item);
-                
-                ItemStack template = item.createItemStack();
-                int maxDurability = template.getMaxDamage();
-                int durabilityPerCraft = ingredient.getDurabilityPerCraft();
-                long totalDurabilityNeeded = SaturatingMath.saturatingMultiply(crafts, durabilityPerCraft);
-                
-                // Subtract leftover durability from what we need
-                long durabilityFromNetwork = Math.max(0, totalDurabilityNeeded - leftoverDurability);
-
-                if (durabilityFromNetwork > 0 && maxDurability > 0) {
-                    // Calculate items needed from network
-                    // Each new item from network has full durability
-                    long itemsFromNetwork = CrafterMath.ceilDivPositive(durabilityFromNetwork, maxDurability);
-                    request.setStackSize(itemsFromNetwork);
-                } else {
-                    // Leftover has enough durability, no network extraction needed
-                    request.setStackSize(0);
-                }
-            } else {
-                // Regular items: 1 item per slot per craft
-                request.setStackSize(crafts);
-            }
-
-            if (request.getStackSize() > 0) toExtract.add(request);
-        }
-
-        List<IAEItemStack> extracted = new ArrayList<>();
-        for (IAEItemStack request : toExtract) {
+            request.setStackSize(crafts);
             IAEItemStack result = tryExtractFromNetwork(itemStorage, request, Actionable.MODULATE);
             long extractedCount = result != null ? result.getStackSize() : 0L;
 
@@ -1001,13 +1053,57 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 AE2PowerTools.LOGGER.warn("AutoCrafter at {} failed to extract {} {} after simulation" +
                     " (got {}). This should NEVER happen, something is VERY broken!",
                     pos, extractedCount, request.createItemStack().getDisplayName(), request.getStackSize());
-                return false;
+                return null;
             }
 
             extracted.add(result);
         }
 
-        return true;
+        for (CrafterRecipeInfo.IngredientInfo ingredient : info.getConsumedItems()) {
+            if (ingredient.getType() != CrafterRecipeInfo.IngredientType.DURABILITY) continue;
+
+            long requiredDurability = SaturatingMath.saturatingMultiply(crafts, ingredient.getDurabilityPerCraft());
+            int leftover = getLeftoverDurability(entry, ingredient.getSlotIndex(), ingredient.getItem());
+            long remainingDurability = Math.max(0L, requiredDurability - leftover);
+
+            for (IAEItemStack variant : getDurabilityVariants(itemStorage, entry, ingredient)) {
+                if (remainingDurability <= 0L) break;
+
+                int durabilityPerItem = getRemainingDurability(variant.createItemStack());
+                if (durabilityPerItem <= 0) continue;
+
+                long neededCount = CrafterMath.ceilDivPositive(remainingDurability, durabilityPerItem);
+                long requestedCount = Math.min(variant.getStackSize(), neededCount);
+                IAEItemStack request = variant.copy();
+                request.setStackSize(requestedCount);
+
+                IAEItemStack result = tryExtractFromNetwork(itemStorage, request, Actionable.MODULATE);
+                long extractedCount = result != null ? result.getStackSize() : 0L;
+                if (result == null || extractedCount != requestedCount) {
+                    if (result != null && extractedCount > 0L) extracted.add(result);
+
+                    AE2PowerTools.LOGGER.warn("AutoCrafter at {} failed to extract {} {} after simulation" +
+                        " (got {}). This should NEVER happen, something is VERY broken!",
+                        pos, extractedCount, request.createItemStack().getDisplayName(), requestedCount);
+                    restoreExtractedInputs(itemStorage, extracted);
+
+                    return null;
+                }
+
+                extracted.add(result);
+                durabilityExtraction.add(ingredient.getSlotIndex(), result);
+                remainingDurability = Math.max(0L, remainingDurability -
+                    SaturatingMath.saturatingMultiply(durabilityPerItem, extractedCount));
+            }
+
+            if (remainingDurability > 0L) {
+                restoreExtractedInputs(itemStorage, extracted);
+                AE2PowerTools.LOGGER.warn("AutoCrafter at {} could not select enough durability from the network", pos);
+                return null;
+            }
+        }
+
+        return durabilityExtraction;
     }
 
     /**
@@ -1036,7 +1132,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * @return List of all outputs (main output + transformed items)
      */
     @Nonnull
-    private List<IAEItemStack> performCraftInternal(CrafterEntry entry, CrafterRecipeInfo info, long crafts) {
+    private List<IAEItemStack> performCraftInternal(CrafterEntry entry, CrafterRecipeInfo info, long crafts,
+                                                    DurabilityExtraction durabilityExtraction) {
         List<IAEItemStack> outputs = new ArrayList<>();
 
         // Add main recipe outputs (scaled by craft count)
@@ -1075,7 +1172,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 case DURABILITY:
                     // Process durability items: use leftover first, then extracted items
                     // Store final survivor back in catalyst slot
-                    processDurabilityItems(entry, info, ingredient, crafts);
+                    List<IAEItemStack> extractedVariants = durabilityExtraction.get(ingredient.getSlotIndex());
+                    processDurabilityItems(entry, ingredient, crafts, extractedVariants);
                     break;
 
                 case TRANSFORMED:
@@ -1106,61 +1204,45 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * A durability item's leftover goes in the same slot as its recipe position.
      * 
      * @param entry The crafter entry (to access/update internal inventory)
-     * @param info The recipe info
      * @param ingredient The durability ingredient being processed
      * @param crafts Number of individual crafts being performed
+     * @param extractedVariants The tool variants selected from the network
      */
-    private void processDurabilityItems(CrafterEntry entry, CrafterRecipeInfo info,
-                                        CrafterRecipeInfo.IngredientInfo ingredient,
-                                        long crafts) {
-        // Durability items store their leftover in internal inventory, not returned to network
+    private void processDurabilityItems(CrafterEntry entry, CrafterRecipeInfo.IngredientInfo ingredient,
+                                        long crafts, List<IAEItemStack> extractedVariants) {
         if (ingredient.getItem() == null) return;
 
         ItemStack template = ingredient.getItem().createItemStack();
-        int maxDurability = template.getMaxDamage();
         int recipeSlot = ingredient.getSlotIndex();
-        
-        if (maxDurability <= 0) {
-            // Item has no durability - treat as REUSABLE, store in internal inventory
-            entry.setCatalystStack(recipeSlot, template.copy());
-            return;
+        ItemStack leftover = entry.getCatalystStack(recipeSlot);
+        long totalDurability = getLeftoverDurability(entry, recipeSlot, ingredient.getItem());
+        ItemStack survivorTemplate = areDamageableItemStacksMatching(template, leftover)
+            ? leftover : ItemStack.EMPTY;
+
+        for (IAEItemStack variant : extractedVariants) {
+            ItemStack variantStack = variant.createItemStack();
+            int durabilityPerItem = getRemainingDurability(variantStack);
+            if (durabilityPerItem <= 0) continue;
+
+            long durabilityPerStack = SaturatingMath.saturatingMultiply(durabilityPerItem, variant.getStackSize());
+            totalDurability = SaturatingMath.saturatingAdd(totalDurability, durabilityPerStack);
+            survivorTemplate = variantStack;
         }
 
-        int durabilityPerCraft = ingredient.getDurabilityPerCraft();
-        long totalDurabilityNeeded = SaturatingMath.saturatingMultiply(crafts, durabilityPerCraft);
-        
-        // Get current leftover from internal inventory
-        ItemStack leftover = entry.getCatalystStack(recipeSlot);
-        int leftoverDurability = 0;
-        if (!leftover.isEmpty() && leftover.getItem() == template.getItem()) {
-            leftoverDurability = maxDurability - leftover.getItemDamage();
-        }
-        
-        // Calculate total durability available:
-        // - Leftover durability from internal inventory
-        // - Fresh items extracted from network (each has maxDurability)
-        // extractInputs already calculated how many network items we needed
-        long durabilityFromNetwork = Math.max(0, totalDurabilityNeeded - leftoverDurability);
-        long itemsFromNetwork = durabilityFromNetwork > 0
-                              ? CrafterMath.ceilDivPositive(durabilityFromNetwork, maxDurability)
-                              : 0;
-        long totalDurabilityAvailable = SaturatingMath.saturatingAdd(
-                leftoverDurability,
-                SaturatingMath.saturatingMultiply(itemsFromNetwork, maxDurability));
-        
-        // After crafting, remaining durability
-        long remainingDurability = Math.max(0L, totalDurabilityAvailable - totalDurabilityNeeded);
-        
-        if (remainingDurability > 0) {
-            // Store survivor in internal inventory
-            int finalDamage = maxDurability - (int) Math.min(remainingDurability, maxDurability);
-            ItemStack survivor = template.copy();
-            survivor.setItemDamage(Math.max(0, finalDamage));
+        long requiredDurability = SaturatingMath.saturatingMultiply(crafts, ingredient.getDurabilityPerCraft());
+        long remainingDurability = Math.max(0L, totalDurability - requiredDurability);
+        if (remainingDurability > 0L && !survivorTemplate.isEmpty()) {
+            ItemStack survivor = survivorTemplate.copy();
+            survivor.setCount(1);
+            survivor.setItemDamage(Math.max(0, survivor.getMaxDamage() -
+                Math.min((int) remainingDurability, survivor.getMaxDamage())));
             entry.setCatalystStack(recipeSlot, survivor);
         } else {
             // All items broke, clear the slot
             entry.setCatalystStack(recipeSlot, ItemStack.EMPTY);
         }
+
+        markDirty();
     }
 
     // ==================== NETWORK OPERATIONS ====================
@@ -1235,7 +1317,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         return found != null ? found.getStackSize() : 0;
     }
 
-    // ==================== FAKE PLAYER ====================
+    // ==================== PATTERN SIMULATION ====================
 
     @Nullable
     private FakePlayer getOrCreateFakePlayer() {
@@ -1245,8 +1327,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         return fakePlayer;
     }
-
-    // ==================== PATTERN SIMULATION ====================
 
     /**
      * Simulate a pattern and cache the recipe info.
@@ -1270,6 +1350,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         CrafterEntry entry = entries.get(entryIndex);
         entry.resetState(entry.getState());
         entry.setPatternStack(patternStack);
+        if (resetState) entry.setFuzzyDurabilityEnabled(true);
 
         if (patternStack == null || patternStack.isEmpty()) {
             return;
@@ -1341,9 +1422,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         // Find matching recipe
         IRecipe recipe = CraftingManager.findMatchingRecipe(craftMatrix, world);
-        if (recipe == null) {
-            return new CrafterRecipeInfo(CrafterEntry.CrafterErrorState.NO_RECIPE);
-        }
+        if (recipe == null) return new CrafterRecipeInfo(CrafterEntry.CrafterErrorState.NO_RECIPE);
 
         // Get recipe output
         ItemStack recipeOutput = recipe.getCraftingResult(craftMatrix);
@@ -1355,15 +1434,15 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         // Track how many copies of each output type can stay in catalyst inventory.
         // Any matching input beyond this allowance remains a normal consumed ingredient.
-        Map<String, Long> duplicationAllowanceByKey = new HashMap<>();
+        Map<ItemStackKey, Long> duplicationAllowanceByKey = new HashMap<>();
         if (mainOutput != null) {
-            String key = getItemKey(mainOutput.createItemStack());
+            ItemStackKey key = new ItemStackKey(mainOutput);
             duplicationAllowanceByKey.put(key, mainOutput.getStackSize());
         }
 
         // Track how many output items are retained internally so the synced recipe output and
         // actual network insertion only expose the net gain beyond the preserved catalyst copy.
-        Map<String, Long> duplicatedInputsByKey = new HashMap<>();
+        Map<ItemStackKey, Long> duplicatedInputsByKey = new HashMap<>();
 
         // Get remaining items after crafting (getRemainingItems returns what each input slot becomes)
         NonNullList<ItemStack> remainingItems = recipe.getRemainingItems(craftMatrix);
@@ -1375,7 +1454,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             ItemStack inputStack = input.createItemStack();
             inputStack.setCount(1); // Crafting recipes only use 1 item per slot
-            
+
             ItemStack remaining = (i < remainingItems.size()) ? remainingItems.get(i) : ItemStack.EMPTY;
             CrafterRecipeInfo.IngredientType type;
             IAEItemStack remainingAE = null;
@@ -1384,7 +1463,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             if (remaining.isEmpty()) {
                 // Nothing remains - treat matching outputs as duplication only while there is
                 // still enough output count left to replenish that catalyst slot.
-                String inputKey = getItemKey(inputStack);
+                ItemStackKey inputKey = new ItemStackKey(input);
                 Long outputCount = duplicationAllowanceByKey.get(inputKey);
                 if (outputCount != null && outputCount >= 1) {
                     type = CrafterRecipeInfo.IngredientType.DUPLICATION;
@@ -1427,14 +1506,15 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         return new CrafterRecipeInfo(ingredients, outputs);
     }
 
-    private void subtractDuplicatedInputsFromOutputs(List<IAEItemStack> outputs, Map<String, Long> duplicatedInputsByKey) {
+    private void subtractDuplicatedInputsFromOutputs(List<IAEItemStack> outputs,
+                                                     Map<ItemStackKey, Long> duplicatedInputsByKey) {
         if (duplicatedInputsByKey.isEmpty()) return;
 
         for (int i = 0; i < outputs.size(); i++) {
             IAEItemStack output = outputs.get(i);
             if (output == null) continue;
 
-            String outputKey = getItemKey(output.createItemStack());
+            ItemStackKey outputKey = new ItemStackKey(output);
             long toSubtract = duplicatedInputsByKey.getOrDefault(outputKey, 0L);
             if (toSubtract <= 0L) continue;
 
@@ -1453,22 +1533,6 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 duplicatedInputsByKey.remove(outputKey);
             }
         }
-    }
-
-    /**
-     * Creates a unique key for an ItemStack based on Item, metadata, and NBT.
-     * Used for comparing items strictly.
-     */
-    private String getItemKey(ItemStack stack) {
-        if (stack.isEmpty()) return "";
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append(stack.getItem().getRegistryName());
-        sb.append("@").append(stack.getMetadata());
-        if (stack.hasTagCompound()) {
-            sb.append("#").append(stack.getTagCompound().toString());
-        }
-        return sb.toString();
     }
 
     /**
@@ -1516,6 +1580,13 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
         // Check that all keys in requiredTag exist in actualTag with same values
         return isNbtSubset(requiredTag, actualTag);
+    }
+
+    private boolean areDamageableItemStacksMatching(ItemStack required, ItemStack actual) {
+        if (required.isEmpty() || actual.isEmpty()) return false;
+        if (required.getItem() != actual.getItem()) return false;
+
+        return ItemStack.areItemStackTagsEqual(required, actual);
     }
 
     /**
@@ -1717,6 +1788,20 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     }
 
     /**
+     * Toggle damaged-tool use for a durability recipe.
+     */
+    public void toggleFuzzyDurability(int index) {
+        if (index < 0 || index >= entries.size()) return;
+
+        CrafterEntry entry = entries.get(index);
+        CrafterRecipeInfo info = entry.getRecipeInfo();
+        if (info == null || !info.hasDurabilityItems()) return;
+
+        entry.setFuzzyDurabilityEnabled(!entry.isFuzzyDurabilityEnabled());
+        markDirty();
+    }
+
+    /**
      * Clear an entry (remove pattern and reset).
      */
     public void clearEntry(int index) {
@@ -1868,7 +1953,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
     /**
      * Build a crafting matrix from pattern details, optionally substituting catalyst items.
-     * 
+     *
      * @param details The pattern details
      * @param entry Optional entry to get actual catalyst items from (null = use pattern inputs)
      * @param info Optional recipe info to identify catalyst slots (null = no substitution)
@@ -1876,8 +1961,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      */
     @Nullable
     private InventoryCrafting buildCraftingMatrix(ICraftingPatternDetails details, 
-                                                   @Nullable CrafterEntry entry,
-                                                   @Nullable CrafterRecipeInfo info) {
+                                                  @Nullable CrafterEntry entry,
+                                                  @Nullable CrafterRecipeInfo info) {
         IAEItemStack[] inputs = details.getInputs();
         InventoryCrafting craftMatrix = new InventoryCrafting(new ContainerNull(), 3, 3);
 

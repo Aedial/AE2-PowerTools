@@ -14,6 +14,7 @@ import com.ae2powertools.features.crafter.PacketCrafterPageInit;
 import com.ae2powertools.features.crafter.PacketSetCrafterPage;
 import com.ae2powertools.features.crafter.PacketSetCrafterSpeed;
 import com.ae2powertools.features.crafter.PacketToggleCrafterEntry;
+import com.ae2powertools.features.crafter.PacketToggleCrafterDurability;
 import com.ae2powertools.features.locator.PacketLocatorSync;
 import com.ae2powertools.features.locator.PacketLocatorToggleSubnet;
 
@@ -53,6 +54,7 @@ public class PowerToolsNetwork {
 
         // AutoCrafter packets
         INSTANCE.registerMessage(PacketToggleCrafterEntry.Handler.class, PacketToggleCrafterEntry.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketToggleCrafterDurability.Handler.class, PacketToggleCrafterDurability.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketOpenCrafterSubGui.Handler.class, PacketOpenCrafterSubGui.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetCrafterBatch.Handler.class, PacketSetCrafterBatch.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetCrafterSpeed.Handler.class, PacketSetCrafterSpeed.class, packetId++, Side.SERVER);

@@ -67,6 +67,20 @@ public class CrafterEntry {
         }
     }
 
+    public enum CrafterHint {
+        NBT_MISMATCH_HINT("gui.ae2powertools.crafter.error.nbt_mismatch_hint");
+
+        private final String translationKey;
+
+        CrafterHint(String translationKey) {
+            this.translationKey = translationKey;
+        }
+
+        public TextComponentTranslation asComponent(Object... args) {
+            return new TextComponentTranslation(translationKey, args);
+        }
+    }
+
     /**
      * The pattern item stack (encoded pattern).
      */
@@ -106,6 +120,11 @@ public class CrafterEntry {
     private boolean enabled;
 
     /**
+     * Whether durability ingredients for this recipe can be supplied by damaged tools.
+     */
+    private boolean fuzzyDurabilityEnabled;
+
+    /**
      * Current state of this entry.
      */
     private CrafterState state;
@@ -135,6 +154,12 @@ public class CrafterEntry {
      * would always show the English fallback to non-English clients.
      */
     private final List<ITextComponent> errorDetails;
+
+    /**
+     * Hints for the user about the current issues/limitations of this entry.
+     * Hints are not errors per se, but provide additional information about why crafting may be failing.
+     */
+    private final List<ITextComponent> hints;
 
     /**
      * Current batch size achieved vs. requested (for occupancy calculation).
@@ -201,10 +226,12 @@ public class CrafterEntry {
         for (int i = 0; i < CATALYST_SLOTS; i++) this.catalystInventory[i] = ItemStack.EMPTY;
 
         this.enabled = true;
+        this.fuzzyDurabilityEnabled = true;
         this.state = CrafterState.NO_PATTERN;
         this.pendingOutputs = new ArrayList<>();
         this.targetQuantity = Long.MAX_VALUE;
         this.errorDetails = new ArrayList<>();
+        this.hints = new ArrayList<>();
         this.lastRequestedBatchSize = 0;
         this.lastActualBatchSize = 0;
         this.lastCraftTick = 0;
@@ -355,6 +382,14 @@ public class CrafterEntry {
         }
     }
 
+    public boolean isFuzzyDurabilityEnabled() {
+        return fuzzyDurabilityEnabled;
+    }
+
+    public void setFuzzyDurabilityEnabled(boolean fuzzyDurabilityEnabled) {
+        this.fuzzyDurabilityEnabled = fuzzyDurabilityEnabled;
+    }
+
     public CrafterState getState() {
         return state;
     }
@@ -372,6 +407,7 @@ public class CrafterEntry {
     public void resetState(CrafterState state) {
         setState(state);
         errorDetails.clear();
+        hints.clear();
     }
 
     // --- Pending Outputs ---
@@ -433,6 +469,10 @@ public class CrafterEntry {
         return errorDetails;
     }
 
+    public List<ITextComponent> getHints() {
+        return hints;
+    }
+
     /**
      * Adds an error detail component.
      * @param detail The error detail (typically a {@link TextComponentTranslation})
@@ -465,6 +505,18 @@ public class CrafterEntry {
 
         resetState(errorState.getState());
         addErrorDetail(errorState, args);
+    }
+
+    public void addHint(CrafterHint hint, Object... args) {
+        if (hint == null) return;
+
+        ITextComponent hintComponent = hint.asComponent(args);
+        String hintJson = ITextComponent.Serializer.componentToJson(hintComponent);
+        for (ITextComponent existing : hints) {
+            if (hintJson.equals(ITextComponent.Serializer.componentToJson(existing))) return;
+        }
+
+        hints.add(hintComponent);
     }
 
     /**
@@ -595,6 +647,7 @@ public class CrafterEntry {
         tag.setTag("catalysts", catalystList);
 
         tag.setBoolean("enabled", enabled);
+        tag.setBoolean("fuzzyDurability", fuzzyDurabilityEnabled);
         tag.setInteger("state", state.ordinal());
         tag.setLong("targetQty", targetQuantity);
         tag.setLong("lastCraft", lastCraftTick);
@@ -643,6 +696,7 @@ public class CrafterEntry {
         }
 
         enabled = tag.getBoolean("enabled");
+        fuzzyDurabilityEnabled = tag.getBoolean("fuzzyDurability");
 
         int stateOrdinal = tag.getInteger("state");
         if (stateOrdinal >= 0 && stateOrdinal < CrafterState.values().length) {

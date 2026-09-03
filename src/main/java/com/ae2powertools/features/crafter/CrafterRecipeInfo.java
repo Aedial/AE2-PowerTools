@@ -166,15 +166,15 @@ public class CrafterRecipeInfo {
 
         /**
          * Takes durability damage but is returned (e.g., tools in some recipes).
-         * NOT stored in internal inventory - requested from network like CONSUMED items.
-         * The damaged item is returned as an additional output to the network.
+         * A surviving tool is kept in its matching internal slot, then used before
+         * additional tools are extracted from the network.
          * <p>
-         * For batch crafting, we calculate how many items are needed based on:
-         * - Total durability per item
+         * For batch crafting, we calculate the available crafts from:
+         * - Remaining durability per tool
          * - Number of crafts requested
-         * - Expected items to break (requested as additional input)
+         * - Expected tools that break during the operation
          * <p>
-         * Items that survive crafting (with remaining durability) are returned to the network.
+         * The initial recipe analysis keeps this behavior through later crafts.
          */
         DURABILITY,
 
@@ -236,7 +236,7 @@ public class CrafterRecipeInfo {
         // Identify catalyst slots:
         // - REUSABLE: stored in internal inventory, never consumed
         // - DUPLICATION: item appears in output but must be present in internal inventory (e.g., seeds that duplicate)
-        // Note: DURABILITY items are NOT catalysts - they are requested from network and returned when damaged
+        // DURABILITY items retain their surviving tool in the matching internal slot without being catalysts
         for (IngredientInfo info : ingredients) {
             if (info.type == IngredientType.CONSUMED
                     || info.type == IngredientType.TRANSFORMED
@@ -294,6 +294,14 @@ public class CrafterRecipeInfo {
         return !catalystSlots.isEmpty();
     }
 
+    public boolean hasDurabilityItems() {
+        for (IngredientInfo ingredient : ingredients) {
+            if (ingredient.getType() == IngredientType.DURABILITY) return true;
+        }
+
+        return false;
+    }
+
     public boolean isCatalystSlot(int slotIndex) {
         return slotIndex >= 0 && slotIndex < catalystSlotFlags.length && catalystSlotFlags[slotIndex];
     }
@@ -303,8 +311,8 @@ public class CrafterRecipeInfo {
      * Does NOT include REUSABLE items (in internal inventory, never consumed).
      * Does NOT include DUPLICATION items (in internal inventory as catalysts).
      * <p>
-     * DURABILITY items ARE consumed from the network - they are extracted, used,
-     * and returned damaged. They are not catalysts stored in internal inventory.
+     * DURABILITY items are selected from the network as their internal tool is depleted.
+     * A surviving tool remains in the matching internal slot for the next operation.
      * <p>
      * TRANSFORMED items ARE consumed and must be extracted,
      * even though they produce different outputs. The outputs are handled separately.

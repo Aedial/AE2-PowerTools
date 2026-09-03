@@ -40,6 +40,7 @@ public final class CrafterOverviewSnapshot {
     @Nullable
     private final IAEItemStack output;
     private final List<ITextComponent> errorDetails;
+    private final List<ITextComponent> hints;
     private final long metricsTotal;
     private final long metricsError;
     private final long metricsTotalActualCrafted;
@@ -48,6 +49,7 @@ public final class CrafterOverviewSnapshot {
     public CrafterOverviewSnapshot(int stateOrdinal, boolean enabled, boolean hasDisplayData,
                                    @Nullable IAEItemStack output,
                                    List<ITextComponent> errorDetails,
+                                   List<ITextComponent> hints,
                                    long metricsTotal, long metricsError,
                                    long metricsTotalActualCrafted, long metricsTotalMaxPossible) {
         this.stateOrdinal = stateOrdinal;
@@ -55,6 +57,7 @@ public final class CrafterOverviewSnapshot {
         this.hasDisplayData = hasDisplayData;
         this.output = output;
         this.errorDetails = errorDetails;
+        this.hints = hints;
         this.metricsTotal = metricsTotal;
         this.metricsError = metricsError;
         this.metricsTotalActualCrafted = metricsTotalActualCrafted;
@@ -75,6 +78,7 @@ public final class CrafterOverviewSnapshot {
             hasDisplay,
             outCopy,
             copyComponents(entry.getErrorDetails()),
+            copyComponents(entry.getHints()),
             entry.getMetricsTotal(),
             entry.getMetricsError(),
             entry.getMetricsTotalActualCrafted(),
@@ -96,6 +100,10 @@ public final class CrafterOverviewSnapshot {
         for (ITextComponent comp : errorDetails) {
             writeString(buf, ITextComponent.Serializer.componentToJson(comp));
         }
+        buf.writeShort(hints.size());
+        for (ITextComponent comp : hints) {
+            writeString(buf, ITextComponent.Serializer.componentToJson(comp));
+        }
         buf.writeLong(metricsTotal);
         buf.writeLong(metricsError);
         buf.writeLong(metricsTotalActualCrafted);
@@ -112,12 +120,17 @@ public final class CrafterOverviewSnapshot {
         for (int i = 0; i < errorCount; i++) {
             errorDetails.add(ITextComponent.Serializer.jsonToComponent(readString(buf)));
         }
+        int hintCount = buf.readShort() & 0xFFFF;
+        List<ITextComponent> hints = new ArrayList<>(hintCount);
+        for (int i = 0; i < hintCount; i++) {
+            hints.add(ITextComponent.Serializer.jsonToComponent(readString(buf)));
+        }
         long metricsTotal = buf.readLong();
         long metricsError = buf.readLong();
         long metricsTotalActualCrafted = buf.readLong();
         long metricsTotalMaxPossible = buf.readLong();
         return new CrafterOverviewSnapshot(stateOrdinal, enabled, hasDisplayData, output,
-            errorDetails,
+            errorDetails, hints,
             metricsTotal, metricsError, metricsTotalActualCrafted, metricsTotalMaxPossible);
     }
 
@@ -139,6 +152,7 @@ public final class CrafterOverviewSnapshot {
     public boolean hasDisplayData() { return hasDisplayData; }
     @Nullable public IAEItemStack getOutput() { return output; }
     public List<ITextComponent> getErrorDetails() { return errorDetails; }
+    public List<ITextComponent> getHints() { return hints; }
     public long getMetricsTotal() { return metricsTotal; }
     public long getMetricsError() { return metricsError; }
     public long getMetricsTotalActualCrafted() { return metricsTotalActualCrafted; }
@@ -159,6 +173,7 @@ public final class CrafterOverviewSnapshot {
         if (enabled != that.enabled) return false;
         if (hasDisplayData != that.hasDisplayData) return false;
         if (!errorDetails.equals(that.errorDetails)) return false;
+        if (!hints.equals(that.hints)) return false;
         if (metricsTotal != that.metricsTotal) return false;
         if (metricsError != that.metricsError) return false;
         if (metricsTotalActualCrafted != that.metricsTotalActualCrafted) return false;
@@ -172,7 +187,7 @@ public final class CrafterOverviewSnapshot {
         return Objects.hash(stateOrdinal, enabled, hasDisplayData,
             output == null ? 0 : output.getItem(),
             output == null ? 0L : output.getStackSize(),
-            errorDetails,
+            errorDetails, hints,
             metricsTotal, metricsError, metricsTotalActualCrafted, metricsTotalMaxPossible);
     }
 

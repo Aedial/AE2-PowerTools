@@ -104,6 +104,14 @@ public class GuiAutoCrafter extends WidgetGui {
     private static final int OVERVIEW_BTN_X = 5;
     private static final int OVERVIEW_BTN_Y = 5;
 
+    // Durability button
+    private static final int DURABILITY_BTN_X = 19;
+    private static final int DURABILITY_BTN_Y = 23;
+    private static final int DURABILITY_BTN_SIZE = 12;
+    private static final int DURABILITY_BTN_ENABLED_COLOR = 0xFF96DC64;   // Green
+    private static final int DURABILITY_BTN_DISABLED_COLOR = 0xFFD13F3F;  // Red
+
+
     // Pattern Multi-Tool panel offsets (when NAE2 is installed and player has PMT)
     // Positions the PMT panel to the left of the main GUI
     private static final int PMT_OFFSET_X = -86 - 4;
@@ -116,6 +124,8 @@ public class GuiAutoCrafter extends WidgetGui {
     private final SmallVanillaButton pageNextButton = new SmallVanillaButton(0, 0, 0, PAGE_BTN_SIZE, ">");
     private final TexturedButton batchButton = new TexturedButton(0, 0, TAB_BTN_SIZE, BATCH_BUTTON_TEXTURE);
     private final TexturedButton speedButton = new TexturedButton(0, 0, TAB_BTN_SIZE, SPEED_BUTTON_TEXTURE);
+    private final SmallVanillaButton durabilityButton = new SmallVanillaButton(
+        0, 0, 0, DURABILITY_BTN_SIZE, DURABILITY_BTN_SIZE, "D");
 
     // Hovered elements
     private int hoveredRecipeSlot = -1;
@@ -139,6 +149,7 @@ public class GuiAutoCrafter extends WidgetGui {
     private final boolean[] syncedHasDisplayData = new boolean[TileAutoCrafter.ENTRY_COUNT];
     private final IAEItemStack[] syncedOutputItems = new IAEItemStack[TileAutoCrafter.ENTRY_COUNT];
     private final List<List<ITextComponent>> syncedOverviewErrorDetails = new ArrayList<>(TileAutoCrafter.ENTRY_COUNT);
+    private final List<List<ITextComponent>> syncedOverviewHints = new ArrayList<>(TileAutoCrafter.ENTRY_COUNT);
     private final long[] syncedMetricsTotal = new long[TileAutoCrafter.ENTRY_COUNT];
     private final double[] syncedOccupancy = new double[TileAutoCrafter.ENTRY_COUNT];
     private final double[] syncedErrorRate = new double[TileAutoCrafter.ENTRY_COUNT];
@@ -152,6 +163,9 @@ public class GuiAutoCrafter extends WidgetGui {
     private final ItemStack[] syncedCatalystStacks = new ItemStack[CrafterEntry.CATALYST_SLOTS];
     private final List<CatalystInfo> syncedCatalystInfo = new ArrayList<>();
     private List<ITextComponent> syncedErrorDetails = new ArrayList<>();
+    private List<ITextComponent> syncedHints = new ArrayList<>();
+    private boolean syncedHasDurabilityItems;
+    private boolean syncedFuzzyDurabilityEnabled;
 
     /** Simple holder for catalyst slot info (slot index + expected ghost item). */
     private static class CatalystInfo {
@@ -174,6 +188,7 @@ public class GuiAutoCrafter extends WidgetGui {
             this::getSyncedState,
             this::getSyncedOutput,
             this::getSyncedErrorDetails,
+            this::getSyncedHints,
             this::getSyncedOccupancy,
             this::getSyncedErrorRate,
             this::getSyncedMetricsTotal,
@@ -207,11 +222,16 @@ public class GuiAutoCrafter extends WidgetGui {
         speedButton.setTooltipProvider(this::buildSpeedButtonTooltip);
         registerWidget(speedButton, SPEED_BTN_X, SPEED_BTN_Y);
 
+        durabilityButton.setOnClick(this::toggleFuzzyDurability);
+        durabilityButton.setTooltipProvider(this::buildDurabilityButtonTooltip);
+        registerWidget(durabilityButton, DURABILITY_BTN_X, DURABILITY_BTN_Y);
+
         // Initialize synced overview arrays so the GUI renders cleanly before the first
         // packet arrives (it should arrive on the same tick the GUI opens, but be safe).
         for (int i = 0; i < TileAutoCrafter.ENTRY_COUNT; i++) {
             syncedStates[i] = CrafterState.NO_PATTERN;
             syncedOverviewErrorDetails.add(Collections.emptyList());
+            syncedOverviewHints.add(Collections.emptyList());
         }
 
         Arrays.fill(syncedCatalystStacks, ItemStack.EMPTY);
@@ -234,6 +254,17 @@ public class GuiAutoCrafter extends WidgetGui {
                 FormatUtil.formatTimeTicks(container.syncSpeedTicks)),
             "",
             I18n.format("gui.ae2powertools.crafter.speed.explanation")
+        );
+    }
+
+    private List<String> buildDurabilityButtonTooltip() {
+        String suffix = syncedFuzzyDurabilityEnabled ? "enabled" : "disabled";
+
+        return Arrays.asList(
+            I18n.format("gui.ae2powertools.crafter.durability.title"),
+            I18n.format("gui.ae2powertools.crafter.durability." + suffix),
+            "",
+            I18n.format("gui.ae2powertools.crafter.durability.toggle")
         );
     }
 
@@ -286,6 +317,13 @@ public class GuiAutoCrafter extends WidgetGui {
         // Send packet to open speed GUI
         PowerToolsNetwork.INSTANCE.sendToServer(new PacketOpenCrafterSubGui(
                 container.getTile().getPos(), PacketOpenCrafterSubGui.SubGui.SPEED));
+    }
+
+    private void toggleFuzzyDurability() {
+        if (!hasCurrentDurabilityItems()) return;
+
+        PowerToolsNetwork.INSTANCE.sendToServer(new PacketToggleCrafterDurability(
+            container.getTile().getPos(), getCurrentPage()));
     }
 
     @Override
@@ -521,6 +559,11 @@ public class GuiAutoCrafter extends WidgetGui {
         pageNextButton.setVisible(modalNotOpen);
         batchButton.setVisible(modalNotOpen);
         speedButton.setVisible(modalNotOpen);
+        boolean showDurabilityButton = modalNotOpen && hasCurrentDurabilityItems();
+        durabilityButton.setVisible(showDurabilityButton);
+        durabilityButton.setColor(syncedFuzzyDurabilityEnabled
+            ? DURABILITY_BTN_ENABLED_COLOR
+            : DURABILITY_BTN_DISABLED_COLOR);
     }
 
     // ==================== RECIPE VIEW ====================
@@ -707,7 +750,8 @@ public class GuiAutoCrafter extends WidgetGui {
 
         CrafterState state = getSyncedState(entryIndex);
         List<ITextComponent> errorDetails = getSyncedErrorDetails(entryIndex);
-        if (!state.isError() && state != CrafterState.HOLDING_OUTPUT && errorDetails.isEmpty()) return;
+        List<ITextComponent> hints = getSyncedHints(entryIndex);
+        if (!state.isError() && state != CrafterState.HOLDING_OUTPUT && errorDetails.isEmpty() && hints.isEmpty()) return;
 
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.ae2powertools.crafter.state", state.getTranslated()));
@@ -719,6 +763,14 @@ public class GuiAutoCrafter extends WidgetGui {
                 tooltip.add(TextFormatting.GRAY + "- " + detail.getFormattedText());
             }
         }
+
+        if (!hints.isEmpty()) {
+            tooltip.add("");
+            for (ITextComponent hint : hints) {
+                tooltip.add(hint.getFormattedText());
+            }
+        }
+
 
         GuiUtils.drawHoveringText(tooltip, mouseX, mouseY, width, height, -1, fontRenderer);
     }
@@ -817,6 +869,7 @@ public class GuiAutoCrafter extends WidgetGui {
             syncedHasDisplayData[i] = snap.hasDisplayData();
             syncedOutputItems[i] = snap.getOutput();
             syncedOverviewErrorDetails.set(i, new ArrayList<>(snap.getErrorDetails()));
+            syncedOverviewHints.set(i, new ArrayList<>(snap.getHints()));
 
             // Calculate rates from raw metrics
             long total = snap.getMetricsTotal();
@@ -860,6 +913,9 @@ public class GuiAutoCrafter extends WidgetGui {
         }
 
         syncedErrorDetails = new ArrayList<>(snapshot.getErrorDetails());
+        syncedHints = new ArrayList<>(snapshot.getHints());
+        syncedHasDurabilityItems = snapshot.hasDurabilityItems();
+        syncedFuzzyDurabilityEnabled = snapshot.isFuzzyDurabilityEnabled();
 
         hasRecipeData = true;
     }
@@ -878,6 +934,10 @@ public class GuiAutoCrafter extends WidgetGui {
     private boolean hasDisplayData(int entryIndex) {
         if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return false;
         return syncedHasDisplayData[entryIndex];
+    }
+
+    private boolean hasCurrentDurabilityItems() {
+        return hasRecipeData && recipeEntryIndex == getCurrentPage() && syncedHasDurabilityItems;
     }
 
     /** Gets the synced output item for an entry. */
@@ -912,6 +972,14 @@ public class GuiAutoCrafter extends WidgetGui {
         if (hasRecipeData && entryIndex == recipeEntryIndex) return syncedErrorDetails;
         if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return Collections.emptyList();
         return syncedOverviewErrorDetails.get(entryIndex);
+
+    }
+
+    /** Gets the synced hints for an entry. */
+    private List<ITextComponent> getSyncedHints(int entryIndex) {
+        if (hasRecipeData && entryIndex == recipeEntryIndex) return syncedHints;
+        if (!hasOverviewData || entryIndex < 0 || entryIndex >= TileAutoCrafter.ENTRY_COUNT) return Collections.emptyList();
+        return syncedOverviewHints.get(entryIndex);
     }
 
     private ItemStack getDisplayedPatternStack(int entryIndex) {

@@ -59,6 +59,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
     private final IntToDoubleFunction errorRateProvider;
     private final IntToLongFunction metricsTotalProvider;
     private final IntFunction<String> overviewInfoProvider;
+    private final IntFunction<List<ITextComponent>> hintsProvider;
     private final Function<CrafterState, String> stateTextProvider;
     private final IntConsumer pageSelectionHandler;
     private final IntConsumer toggleEntryHandler;
@@ -73,6 +74,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
             IntFunction<CrafterState> stateProvider,
             IntFunction<IAEItemStack> outputProvider,
             IntFunction<List<ITextComponent>> errorDetailsProvider,
+            IntFunction<List<ITextComponent>> hintsProvider,
             IntToDoubleFunction occupancyProvider,
             IntToDoubleFunction errorRateProvider,
             IntToLongFunction metricsTotalProvider,
@@ -87,6 +89,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
         this.stateProvider = stateProvider;
         this.outputProvider = outputProvider;
         this.errorDetailsProvider = errorDetailsProvider;
+        this.hintsProvider = hintsProvider;
         this.occupancyProvider = occupancyProvider;
         this.errorRateProvider = errorRateProvider;
         this.metricsTotalProvider = metricsTotalProvider;
@@ -156,6 +159,7 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
         int entryIndex = hoveredRow;
         CrafterState state = stateProvider.apply(entryIndex);
         List<ITextComponent> errorDetails = errorDetailsProvider.apply(entryIndex);
+        List<ITextComponent> hints = hintsProvider.apply(entryIndex);
 
         int rowX = overviewLeft + OVERVIEW_ROW_X;
         int metricsX = rowX + OVERVIEW_ROW_WIDTH - 60;
@@ -174,6 +178,13 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
                     tooltip.add(I18n.format("gui.ae2powertools.crafter.issues"));
                     for (ITextComponent detail : errorDetails) {
                         tooltip.add(TextFormatting.GRAY + "  - " + detail.getFormattedText());
+                    }
+                }
+
+                if (!hints.isEmpty()) {
+                    tooltip.add("");
+                    for (ITextComponent hint : hints) {
+                        tooltip.add(hint.getFormattedText());
                     }
                 }
             }
@@ -199,6 +210,13 @@ public class CrafterOverviewOverlay extends AbstractModalGui {
                 // Resolve each component in the player's locale at render time.
                 for (ITextComponent detail : errorDetails) {
                     tooltip.add(TextFormatting.GRAY + "  - " + detail.getFormattedText());
+                }
+            }
+
+            if (!hints.isEmpty()) {
+                tooltip.add("");
+                for (ITextComponent hint : hints) {
+                    tooltip.add(hint.getFormattedText());
                 }
             }
 

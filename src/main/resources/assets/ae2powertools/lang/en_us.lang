@@ -396,6 +396,10 @@ gui.ae2powertools.crafter.click_to_view.muted=§bLeft-click§7 to view
 gui.ae2powertools.crafter.click_to_view.action=§bLeft-click§7 to view
 gui.ae2powertools.crafter.right_click_toggle.muted=§bRight-click§7 to toggle
 gui.ae2powertools.crafter.right_click_toggle.action=§bRight-click§7 to toggle
+gui.ae2powertools.crafter.durability.title=Durability matching
+gui.ae2powertools.crafter.durability.enabled=§7Consumes matching damageable items of any durability.
+gui.ae2powertools.crafter.durability.disabled=§7Consumes ONLY full-durability items.
+gui.ae2powertools.crafter.durability.toggle=§bClick§7 to toggle
 
 # GUI - Batch
 gui.ae2powertools.crafter.batch.title=Batch Size
@@ -441,12 +445,13 @@ gui.ae2powertools.crafter.warning.processing_pattern_desc=§cAutoCrafter only ac
 gui.ae2powertools.crafter.overlay.default_batch_warning=Warning: AutoCrafter is set to %s batch size (see top-right button).
 gui.ae2powertools.crafter.overlay.default_batch_warning_desc=This is can be quite laggy. Set it as high as you are comfortable with.
 gui.ae2powertools.crafter.error.need_have=§b%s§7 (need §r%d§7, have §r%d§7)
+gui.ae2powertools.crafter.error.nbt_mismatch_hint=§eNBT may differ, the encoded item MUST match it exactly.
 gui.ae2powertools.crafter.error.limited_by=Limited by §b%s§7 (allocated §r%d§7, need §r%d§7)
 gui.ae2powertools.crafter.error.no_items_in_network=No items available in network
 gui.ae2powertools.crafter.error.missing_catalyst_slot=Missing catalyst in slot %d§7: §b%s
 gui.ae2powertools.crafter.error.wrong_catalyst_slot=Wrong item in slot %d§7: expected §b%s§7, got %s
 gui.ae2powertools.crafter.error.pending_output=Could not insert %d§7 x %s§7 into the network
-gui.ae2powertools.crafter.error.inputs_changed=Required inputs disappeared from the network before extraction (you may have ghost items in your network)
+gui.ae2powertools.crafter.error.inputs_changed=Required inputs disappeared from the network before extraction (should NEVER happen, something is wrong with the network)
 gui.ae2powertools.crafter.error.no_matching_recipe=No matching recipe found for this pattern
 gui.ae2powertools.crafter.error.no_output=Recipe produces no output
 gui.ae2powertools.crafter.error.catalyst_recipe_mismatch=Current catalyst items no longer match the encoded recipe

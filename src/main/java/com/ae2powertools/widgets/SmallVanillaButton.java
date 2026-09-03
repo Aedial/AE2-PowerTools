@@ -19,7 +19,7 @@ public class SmallVanillaButton extends PressableWidget {
 
     private final int id;
     private String label;
-    private int packedForegroundColor;
+    private int textColor;
 
     /**
      * Create a small vanilla button with a given size, position, and text.
@@ -97,12 +97,12 @@ public class SmallVanillaButton extends PressableWidget {
         this.label = label == null ? "" : label;
     }
 
-    public void setPackedForegroundColor(int packedForegroundColor) {
-        this.packedForegroundColor = packedForegroundColor;
+    public void setColor(int textColor) {
+        this.textColor = textColor;
     }
 
-    public void clearPackedForegroundColor() {
-        this.packedForegroundColor = 0;
+    public void clearColor() {
+        this.textColor = 0;
     }
 
     private int getHoverState() {
@@ -113,7 +113,7 @@ public class SmallVanillaButton extends PressableWidget {
     }
 
     private int getTextColor() {
-        if (packedForegroundColor != 0) return packedForegroundColor;
+        if (textColor != 0) return textColor;
         if (!isEnabled()) return 0xA0A0A0;
         if (isHovered()) return 0xFFFFA0;
 
