@@ -2,7 +2,9 @@ package com.ae2powertools.features.crafter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -197,22 +199,24 @@ public class CrafterRecipeInfo {
     private final List<IngredientInfo> catalystSlots; // Items that need to be in internal inventory
     private final List<IngredientInfo> consumedItems;
     private final List<IngredientInfo> transformedItems;
+    private final Map<ItemStackKey, ItemStack> resourceStacks;
     private final boolean[] catalystSlotFlags;
     private final boolean valid;
-    private final String errorKey; // Localization key for error message
+    private final CrafterEntry.CrafterErrorState error;
 
     /**
      * Creates an invalid recipe info with an error.
      */
-    public CrafterRecipeInfo(String errorKey) {
+    public CrafterRecipeInfo(CrafterEntry.CrafterErrorState errorState) {
         this.ingredients = new ArrayList<>();
         this.outputs = new ArrayList<>();
         this.catalystSlots = new ArrayList<>();
         this.consumedItems = Collections.emptyList();
         this.transformedItems = Collections.emptyList();
+        this.resourceStacks = Collections.emptyMap();
         this.catalystSlotFlags = new boolean[CrafterEntry.CATALYST_SLOTS];
         this.valid = false;
-        this.errorKey = errorKey;
+        this.error = errorState;
     }
 
     /**
@@ -224,9 +228,10 @@ public class CrafterRecipeInfo {
         this.catalystSlots = new ArrayList<>();
         List<IngredientInfo> consumedItems = new ArrayList<>();
         List<IngredientInfo> transformedItems = new ArrayList<>();
+        Map<ItemStackKey, ItemStack> resourceStacks = new HashMap<>();
         boolean[] catalystSlotFlags = new boolean[CrafterEntry.CATALYST_SLOTS];
         this.valid = true;
-        this.errorKey = null;
+        this.error = null;
 
         // Identify catalyst slots:
         // - REUSABLE: stored in internal inventory, never consumed
@@ -237,6 +242,10 @@ public class CrafterRecipeInfo {
                     || info.type == IngredientType.TRANSFORMED
                     || info.type == IngredientType.DURABILITY) {
                 consumedItems.add(info);
+
+                IAEItemStack item = info.getItem();
+                ItemStackKey key = info.getItemKey();
+                if (item != null && key != null) resourceStacks.putIfAbsent(key, item.createItemStack());
             }
 
             if (info.type == IngredientType.TRANSFORMED || info.type == IngredientType.DUPLICATION) {
@@ -254,6 +263,7 @@ public class CrafterRecipeInfo {
 
         this.consumedItems = Collections.unmodifiableList(consumedItems);
         this.transformedItems = Collections.unmodifiableList(transformedItems);
+        this.resourceStacks = Collections.unmodifiableMap(resourceStacks);
         this.catalystSlotFlags = catalystSlotFlags;
     }
 
@@ -273,8 +283,8 @@ public class CrafterRecipeInfo {
         return valid;
     }
 
-    public String getErrorKey() {
-        return errorKey;
+    public CrafterEntry.CrafterErrorState getError() {
+        return error;
     }
 
     /**
@@ -304,6 +314,15 @@ public class CrafterRecipeInfo {
     }
 
     /**
+     * Gets a representative stack for a consumed resource.
+     */
+    @Nullable
+    ItemStack getResourceStack(ItemStackKey key) {
+        ItemStack stack = resourceStacks.get(key);
+        return stack != null ? stack.copy() : null;
+    }
+
+    /**
      * Gets items that produce additional outputs (beyond the main crafting result).
      * These are TRANSFORMED and DUPLICATION items whose outputs go back to the network.
      */
@@ -315,7 +334,7 @@ public class CrafterRecipeInfo {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setBoolean("valid", valid);
 
-        if (errorKey != null) tag.setString("error", errorKey);
+        if (error != null) tag.setString("error", error.name());
 
         NBTTagList ingredientList = new NBTTagList();
         for (IngredientInfo info : ingredients) ingredientList.appendTag(info.writeToNBT());
@@ -334,8 +353,9 @@ public class CrafterRecipeInfo {
 
     public static CrafterRecipeInfo readFromNBT(NBTTagCompound tag) {
         boolean valid = tag.getBoolean("valid");
-
-        if (!valid) return new CrafterRecipeInfo(tag.getString("error"));
+        if (!valid) {
+            return new CrafterRecipeInfo(CrafterEntry.CrafterErrorState.fromSerialized(tag.getString("error")));
+        }
 
         List<IngredientInfo> ingredients = new ArrayList<>();
         NBTTagList ingredientList = tag.getTagList("ingredients", 10);

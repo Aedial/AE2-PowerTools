@@ -9,6 +9,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
@@ -23,6 +24,48 @@ import com.ae2powertools.util.SaturatingMath;
 public class CrafterEntry {
 
     public static final int CATALYST_SLOTS = 9;
+
+    public enum CrafterErrorState {
+        LIMITED_BY(CrafterState.IDLE, "gui.ae2powertools.crafter.error.limited_by"),
+        MISSING_INPUT(CrafterState.MISSING_INPUT, "gui.ae2powertools.crafter.error.need_have"),
+        NO_ITEMS_IN_NETWORK(CrafterState.MISSING_INPUT, "gui.ae2powertools.crafter.error.no_items_in_network"),
+        MISSING_CATALYST(CrafterState.MISSING_CATALYST, "gui.ae2powertools.crafter.error.missing_catalyst_slot"),
+        WRONG_CATALYST(CrafterState.MISSING_CATALYST, "gui.ae2powertools.crafter.error.wrong_catalyst_slot"),
+        PENDING_OUTPUT(CrafterState.HOLDING_OUTPUT, "gui.ae2powertools.crafter.error.pending_output"),
+        INPUTS_CHANGED(CrafterState.MISSING_INPUT, "gui.ae2powertools.crafter.error.inputs_changed"),
+        NO_RECIPE(CrafterState.SIMULATION_FAILED, "gui.ae2powertools.crafter.error.no_matching_recipe"),
+        NO_OUTPUT(CrafterState.SIMULATION_FAILED, "gui.ae2powertools.crafter.error.no_output"),
+        CATALYST_RECIPE_MISMATCH(CrafterState.SIMULATION_FAILED, "gui.ae2powertools.crafter.error.catalyst_recipe_mismatch"),
+        OUTPUT_MISMATCH(CrafterState.SIMULATION_FAILED, "gui.ae2powertools.crafter.error.output_mismatch"),
+        NOT_PATTERN(CrafterState.SIMULATION_FAILED, "gui.ae2powertools.crafter.error.not_pattern"),
+        INVALID_PATTERN(CrafterState.SIMULATION_FAILED, "gui.ae2powertools.crafter.error.invalid_pattern"),
+        PROCESSING_PATTERN(CrafterState.SIMULATION_FAILED, "gui.ae2powertools.crafter.error.processing_pattern");
+
+        private final CrafterState state;
+        private final String translationKey;
+
+        CrafterErrorState(CrafterState state, String translationKey) {
+            this.state = state;
+            this.translationKey = translationKey;
+        }
+
+        public CrafterState getState() {
+            return state;
+        }
+
+        public TextComponentTranslation asComponent(Object... args) {
+            return new TextComponentTranslation(translationKey, args);
+        }
+
+        @Nullable
+        public static CrafterErrorState fromSerialized(String value) {
+            for (CrafterErrorState errorState : values()) {
+                if (errorState.name().equals(value) || errorState.translationKey.equals(value)) return errorState;
+            }
+
+            return null;
+        }
+    }
 
     /**
      * The pattern item stack (encoded pattern).
@@ -222,7 +265,7 @@ public class CrafterEntry {
 
         if (patternStack == null || patternStack.isEmpty()) {
             this.recipeInfo = null;
-            this.state = CrafterState.NO_PATTERN;
+            resetState(CrafterState.NO_PATTERN);
         }
     }
 
@@ -237,7 +280,11 @@ public class CrafterEntry {
         this.recipeInfo = recipeInfo;
         invalidateCatalystValidation();
 
-        if (recipeInfo == null || !recipeInfo.isValid()) this.state = CrafterState.SIMULATION_FAILED;
+        if (recipeInfo == null) {
+            resetState(hasPattern() ? CrafterState.SIMULATION_FAILED : CrafterState.NO_PATTERN);
+        } else if (!recipeInfo.isValid()) {
+            setError(recipeInfo.getError());
+        }
     }
 
     // --- Catalyst Inventory ---
@@ -296,14 +343,14 @@ public class CrafterEntry {
         this.enabled = enabled;
 
         if (!enabled) {
-            this.state = CrafterState.DISABLED;
+            resetState(CrafterState.DISABLED);
         } else if (this.state == CrafterState.DISABLED) {
             // Re-enabling an entry should reset to IDLE so it gets processed
             // (unless it has no pattern, in which case validateAllEntries will set NO_PATTERN)
             if (hasPattern()) {
-                this.state = CrafterState.IDLE;
+                resetState(CrafterState.IDLE);
             } else {
-                this.state = CrafterState.NO_PATTERN;
+                resetState(CrafterState.NO_PATTERN);
             }
         }
     }
@@ -312,8 +359,19 @@ public class CrafterEntry {
         return state;
     }
 
+    /**
+     * Updates the state while retaining its error details.
+     */
     public void setState(CrafterState state) {
         this.state = state;
+    }
+
+    /**
+     * Updates the state and discards error details from the previous state.
+     */
+    public void resetState(CrafterState state) {
+        setState(state);
+        errorDetails.clear();
     }
 
     // --- Pending Outputs ---
@@ -376,15 +434,8 @@ public class CrafterEntry {
     }
 
     /**
-     * Clears error details.
-     */
-    public void clearErrorDetails() {
-        errorDetails.clear();
-    }
-
-    /**
      * Adds an error detail component.
-     * @param detail The error detail (typically a {@link net.minecraft.util.text.TextComponentTranslation})
+     * @param detail The error detail (typically a {@link TextComponentTranslation})
      */
     public void addErrorDetail(ITextComponent detail) {
         if (detail == null) return;
@@ -395,6 +446,25 @@ public class CrafterEntry {
         }
 
         errorDetails.add(detail);
+    }
+
+    public void addErrorDetail(CrafterErrorState errorState, Object... args) {
+        if (errorState == null) return;
+
+        addErrorDetail(errorState.asComponent(args));
+    }
+
+    /**
+     * Updates the state selected for an error and replaces previous error details.
+     */
+    public void setError(CrafterErrorState errorState, Object... args) {
+        if (errorState == null) {
+            resetState(CrafterState.SIMULATION_FAILED);
+            return;
+        }
+
+        resetState(errorState.getState());
+        addErrorDetail(errorState, args);
     }
 
     /**

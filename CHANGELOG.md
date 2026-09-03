@@ -28,6 +28,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix Maintainer not being able to reconcile finished jobs after a network disconnect, which could cause the Maintainer to think it was still waiting for a job that had already ended.
 - Fix Network Component Locator not merging entries of the same component type when they had different NBT data.
 - Fix possible overflow in Storage Level Emitter, when using a Fuzzy card (realistically only possible with Creative Cell).
+- Make the AutoCrafter resistant to ghost items in the network. Previously, any ghost item could cause it to error with "Required inputs disappeared from the network" when trying to extract the required inputs. Now, only real items are considered for extraction.
 
 ### Changed
 - Improve tooltips everywhere to highlight the actions (in AQUA) and the times (in GREEN).
