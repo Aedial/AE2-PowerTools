@@ -16,7 +16,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
 
 
-## [1.6.8] - 2026-08-???
+## [1.6.8] - 2026-09-04
 ### Added
 - Add chunk-boundary checks for AE2 multiblocks to the Network Health Scanner's fatal errors.
 - Add support for all Molecular Assembler-like machines to the Cards Distributor, for Acceleration Card distribution.

@@ -1,6 +1,7 @@
 package com.ae2powertools.widgets;
 
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -67,6 +68,8 @@ public class Ae2Button extends PressableWidget {
             throw new IllegalStateException("Ae2Button must have either a label or an icon set.");
         }
 
+        GlStateManager.disableLighting();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         context.getWidgetMinecraft().getTextureManager().bindTexture(WidgetTextures.AE2_STATES);
         drawTexturedModalRect(getX(), getY(), 240, 240, getWidth(), getHeight());
 
@@ -97,7 +100,6 @@ public class Ae2Button extends PressableWidget {
             }
         }
 
-        // FIXME: for some reason, all buttons under the hovered one show hover effect
         if (isHovered()) {
             drawRect(
                 getX() + 1,
@@ -106,6 +108,8 @@ public class Ae2Button extends PressableWidget {
                 getY() + getHeight() - 1,
                 0x40FFFFFF);
         }
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     public void clearIcon() {
