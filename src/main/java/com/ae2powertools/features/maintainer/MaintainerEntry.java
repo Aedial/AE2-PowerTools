@@ -20,6 +20,8 @@ import com.ae2powertools.util.Ae2FluidCraftingCompat;
  */
 public class MaintainerEntry {
 
+    private static final int MAX_FREQUENCY_SECONDS = 24 * 60 * 60;
+
     public enum ErrorState {
         NO_ERROR(null),
         NO_RECIPE("gui.ae2powertools.maintainer.error.no_recipe"),
@@ -172,7 +174,7 @@ public class MaintainerEntry {
     }
 
     public void setFrequencySeconds(int frequencySeconds) {
-        this.frequencySeconds = Math.max(1, frequencySeconds);
+        this.frequencySeconds = Math.min(MAX_FREQUENCY_SECONDS, Math.max(1, frequencySeconds));
     }
 
     public boolean isEnabled() {

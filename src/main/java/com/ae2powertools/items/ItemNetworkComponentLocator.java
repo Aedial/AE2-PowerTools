@@ -1,6 +1,6 @@
 package com.ae2powertools.items;
 
-import java.util.IdentityHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -58,7 +58,7 @@ public class ItemNetworkComponentLocator extends Item {
     private static final String NBT_SUBNET_SCAN = "SubnetScan";
 
     // Cache overlay state by device ID
-    private static final Map<Long, Boolean> overlayCache = new IdentityHashMap<>();
+    private static final Map<Long, Boolean> overlayCache = new HashMap<>();
 
     private static final DeviceItemAccess DEVICE_ACCESS = new DeviceItemAccess(ItemNetworkComponentLocator.class);
 

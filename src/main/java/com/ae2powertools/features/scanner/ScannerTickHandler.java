@@ -1,6 +1,5 @@
 package com.ae2powertools.features.scanner;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -20,8 +19,6 @@ import com.ae2powertools.items.ItemNetworkHealthScanner;
  */
 public class ScannerTickHandler {
 
-    // Track which sessions need sync updates (keyed by session key)
-    private static final Map<ScanSessionManager.SessionKey, Integer> syncCounters = new HashMap<>();
     private static final int SYNC_INTERVAL = 20; // Ticks between syncs
 
     @SubscribeEvent
@@ -53,15 +50,28 @@ public class ScannerTickHandler {
             ScanSessionManager.SessionKey key = entry.getKey();
             ScanSessionManager.ScanSession session = entry.getValue();
 
-            // Increment sync counter
-            int counter = syncCounters.getOrDefault(key, 0) + 1;
-            syncCounters.put(key, counter);
+            if (session.getScanner().isComplete()) {
+                session.resetSyncCounter();
 
-            // Sync at intervals or when complete
-            boolean shouldSync = counter >= SYNC_INTERVAL || session.getScanner().isComplete();
+                if (session.isCompletionSynced()) continue;
+
+                EntityPlayerMP player = findPlayer(server, key.getPlayerId());
+                if (player != null) {
+                    ItemNetworkHealthScanner.syncToClient(player, key.getDeviceId());
+                    session.markCompletionSynced();
+                } else {
+                    toRemove.add(key);
+                }
+
+                continue;
+            }
+
+            int counter = session.incrementSyncCounter();
+
+            boolean shouldSync = counter >= SYNC_INTERVAL;
 
             if (shouldSync) {
-                syncCounters.put(key, 0);
+                session.resetSyncCounter();
 
                 // Find the player and sync
                 EntityPlayerMP player = findPlayer(server, key.getPlayerId());
@@ -77,7 +87,6 @@ public class ScannerTickHandler {
         // Clean up disconnected players
         for (ScanSessionManager.SessionKey key : toRemove) {
             ScanSessionManager.endSession(key.getPlayerId(), key.getDeviceId());
-            syncCounters.remove(key);
         }
     }
 

@@ -976,12 +976,17 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
         // Track if frequency changed to trigger debounced reschedule
         int oldFrequency = entry.getFrequencySeconds();
-        boolean frequencyChanged = entry.hasRecipe() && oldFrequency != frequencySeconds;
+        IAEItemStack oldItem = entry.getTargetItem();
+        boolean targetChanged = oldItem == null ? item != null : item == null || !oldItem.isSameType(item);
+
+        if (targetChanged) cancelTaskForEntry(index);
 
         entry.setTargetItem(item);
         entry.setTargetQuantity(targetQty);
         entry.setBatchSize(batchSize);
         entry.setFrequencySeconds(frequencySeconds);
+
+        boolean frequencyChanged = entry.hasRecipe() && oldFrequency != entry.getFrequencySeconds();
 
         // Mark dirty for rescheduling if frequency changed
         if (frequencyChanged && !world.isRemote) entry.markScheduleDirty(world.getTotalWorldTime());
@@ -1082,6 +1087,20 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
             return false;
         });
+
+        List<ICraftingLink> linksToCancel = new ArrayList<>();
+        Iterator<PersistedCraftingLink> iterator = persistedLinks.iterator();
+        while (iterator.hasNext()) {
+            PersistedCraftingLink persisted = iterator.next();
+            if (persisted.getEntryIndex() != index) continue;
+
+            ICraftingLink link = persisted.getLink();
+            if (link != null) linksToCancel.add(link);
+
+            iterator.remove();
+        }
+
+        for (ICraftingLink link : linksToCancel) link.cancel();
     }
 
     public int getOpenRows() {

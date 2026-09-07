@@ -76,6 +76,8 @@ public class ScanSessionManager {
         private final long deviceId;
         private List<IssueLocation> sortedLoopResults = null;
         private List<ChunkLocation> sortedChunkResults = null;
+        private int syncCounter;
+        private boolean completionSynced;
 
         public ScanSession(NetworkScanner scanner, BlockPos startPos, int dimension, String dimensionName, long deviceId) {
             this.scanner = scanner;
@@ -108,6 +110,22 @@ public class ScanSessionManager {
 
         public long getDeviceId() {
             return deviceId;
+        }
+
+        public int incrementSyncCounter() {
+            return ++syncCounter;
+        }
+
+        public void resetSyncCounter() {
+            syncCounter = 0;
+        }
+
+        public boolean isCompletionSynced() {
+            return completionSynced;
+        }
+
+        public void markCompletionSynced() {
+            completionSynced = true;
         }
 
         /**

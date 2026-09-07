@@ -66,13 +66,10 @@ public class PacketSelectRecipe implements IMessage {
 
                 TileBetterLevelMaintainer maintainer = (TileBetterLevelMaintainer) te;
                 MaintainerEntry entry = maintainer.getEntry(message.entryIndex);
-                if (entry == null) return;
+                if (entry == null || message.selectedItem == null) return;
 
-                // Set the target item
-                entry.setTargetItem(message.selectedItem.copy());
-
-                maintainer.updateOpenRows();
-                maintainer.markDirty();
+                maintainer.setEntry(message.entryIndex, message.selectedItem.copy(), entry.getTargetQuantity(),
+                    entry.getBatchSize(), entry.getFrequencySeconds());
 
             });
 

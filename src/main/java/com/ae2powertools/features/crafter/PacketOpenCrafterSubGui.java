@@ -39,7 +39,8 @@ public class PacketOpenCrafterSubGui implements IMessage {
         int y = buf.readInt();
         int z = buf.readInt();
         this.pos = new BlockPos(x, y, z);
-        this.subGui = SubGui.values()[buf.readInt()];
+        int ordinal = buf.readInt();
+        this.subGui = ordinal >= 0 && ordinal < SubGui.values().length ? SubGui.values()[ordinal] : null;
     }
 
     @Override
@@ -58,6 +59,8 @@ public class PacketOpenCrafterSubGui implements IMessage {
             World world = player.world;
 
             player.getServerWorld().addScheduledTask(() -> {
+                if (message.subGui == null) return;
+
                 TileEntity te = world.getTileEntity(message.pos);
                 if (te instanceof TileAutoCrafter) {
                     int guiId;

@@ -256,6 +256,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      */
     private void processPendingOutputs() {
         IMEMonitor<IAEItemStack> itemStorage = getItemStorageMonitor();
+        boolean changed = false;
 
         for (CrafterEntry entry : entries) {
             if (!entry.hasPendingOutputs()) continue;
@@ -265,12 +266,17 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
 
             while (it.hasNext()) {
                 IAEItemStack pending = it.next();
+                long pendingSize = pending.getStackSize();
                 IAEItemStack remaining = tryInsertIntoNetwork(itemStorage, pending, Actionable.MODULATE);
 
                 if (remaining == null || remaining.getStackSize() == 0) {
                     it.remove();
+                    changed = true;
                 } else {
-                    pending.setStackSize(remaining.getStackSize());
+                    if (pendingSize != remaining.getStackSize()) {
+                        pending.setStackSize(remaining.getStackSize());
+                        changed = true;
+                    }
                 }
             }
 
@@ -280,6 +286,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
                 refreshPendingOutputDetails(entry);
             }
         }
+
+        if (changed) markDirty();
     }
 
     /**
@@ -362,6 +370,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
             // Record successful craft metrics
             result.entry.recordMetrics(false, result.entry.getLastRequestedBatchSize(), result.entry.getLastActualBatchSize());
         }
+
+        if (!results.isEmpty()) markDirty();
     }
 
     /**
@@ -2004,6 +2014,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     @Nonnull
     public NBTTagCompound writeToNBT(NBTTagCompound data) {
         super.writeToNBT(data);
+        gridProxy.writeToNBT(data);
 
         NBTTagList entryList = new NBTTagList();
         for (CrafterEntry entry : entries) entryList.appendTag(entry.writeToNBT());
@@ -2030,6 +2041,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
     @Override
     public void readFromNBT(NBTTagCompound data) {
         super.readFromNBT(data);
+        gridProxy.readFromNBT(data);
 
         if (data.hasKey("entries")) {
             NBTTagList entryList = data.getTagList("entries", 10);
