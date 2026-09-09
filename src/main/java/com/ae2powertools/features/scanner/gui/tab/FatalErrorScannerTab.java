@@ -57,7 +57,9 @@ public final class FatalErrorScannerTab extends AbstractScannerTab<FatalNetworkE
 
     @Override
     protected String getRowText(FatalNetworkError entry, ScannerViewContext viewContext) {
-        return getDisplayText(entry) + " " + ScannerDisplayText.coordinates(entry.getPos())
+        String coordinates = ScannerDisplayText.coordinates(entry.getPos());
+        return getDisplayText(entry) + " "
+            + I18n.format("gui.ae2powertools.scanner.dimension_format", coordinates, entry.getDimension())
             + ScannerDisplayText.currentDistanceSuffix(entry, viewContext);
     }
 
