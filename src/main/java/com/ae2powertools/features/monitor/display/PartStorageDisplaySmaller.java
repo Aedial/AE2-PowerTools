@@ -15,6 +15,7 @@ import appeng.items.parts.PartModels;
 import appeng.parts.PartModel;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.client.model.StorageDisplayCornerModels;
 
 
 /**
@@ -27,7 +28,8 @@ public class PartStorageDisplaySmaller extends PartStorageDisplayBase {
     private static final ResourceLocation MODEL_BASE =
         new ResourceLocation(Tags.MODID, "part/storage_display_base_smaller");
 
-    public static final PartModel MODEL = new PartModel(MODEL_BASE);
+    // The corner overlay is an AE2 dynamic baked model; see {@link StorageDisplayCornerModels}
+    public static final PartModel MODEL = new PartModel(MODEL_BASE, StorageDisplayCornerModels.SMALLER);
 
     @PartModels
     public static List<IPartModel> getModels() {
@@ -35,7 +37,7 @@ public class PartStorageDisplaySmaller extends PartStorageDisplayBase {
     }
 
     public PartStorageDisplaySmaller(ItemStack is) {
-        super(is, 1);
+        super(is);
     }
 
     @Override

@@ -34,12 +34,10 @@ import com.ae2powertools.features.monitor.dependent.PartStorageMonitorBase;
  */
 abstract public class PartStorageDisplayBase extends PartStorageMonitorBase {
 
-    private final int modelIndex;
     private final DisplayLogic displayLogic;
 
-    public PartStorageDisplayBase(ItemStack is, int modelIndex) {
+    public PartStorageDisplayBase(ItemStack is) {
         super(is);
-        this.modelIndex = modelIndex;
         this.displayLogic = new DisplayLogic(monitorLogic);
     }
 
@@ -96,16 +94,6 @@ abstract public class PartStorageDisplayBase extends PartStorageMonitorBase {
         TesrRenderHelper.moveToFace(facing);
         TesrRenderHelper.rotateToFace(facing, (byte) 0);
 
-        // Match the block display's baked front overlays instead of letting the part's static
-        // model pick up cable-bus AO and skip vanilla face-diffuse shading.
-        int packedLight = world.getCombinedLight(getHostPos(), 0);
-        DisplayRenderHelper.drawCornerIndicators(displayLogic.getCornerColor(), packedLight, facing, modelIndex);
-
-        // The center is drawn in the baked model, as it is a fixed white color
-        // It would be a different matter if we wanted to tint it
-        // DisplayRenderHelper.drawScreenCenter(packedLight, facing, modelIndex);
-
-
         if (renderContent) DisplayRenderHelper.renderResourceWithAmount(content, quantity);
 
         GlStateManager.popMatrix();
@@ -116,6 +104,21 @@ abstract public class PartStorageDisplayBase extends PartStorageMonitorBase {
     @Override
     public boolean requireDynamicRender() {
         return true;
+    }
+
+    /**
+     * Pass the synced corner color into AE2's {@code IPartBakedModel} path.
+     * <p>
+     * Cable-bus JSON-model tint indices belong to AE2's cable-color handler, so they cannot
+     * represent this per-part, changing color. The companion corner model instead bakes this
+     * flag directly into its vertex colors whenever AE2 rebuilds the cable-bus model.
+     * <p>
+     * Keep all 32 ARGB bits unsigned: a normal opaque color has its high bit set and would
+     * otherwise sign-extend when widened to a {@link Long}.
+     */
+    @Override
+    public Long getRenderFlag() {
+        return Integer.toUnsignedLong(displayLogic.getCornerColor());
     }
 
     @Override
@@ -182,8 +185,8 @@ abstract public class PartStorageDisplayBase extends PartStorageMonitorBase {
     public boolean readFromStream(ByteBuf data) throws IOException {
         super.readFromStream(data);
         displayLogic.readFromStream(data);
-        // Returning true asks AE2 to re-render the part. Required because the corner color
-        // tint and the displayed icon both come from this stream.
+        // Returning true asks AE2 to rebuild the cable-bus model. Required because the baked
+        // corner color and the dynamically rendered icon both come from this stream.
         return true;
     }
 }

@@ -49,8 +49,8 @@ import thaumicenergistics.api.storage.IAEEssentiaStack;
 
 /**
  * Shared display-rendering helpers for the block TESR and cable-part dynamic renderer.
- * The full-block variant only uses the face-content helpers: its corner overlay is still
- * baked into the block model and tinted via {@code DisplayBlockColor}.
+ * Both display variants bake their persistent screen overlays: the block uses
+ * {@code DisplayBlockColor}, while the cable part uses AE2's {@code IPartBakedModel} path.
  * <p>
  * Centralizes the bits that have to look identical between the part dynamic renderer and
  * the baked block model.
@@ -68,16 +68,18 @@ public final class DisplayRenderHelper {
     private static final float DISPLAY_ICON_Z = 0.0001F;
     private static final IWideReadableNumberConverter NUMBER_CONVERTER = ReadableNumberConverter.INSTANCE;
 
-    /**
-     * Texture sprite name for the corner indicator overlay. Same texture used by the block
-     * model's corner element, so the part's dynamic-rendered corners are pixel-for-pixel
-     * identical to the block's baked corners.
-     */
+    /** Texture sprite names for the fixed center overlay. */
     private static final List<String> CENTER_SPRITE_NAMES = Arrays.asList(
         "ae2powertools:blocks/display_color_center",
         "ae2powertools:blocks/display_color_center_smaller",
         "ae2powertools:blocks/display_color_center_smallerer"
     );
+
+    /**
+     * Texture sprite names for the corner indicator overlay. The custom cable-part model
+     * declares the same sprites from {@code IModel#getTextures}; they remain registered here
+     * too so the direct face-overlay helper stays valid and resource stitching is explicit.
+     */
     private static final List<String> CORNER_SPRITE_NAMES = Arrays.asList(
         "ae2powertools:blocks/display_color_corner",
         "ae2powertools:blocks/display_color_corner_smaller",
@@ -105,6 +107,15 @@ public final class DisplayRenderHelper {
         return dot > -1.0e-4;
     }
 
+    /**
+     * Draws the fixed center overlay. It is currently unused as the center is
+     * included directly into the block model. If the tint needs to be configurable,
+     * you should rather extend the use of {@link StorageDisplayCornerModelLoader}.
+     *
+     * @param packedLight host block light from {@code World#getCombinedLight}
+     * @param facing the face to render on
+     * @param modelIndex index of the model variant to use
+     */
     public static void drawScreenCenter(int packedLight, EnumFacing facing, int modelIndex) {
         if (modelIndex < 0 || modelIndex >= CENTER_SPRITE_NAMES.size()) modelIndex = 0;
 
@@ -116,10 +127,9 @@ public final class DisplayRenderHelper {
      * post-{@code rotateToFace} coordinate system. The face plane is XY, the face normal
      * points in -Z (toward the viewer), and the face spans roughly [-0.5, 0.5] in both axes.
      * <p>
-     * The block display renders this same sprite as a cutout-tinted model layer, lit by the
-     * world and multiplied by vanilla's face-diffuse factor. The part path has to reproduce
-     * that manually so the same ARGB values do not read noticeably brighter on a cable part
-     * than they do on the block variant.
+     * The block display and the storage-display cable part both render this sprite through
+     * baked models. This remains available for any direct-rendering caller that needs the
+     * same lighting and color treatment.
      *
      * @param argb packed 0xAARRGGBB color from
      *             {@link com.ae2powertools.features.monitor.dependent.DisplayLogic#getCornerColor()}
@@ -133,7 +143,12 @@ public final class DisplayRenderHelper {
     }
 
     /**
-     * Register the sprites used by the dynamic TESR rendering, for all model variants.
+     * Register sprites used by direct face-overlay rendering, for all model variants.
+     * <p>
+     * The baked cable-part corner models also declare their sprites through their model
+     * dependencies. {@link TextureMap#registerSprite(ResourceLocation)} is idempotent, so
+     * retaining this registration keeps the helper independently safe without changing the
+     * model-baking contract.
      */
     public static void registerSprites(TextureMap textureMap) {
         registerSprites(textureMap, CENTER_SPRITE_NAMES);
