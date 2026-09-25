@@ -11,9 +11,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [1.6.9] - ???
 ### Added
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
+- Add x10 multiplier on time for Better Level Maintainer frequency buttons when holding shift.
 
 ### Fixed
 - Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
+- Fix AutoCrafter maybe not saving its pending output, if exiting right after crafting.
+- Fix Maintainer not properly cancelling a task when changing the target item.
 
 
 ## [1.6.8] - 2026-09-04

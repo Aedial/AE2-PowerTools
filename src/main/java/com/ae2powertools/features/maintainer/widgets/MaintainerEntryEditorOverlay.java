@@ -54,6 +54,10 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
     private static final int MODAL_WIDTH = 176;
     private static final int MODAL_HEIGHT = 107;
 
+    private static final int[] FREQUENCY_DELTAS = new int[] {
+        -1, 1, -60, 60, -3600, 3600, -86400, 86400
+    };
+
     private final WidgetContext context;
     private final Supplier<List<IAEItemStack>> craftableItemsSupplier;
     private final RecipeSelectionHandler recipeSelectionHandler;
@@ -101,6 +105,8 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
 
     public void updateScreen() {
         if (!isOpen()) return;
+
+        updateLabels();
 
         if (targetField != null) targetField.updateCursorCounter();
         if (batchField != null) batchField.updateCursorCounter();
@@ -369,59 +375,47 @@ public class MaintainerEntryEditorOverlay extends AbstractModalGui {
         frequencyField.setMaxStringLength(20);
         frequencyField.setText(FormatUtil.formatTimeSeconds(lastFrequency));
 
-        int buttonX = modalLeft + 3;
-        int buttonY = modalTop + 48;
         int nextId = 100;
-        addFrequencyButton(nextId++, buttonX, buttonY, "-1s");
-        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1s");
-        buttonY += 14;
-        addFrequencyButton(nextId++, buttonX, buttonY, "-1m");
-        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1m");
-        buttonY += 14;
-        addFrequencyButton(nextId++, buttonX, buttonY, "-1h");
-        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1h");
-        buttonY += 14;
-        addFrequencyButton(nextId++, buttonX, buttonY, "-1d");
-        addFrequencyButton(nextId++, buttonX + 28, buttonY, "+1d");
+        for (int i = 0; i < FREQUENCY_DELTAS.length; i++) {
+            int delta = FREQUENCY_DELTAS[i];
+            String label = FormatUtil.formatTimeSeconds(Math.abs(delta));
+            if (delta < 0) label = "-" + label;
+            else label = "+" + label;
+
+            int buttonX = modalLeft + 3 + (i % 2) * 28;
+            int buttonY = modalTop + 48 + (i / 2) * 14;
+
+            addFrequencyButton(nextId++, buttonX, buttonY, label, delta);
+        }
     }
 
-    private void addFrequencyButton(int buttonId, int x, int y, String label) {
+    private void addFrequencyButton(int buttonId, int x, int y, String label, int delta) {
         SmallVanillaButton button = new SmallVanillaButton(buttonId, x, y, 26, 12, label);
-        button.setOnClick(() -> handleFrequencyButton(button));
+        button.setOnClick(() -> handleFrequencyButton(button, delta));
         frequencyButtons.add(button);
     }
 
-    private void handleFrequencyButton(SmallVanillaButton button) {
-        int delta = 0;
-        String label = button.getLabel();
-        switch (label) {
-            case "-1s":
-                delta = -1;
-                break;
-            case "+1s":
-                delta = 1;
-                break;
-            case "-1m":
-                delta = -60;
-                break;
-            case "+1m":
-                delta = 60;
-                break;
-            case "-1h":
-                delta = -3600;
-                break;
-            case "+1h":
-                delta = 3600;
-                break;
-            case "-1d":
-                delta = -86400;
-                break;
-            case "+1d":
-                delta = 86400;
-                break;
-        }
+    private boolean isShiftDown() {
+        return Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+    }
 
+    public void updateLabels() {
+        for (int buttonIndex = 0; buttonIndex < frequencyButtons.size(); buttonIndex++) {
+            SmallVanillaButton button = frequencyButtons.get(buttonIndex);
+            if (button == null) continue;
+
+            int delta = FREQUENCY_DELTAS[buttonIndex];
+            if (isShiftDown()) delta *= 10;
+
+            String sign = delta < 0 ? "-" : "+";
+            button.setLabel(sign + FormatUtil.formatTimeSeconds(Math.abs(delta)));
+        }
+    }
+
+    private void handleFrequencyButton(SmallVanillaButton button, int delta) {
         if (delta == 0) return;
+
+        if (isShiftDown()) delta *= 10;
 
         lastFrequency = Math.max(1, lastFrequency + delta);
         frequencyField.setText(FormatUtil.formatTimeSeconds(lastFrequency));

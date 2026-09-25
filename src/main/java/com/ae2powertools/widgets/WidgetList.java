@@ -24,6 +24,15 @@ public class WidgetList {
         return widget;
     }
 
+    public int size() {
+        return widgets.size();
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends PressableWidget> T get(int index) {
+        return (T) widgets.get(index);
+    }
+
     public void draw(WidgetContext context, int mouseX, int mouseY) {
         for (PressableWidget widget : widgets) widget.draw(context, mouseX, mouseY);
     }

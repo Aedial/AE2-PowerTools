@@ -1,5 +1,7 @@
 package com.ae2powertools.features.maintainer;
 
+import java.util.Locale;
+
 import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
@@ -472,7 +474,7 @@ public class MaintainerEntry {
      * Uses explicit US locale for consistent formatting regardless of system locale.
      */
     public static String formatQuantity(long quantity) {
-        return String.format(java.util.Locale.US, "%,d", quantity);
+        return String.format(Locale.US, "%,d", quantity);
     }
 
     /**
