@@ -38,7 +38,12 @@ public enum MaintainerState {
     /**
      * Post-crafting issue (no space for output).
      */
-    POST_ERROR(0x40C040FF, 0xA030D0);
+    POST_ERROR(0x40C040FF, 0xA030D0),
+
+    /**
+     * Task is calculating its crafting tree before it can reserve a CPU.
+     */
+    CALCULATING(0x4080C0FF, 0x50A0D0);
 
     private final int backgroundColor;
     private final int textColor;
@@ -61,6 +66,6 @@ public enum MaintainerState {
     }
 
     public boolean isActive() {
-        return this == RUNNING || this == SCHEDULED || this == STALLED;
+        return this == RUNNING || this == SCHEDULED || this == STALLED || this == CALCULATING;
     }
 }

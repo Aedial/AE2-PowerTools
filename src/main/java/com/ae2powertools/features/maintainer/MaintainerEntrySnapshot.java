@@ -32,7 +32,7 @@ public final class MaintainerEntrySnapshot {
      * empty slots to keep diff comparisons trivial.
      */
     public static final MaintainerEntrySnapshot EMPTY =
-            new MaintainerEntrySnapshot(false, null, 0L, 0L, 0, false, 0, 0L, null);
+            new MaintainerEntrySnapshot(false, null, 0L, 0L, 0, false, 0, 0L, -1L, null);
 
     private final boolean hasRecipe;
     @Nullable
@@ -43,14 +43,15 @@ public final class MaintainerEntrySnapshot {
     private final boolean enabled;
     private final int stateOrdinal;
     private final long currentQuantity;
+    private final long calculationStartTime;
     /** Pre-serialized JSON form of the error component, or null. */
     @Nullable
     private final String errorJson;
 
     private MaintainerEntrySnapshot(boolean hasRecipe, @Nullable IAEItemStack targetItem,
-                                    long targetQuantity, long batchSize, int frequencySeconds,
-                                    boolean enabled, int stateOrdinal, long currentQuantity,
-                                    @Nullable String errorJson) {
+                                     long targetQuantity, long batchSize, int frequencySeconds,
+                                     boolean enabled, int stateOrdinal, long currentQuantity,
+                                     long calculationStartTime, @Nullable String errorJson) {
         this.hasRecipe = hasRecipe;
         this.targetItem = targetItem;
         this.targetQuantity = targetQuantity;
@@ -59,6 +60,7 @@ public final class MaintainerEntrySnapshot {
         this.enabled = enabled;
         this.stateOrdinal = stateOrdinal;
         this.currentQuantity = currentQuantity;
+        this.calculationStartTime = calculationStartTime;
         this.errorJson = errorJson;
     }
 
@@ -89,6 +91,7 @@ public final class MaintainerEntrySnapshot {
                 entry.isEnabled(),
                 entry.getState().ordinal(),
                 entry.getCurrentQuantity(),
+                entry.getCalculationStartTime(),
                 json);
     }
 
@@ -103,6 +106,7 @@ public final class MaintainerEntrySnapshot {
         buf.writeBoolean(enabled);
         buf.writeInt(stateOrdinal);
         buf.writeLong(currentQuantity);
+        buf.writeLong(calculationStartTime);
 
         // Sync error component for tooltip display. JSON-serialized so the client
         // re-creates the same ITextComponent and renders it in the player's language.
@@ -126,6 +130,7 @@ public final class MaintainerEntrySnapshot {
         boolean enabled = buf.readBoolean();
         int stateOrdinal = buf.readInt();
         long currentQty = buf.readLong();
+        long calculationStartTime = buf.readLong();
 
         String errorJson = null;
         if (buf.readBoolean()) {
@@ -136,7 +141,7 @@ public final class MaintainerEntrySnapshot {
         }
 
         return new MaintainerEntrySnapshot(true, targetItem, targetQty, batchSize, freqSecs,
-                enabled, stateOrdinal, currentQty, errorJson);
+                enabled, stateOrdinal, currentQty, calculationStartTime, errorJson);
     }
 
     /**
@@ -156,6 +161,7 @@ public final class MaintainerEntrySnapshot {
             entry.setState(MaintainerState.values()[stateOrdinal]);
         }
         entry.setCurrentQuantity(currentQuantity);
+        entry.setCalculationStartTime(calculationStartTime);
         entry.setErrorComponent(errorJson != null
                 ? ITextComponent.Serializer.jsonToComponent(errorJson)
                 : null);
@@ -185,6 +191,7 @@ public final class MaintainerEntrySnapshot {
         if (enabled != that.enabled) return false;
         if (stateOrdinal != that.stateOrdinal) return false;
         if (currentQuantity != that.currentQuantity) return false;
+        if (calculationStartTime != that.calculationStartTime) return false;
         if (!Objects.equals(errorJson, that.errorJson)) return false;
 
         return aeItemEquals(targetItem, that.targetItem);
@@ -197,7 +204,7 @@ public final class MaintainerEntrySnapshot {
         return Objects.hash(
                 targetItem == null ? 0 : targetItem.getItem(),
                 targetQuantity, batchSize, frequencySeconds,
-                enabled, stateOrdinal, currentQuantity, errorJson);
+                enabled, stateOrdinal, currentQuantity, calculationStartTime, errorJson);
     }
 
     private static boolean aeItemEquals(@Nullable IAEItemStack a, @Nullable IAEItemStack b) {

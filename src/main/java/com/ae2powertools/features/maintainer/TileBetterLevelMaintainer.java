@@ -130,6 +130,8 @@ public class TileBetterLevelMaintainer extends AEBaseTile
 
     private long networkPauseStartTime;
 
+    private long networkStableSince;
+
     private long probeTimingSnapshotTick;
 
     private boolean probeTimingSnapshotHasSample;
@@ -159,6 +161,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         this.networkInitializationPending = true;
         this.networkSettleDeadline = Long.MAX_VALUE;
         this.networkPauseStartTime = -1;
+        this.networkStableSince = -1;
         this.probeTimingSnapshotTick = 0;
         this.probeTimingSnapshotHasSample = false;
         this.probeLastDurationNanos = 0L;
@@ -334,9 +337,35 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         }
 
         networkPauseStartTime = -1;
+        networkStableSince = worldTime;
         reconcileFinishedPersistedLinks();
         markDirty();
         markForUpdate();
+    }
+
+    /**
+     * Returns whether the maintainer is waiting for AE2 to finish stabilizing its network data.
+     */
+    public boolean isWaitingForNetworkStabilization() {
+        return networkInitializationPending || networkSettleDeadline != 0 || networkPauseStartTime >= 0;
+    }
+
+    /**
+     * Returns how long the current network stabilization wait has lasted in world ticks.
+     */
+    public long getNetworkStabilizationTicks() {
+        if (world == null || networkPauseStartTime < 0) return 0;
+
+        return Math.max(0, world.getTotalWorldTime() - networkPauseStartTime);
+    }
+
+    /**
+     * Returns how long the current stable network period has lasted in world ticks.
+     */
+    public long getNetworkStableTicks() {
+        if (world == null || networkStableSince < 0) return 0;
+
+        return Math.max(0, world.getTotalWorldTime() - networkStableSince);
     }
 
     /**
@@ -539,7 +568,7 @@ public class TileBetterLevelMaintainer extends AEBaseTile
             // !actionSrc.player().isPresent(). See CalculationActionSource for full rationale.
             // submitJob, injectCraftedItems, and all real network operations continue to use
             // the original MachineSource so security and accounting are unchanged.
-            entry.setState(MaintainerState.SCHEDULED);
+            entry.startCalculation(world.getTotalWorldTime());
             IActionSource calcSource = (world instanceof WorldServer)
                     ? new CalculationActionSource(this, (WorldServer) world)
                     : actionSource;
@@ -1101,6 +1130,10 @@ public class TileBetterLevelMaintainer extends AEBaseTile
         }
 
         for (ICraftingLink link : linksToCancel) link.cancel();
+
+        if (index >= 0 && index < entries.size() && entries.get(index).getState().isActive()) {
+            restoreEntryState(entries.get(index));
+        }
     }
 
     public int getOpenRows() {

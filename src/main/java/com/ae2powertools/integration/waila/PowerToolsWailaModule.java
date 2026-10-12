@@ -137,6 +137,10 @@ public final class PowerToolsWailaModule {
                 (Object[]) probeData.getRecipeStatusArgs()));
 
             currentToolTip.add(I18n.format(
+                probeData.getNetworkStatusKey(),
+                (Object[]) probeData.getNetworkStatusArgs()));
+
+            currentToolTip.add(I18n.format(
                 probeData.getTimingKey(),
                 (Object[]) probeData.getTimingArgs()));
 

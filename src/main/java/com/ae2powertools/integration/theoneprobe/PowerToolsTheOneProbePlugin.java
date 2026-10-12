@@ -139,6 +139,10 @@ public class PowerToolsTheOneProbePlugin implements Function<ITheOneProbe, Void>
             probeData.getRecipeStatusArgs()));
 
         probeInfo.element(new TopTranslatedTextElement(
+            probeData.getNetworkStatusKey(),
+            probeData.getNetworkStatusArgs()));
+
+        probeInfo.element(new TopTranslatedTextElement(
             probeData.getTimingKey(),
             probeData.getTimingArgs()));
     }

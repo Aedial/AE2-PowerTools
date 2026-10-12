@@ -561,6 +561,13 @@ public class MaintainerEntryViewport extends Gui {
             MaintainerState state = entry.getState();
             tooltip.add(I18n.format("gui.ae2powertools.maintainer.state." + state.name().toLowerCase()));
 
+            if (state == MaintainerState.CALCULATING) {
+                long worldTime = context.getWidgetMinecraft().world.getTotalWorldTime();
+                tooltip.add(I18n.format(
+                    "gui.ae2powertools.maintainer.tooltip.calculating",
+                    entry.getCalculationElapsedTicks(worldTime)));
+            }
+
             // Show error message for error states. The component is built server-side as a
             // TextComponentTranslation, so we just resolve it here using the client's locale.
             if (state.isError() && entry.getErrorComponent() != null) {

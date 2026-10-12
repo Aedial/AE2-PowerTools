@@ -111,6 +111,12 @@ public class MaintainerEntry {
      */
     private long currentQuantity;
 
+    /**
+     * World time when the most recent crafting-tree calculation began.
+     * Negative until this entry has calculated a crafting tree.
+     */
+    private long calculationStartTime;
+
     public MaintainerEntry() {
         this.targetItem = null;
         this.targetQuantity = 0;
@@ -123,6 +129,7 @@ public class MaintainerEntry {
         this.nextRunTime = 0;
         this.scheduleDirtyTime = 0;
         this.currentQuantity = 0;
+        this.calculationStartTime = -1;
     }
 
     /**
@@ -186,9 +193,9 @@ public class MaintainerEntry {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (!enabled) {
-            this.state = MaintainerState.DISABLED;
+            setState(MaintainerState.DISABLED);
         } else if (this.state == MaintainerState.DISABLED) {
-            this.state = MaintainerState.IDLE;
+            setState(MaintainerState.IDLE);
         }
     }
 
@@ -198,6 +205,31 @@ public class MaintainerEntry {
 
     public void setState(MaintainerState state) {
         this.state = state;
+    }
+
+    /**
+     * Starts tracking a crafting-tree calculation for this entry.
+     */
+    public void startCalculation(long calculationStartTime) {
+        setState(MaintainerState.CALCULATING);
+        this.calculationStartTime = calculationStartTime;
+    }
+
+    public long getCalculationStartTime() {
+        return calculationStartTime;
+    }
+
+    public void setCalculationStartTime(long calculationStartTime) {
+        this.calculationStartTime = calculationStartTime;
+    }
+
+    /**
+     * Returns the current calculation duration in world ticks.
+     */
+    public long getCalculationElapsedTicks(long worldTime) {
+        if (state != MaintainerState.CALCULATING || calculationStartTime < 0) return 0;
+
+        return Math.max(0, worldTime - calculationStartTime);
     }
 
     @Nullable
@@ -215,7 +247,7 @@ public class MaintainerEntry {
      * localization still works. Pass {@code null} to clear.
      */
     public void setError(MaintainerState errorState, @Nullable String translationKey) {
-        this.state = errorState;
+        setState(errorState);
         this.errorComponent = translationKey == null ? null : new TextComponentTranslation(translationKey);
     }
 
@@ -225,7 +257,7 @@ public class MaintainerEntry {
      * string) ensures the message is translated using the client's language at render time.
      */
     public void setError(MaintainerState errorState, ITextComponent component) {
-        this.state = errorState;
+        setState(errorState);
         this.errorComponent = component;
     }
 
@@ -238,14 +270,14 @@ public class MaintainerEntry {
         if (errorStateEnum == ErrorState.NO_ERROR) {
             clearError();
         } else {
-            this.state = MaintainerState.ERROR;
+            setState(MaintainerState.ERROR);
             this.errorComponent = errorStateEnum.getErrorComponent();
         }
     }
 
     public void clearError() {
         if (this.state.isError()) {
-            this.state = this.enabled ? MaintainerState.IDLE : MaintainerState.DISABLED;
+            setState(this.enabled ? MaintainerState.IDLE : MaintainerState.DISABLED);
         }
 
         this.errorComponent = null;
@@ -382,8 +414,10 @@ public class MaintainerEntry {
         }
 
         // Reset transient states to IDLE since associated tasks don't survive restart.
-        // RUNNING, SCHEDULED, and STALLED all require an in-memory task to be meaningful.
+        // RUNNING, SCHEDULED, STALLED, and CALCULATING all require an in-memory task to be meaningful.
         if (state.isActive()) state = enabled ? MaintainerState.IDLE : MaintainerState.DISABLED;
+
+        calculationStartTime = -1;
 
         lastRunTime = tag.getLong("lastRunTime");
         // Keep the persisted absolute schedule. The tile's startup/network-settle gate will
@@ -512,6 +546,7 @@ public class MaintainerEntry {
         copy.nextRunTime = this.nextRunTime;
         copy.scheduleDirtyTime = this.scheduleDirtyTime;
         copy.currentQuantity = this.currentQuantity;
+        copy.calculationStartTime = this.calculationStartTime;
 
         return copy;
     }
