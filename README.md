@@ -17,6 +17,7 @@ A diagnostic tool for detecting network issues:
 - **Fatal Errors**: Detects critical issues that may cause the network to work in a degraded state or not work at all. As these issues are unusual, they are aggregated instead of having their own categories. This currently includes:
   - **Main Network connected to itself via Subnet**: This creates a loop that causes ghost items, desync, and general instability.
   - **Multiple Storage Buses on the same block**: This causes double counting (ghost items), resulting in desync and instability.
+  - **AE2 Multiblock on chunk boundary**: The multiblock (Quantum Bridge, CPU cluster) may break on chunk load.
 - **Visual Overlay**: Shows directional arrows pointing to problem locations.
 - **Interactive GUI**: Browse and select detected issues, organized by dimension.
 - **Subnet Scanning**: Toggle whether to include components from connected subnets in the scan.

@@ -6,15 +6,16 @@
     },
     "elements": [
         {
-            "__comment": "Mirrored to AE2 convention: z=0 is the outer face (NORTH).",
-            "from": [7, 7, 0],
+            "__comment": "Mirrored to AE2 convention: z=0 is the outer cable-block plane (NORTH).",
+            "from": [7, 7, -1],
             "to": [9, 9, 5],
             "faces": {
-                "up":    { "texture": "#sides" },
-                "down":  { "texture": "#sides" },
-                "east":  { "texture": "#sides" },
-                "west":  { "texture": "#sides" },
-                "north": { "texture": "#emitter" }
+                "up":    { "texture": "#emitter", "uv": [7, 6, 9, 12] },
+                "down":  { "texture": "#emitter", "uv": [7, 6, 9, 12], "rotation": 180 },
+                "east":  { "texture": "#emitter", "uv": [7, 6, 9, 12], "rotation": 90 },
+                "west":  { "texture": "#emitter", "uv": [7, 6, 9, 12], "rotation": 270 },
+                "north": { "texture": "#emitter", "uv": [7, 6, 9, 8] },
+                "south": { "texture": "#sides" }
             }
         }
     ]

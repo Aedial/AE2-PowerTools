@@ -1,17 +1,47 @@
 {
+    "ambientocclusion": false,
     "textures": {
-        "indicator": "appliedenergistics2:parts/monitor_sides_status_on"
+        "emitter": "ae2powertools:parts/level_emitter_on",
+        "sides": "appliedenergistics2:parts/monitor_sides",
+        "particle": "ae2powertools:parts/level_emitter_on"
     },
     "elements": [
         {
-            "from": [7, 7, 10],
-            "to": [9, 9, 11],
+            "from": [7, 7, -2],
+            "to": [9, 9, 5],
             "faces": {
-                "down":  { "texture": "#indicator" },
-                "up":    { "texture": "#indicator" },
-                "east":  { "texture": "#indicator" },
-                "west":  { "texture": "#indicator" },
-                "south": { "texture": "#indicator" }
+                "up":    { "texture": "#emitter", "uv": [7, 5, 9, 12] },
+                "down":  { "texture": "#emitter", "uv": [7, 5, 9, 12], "rotation": 180 },
+                "east":  { "texture": "#emitter", "uv": [7, 5, 9, 12], "rotation": 90 },
+                "west":  { "texture": "#emitter", "uv": [7, 5, 9, 12], "rotation": 270 },
+                "north": { "texture": "#emitter", "uv": [7, 6, 9, 8] },
+                "south": { "texture": "#sides" }
+            }
+        },
+        {
+            "from": [6, 7, -1],
+            "to": [10, 9, 1],
+            "shade": false,
+            "faces": {
+                "north": { "texture": "#emitter", "uv": [6, 6, 10, 8] },
+                "south": { "texture": "#emitter", "uv": [6, 6, 10, 8], "rotation": 180 },
+                "up":    { "texture": "#emitter", "uv": [6, 6, 10, 8] },
+                "down":  { "texture": "#emitter", "uv": [6, 6, 10, 8], "rotation": 180 },
+                "east":  { "texture": "#emitter", "uv": [7, 6, 9, 8], "rotation": 90 },
+                "west":  { "texture": "#emitter", "uv": [7, 6, 9, 8], "rotation": 270 }
+            }
+        },
+        {
+            "from": [7, 6, -1],
+            "to": [9, 10, 1],
+            "shade": false,
+            "faces": {
+                "north": { "texture": "#emitter", "uv": [7, 5, 9, 9] },
+                "south": { "texture": "#emitter", "uv": [7, 5, 9, 9], "rotation": 180 },
+                "up":    { "texture": "#emitter", "uv": [7, 6, 9, 8] },
+                "down":  { "texture": "#emitter", "uv": [7, 6, 9, 8], "rotation": 180 },
+                "east":  { "texture": "#emitter", "uv": [7, 5, 9, 9] },
+                "west":  { "texture": "#emitter", "uv": [7, 5, 9, 9], "rotation": 180 }
             }
         }
     ]

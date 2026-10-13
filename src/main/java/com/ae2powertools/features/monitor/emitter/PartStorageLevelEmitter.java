@@ -40,15 +40,13 @@ import com.ae2powertools.features.monitor.dependent.PartStorageMonitorBase;
 public class PartStorageLevelEmitter extends PartStorageMonitorBase implements IEmitterCardHost {
 
     // Part model resources
-    private static final ResourceLocation MODEL_BASE =
+    private static final ResourceLocation MODEL_BASE_OFF =
         new ResourceLocation(Tags.MODID, "part/storage_level_emitter_base");
-    private static final ResourceLocation MODEL_STATUS_OFF =
-        new ResourceLocation(Tags.MODID, "part/storage_level_emitter_off");
-    private static final ResourceLocation MODEL_STATUS_ON =
+    private static final ResourceLocation MODEL_BASE_ON =
         new ResourceLocation(Tags.MODID, "part/storage_level_emitter_on");
 
-    public static final PartModel MODEL_OFF = new PartModel(MODEL_BASE, MODEL_STATUS_OFF);
-    public static final PartModel MODEL_ON = new PartModel(MODEL_BASE, MODEL_STATUS_ON);
+    public static final PartModel MODEL_OFF = new PartModel(MODEL_BASE_OFF);
+    public static final PartModel MODEL_ON = new PartModel(MODEL_BASE_ON);
 
     @PartModels
     public static List<IPartModel> getModels() {
