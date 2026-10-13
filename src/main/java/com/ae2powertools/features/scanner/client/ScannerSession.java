@@ -1,6 +1,7 @@
 package com.ae2powertools.features.scanner.client;
 
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -8,7 +9,9 @@ import java.util.Set;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 
+import com.ae2powertools.AE2PowerTools;
 import com.ae2powertools.features.scanner.ScannerSyncSnapshot;
+import com.ae2powertools.features.scanner.data.FatalNetworkError;
 import com.ae2powertools.features.scanner.data.ScannerIssue;
 import com.ae2powertools.features.scanner.data.ScannerIssueKey;
 import com.ae2powertools.features.scanner.data.ScannerTabId;
@@ -37,6 +40,9 @@ public final class ScannerSession {
     private ITextComponent statusMessage = new TextComponentString("");
     private boolean scanComplete;
     private boolean subnetScanEnabled;
+    private int disabledCategoryMask;
+    private final Set<FatalNetworkError.Category> warnedDisabledFatalCategories =
+        EnumSet.noneOf(FatalNetworkError.Category.class);
     private ScannerTabId activeTabId = ScannerTabId.LOOPS;
     private long revision;
 
@@ -61,6 +67,10 @@ public final class ScannerSession {
 
     public boolean isSubnetScanEnabled() {
         return subnetScanEnabled;
+    }
+
+    public boolean isCurrentCategoryDisabled() {
+        return (disabledCategoryMask & 1 << activeTabId.ordinal()) != 0;
     }
 
     public void setSubnetScanEnabled(boolean enabled) {
@@ -126,13 +136,21 @@ public final class ScannerSession {
         for (ScannerTabState<?> tabState : tabStates.values()) tabState.clear();
 
         scanComplete = false;
+        disabledCategoryMask = 0;
+        warnedDisabledFatalCategories.clear();
         activeTabId = ScannerTabId.LOOPS;
         revision++;
     }
 
     public void applySync(ScannerSyncSnapshot snapshot) {
+        if (scanComplete && !snapshot.isScanComplete()) warnedDisabledFatalCategories.clear();
+
         scanComplete = snapshot.isScanComplete();
         subnetScanEnabled = snapshot.isSubnetScanEnabled();
+        disabledCategoryMask = 0;
+        for (ScannerTabId category : ScannerTabId.values()) {
+            if (snapshot.isCategoryDisabled(category)) disabledCategoryMask |= 1 << category.ordinal();
+        }
         statusMessage = snapshot.getStatusMessage();
         replaceEntries(ScannerTabRegistry.LOOPS, snapshot.getLoops());
         replaceEntries(ScannerTabRegistry.UNLOADED_CHUNKS, snapshot.getChunks());
@@ -140,7 +158,20 @@ public final class ScannerSession {
         replaceEntries(ScannerTabRegistry.CHOKEPOINTS, snapshot.getChokepoints());
         replaceEntries(ScannerTabRegistry.FATAL_ERRORS, snapshot.getFatalErrors());
         replaceEntries(ScannerTabRegistry.PATTERNS, snapshot.getPatternIssues());
+        warnForDisabledFatalResults(snapshot);
         revision++;
+    }
+
+    private void warnForDisabledFatalResults(ScannerSyncSnapshot snapshot) {
+        for (FatalNetworkError error : snapshot.getFatalErrors()) {
+            FatalNetworkError.Category category = error.getCategory();
+            if (!snapshot.isFatalCategoryDisabled(category)) continue;
+            if (!warnedDisabledFatalCategories.add(category)) continue;
+
+            AE2PowerTools.LOGGER.warn(
+                "Received Network Scanner fatal error {} for device {} while its server category is disabled.",
+                category, deviceId);
+        }
     }
 
     public List<ScannerListRow> buildCurrentRows(ScannerSortMode sortMode,

@@ -68,12 +68,14 @@ import appeng.me.cluster.IAEMultiBlock;
 import appeng.tile.networking.TileController;
 
 import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.features.scanner.data.ChannelChokepoint;
 import com.ae2powertools.features.scanner.data.ChunkLocation;
 import com.ae2powertools.features.scanner.data.FatalNetworkError;
 import com.ae2powertools.features.scanner.data.IssueLocation;
 import com.ae2powertools.features.scanner.data.MissingChannelDevice;
 import com.ae2powertools.features.scanner.data.PatternIssue;
+import com.ae2powertools.features.scanner.data.ScannerTabId;
 import com.ae2powertools.util.SubnetGridHelper;
 import com.google.common.collect.ImmutableSetMultimap;
 
@@ -106,6 +108,7 @@ public class NetworkScanner {
     private final boolean includeSubnets;
     private final IGridNode startNode;
     private final boolean channelsEnabled;
+    private final PowerToolsServerConfig.ScannerSettings scannerSettings;
 
     // Cache of forced chunks per dimension (lazy-loaded)
     private final Map<Integer, ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket>> forcedChunksCache = new HashMap<>();
@@ -255,11 +258,17 @@ public class NetworkScanner {
 
     public NetworkScanner(IGrid grid, World world, boolean includeSubnets,
             @Nullable IGridNode startNode) {
+        this(grid, world, includeSubnets, startNode, PowerToolsServerConfig.scanner.createSettings());
+    }
+
+    private NetworkScanner(IGrid grid, World world, boolean includeSubnets, @Nullable IGridNode startNode,
+            PowerToolsServerConfig.ScannerSettings scannerSettings) {
         this.grid = grid;
         this.world = world;
         this.includeSubnets = includeSubnets;
         this.startNode = startNode;
         this.channelsEnabled = AEConfig.instance().isFeatureEnabled(AEFeature.CHANNELS);
+        this.scannerSettings = scannerSettings;
 
         if (includeSubnets) {
             pendingSubnetGrids.addAll(SubnetGridHelper.collectConnectedGrids(grid));
@@ -365,7 +374,7 @@ public class NetworkScanner {
             // Main scan done - start the channel and storage configuration scan
             if (!channelScanStarted) {
                 channelScanStarted = true;
-                channelScanner = new ChannelScanner(grid, world, startNode, channelsEnabled);
+                channelScanner = new ChannelScanner(grid, world, startNode, channelsEnabled, scannerSettings);
                 statusMessage = channelScanner.getStatusMessage();
 
                 return false; // Continue to channel and storage configuration scan phase
@@ -413,7 +422,7 @@ public class NetworkScanner {
 
         IGrid subnetGrid = pendingSubnetGrids.removeFirst();
         World subnetWorld = SubnetGridHelper.resolveWorld(subnetGrid, world);
-        activeSubnetScanner = new NetworkScanner(subnetGrid, subnetWorld, false, null);
+        activeSubnetScanner = new NetworkScanner(subnetGrid, subnetWorld, false, null, scannerSettings);
         statusMessage = activeSubnetScanner.getStatusMessage();
 
         return true;
@@ -740,6 +749,7 @@ public class NetworkScanner {
     }
 
     private void addPatternIssue(PatternIssue issue) {
+        if (!scannerSettings.isCategoryEnabled(ScannerTabId.PATTERNS)) return;
         if (patternIssues.contains(issue)) return;
 
         patternIssues.add(issue);
@@ -1061,6 +1071,8 @@ public class NetworkScanner {
         BlockPos sourcePos = getNodePosition(representativeNode);
         if (sourcePos == null) sourcePos = markerPos;
 
+        if (!scannerSettings.isFatalCategoryEnabled(FatalNetworkError.Category.CHUNK_BOUNDARY_MULTIBLOCK)) return;
+
         multiblockFatalErrors.add(new FatalNetworkError(
             FatalNetworkError.Category.CHUNK_BOUNDARY_MULTIBLOCK,
             markerPos,
@@ -1090,6 +1102,8 @@ public class NetworkScanner {
      * We report the location of the current node that discovered the loop-closing edge.
      */
     private void addLoopLocation(IGridConnection connection, PathNode current, PathNode existing) {
+        if (!scannerSettings.isCategoryEnabled(ScannerTabId.LOOPS)) return;
+
         IGridNode node = current.node;
         IGridHost host = node.getMachine();
         BlockPos pos = getNodePosition(node);
@@ -1121,6 +1135,7 @@ public class NetworkScanner {
      * Reports the cluster block where the second cable enters.
      */
     private void addClusterLoopLocation(BlockPos pos, IGridHost host, IGridNode node) {
+        if (!scannerSettings.isCategoryEnabled(ScannerTabId.LOOPS)) return;
         if (pos == null) return;
 
         int dimension = getNodeDimension(node);
@@ -1232,6 +1247,8 @@ public class NetworkScanner {
     }
 
     private void addUnloadedChunkIfNotForced(World nodeWorld, ChunkPos chunkPos) {
+        if (!scannerSettings.isCategoryEnabled(ScannerTabId.UNLOADED_CHUNKS)) return;
+
         int dimension = nodeWorld.provider.getDimension();
         String dimName = nodeWorld.provider.getDimensionType().getName();
 
@@ -1550,5 +1567,9 @@ public class NetworkScanner {
 
     public boolean isSubnetScanEnabled() {
         return includeSubnets;
+    }
+
+    public PowerToolsServerConfig.ScannerSettings getScannerSettings() {
+        return scannerSettings;
     }
 }

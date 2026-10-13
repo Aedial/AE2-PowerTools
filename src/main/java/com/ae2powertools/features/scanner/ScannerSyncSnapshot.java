@@ -9,6 +9,7 @@ import net.minecraft.util.text.TextComponentString;
 
 import com.ae2powertools.features.scanner.data.FatalNetworkError;
 import com.ae2powertools.features.scanner.data.PatternIssue;
+import com.ae2powertools.features.scanner.data.ScannerTabId;
 import com.ae2powertools.features.scanner.data.client.ChokeLocationClient;
 import com.ae2powertools.features.scanner.data.client.ChunkLocationClient;
 import com.ae2powertools.features.scanner.data.client.LoopLocationClient;
@@ -22,6 +23,8 @@ public final class ScannerSyncSnapshot {
 
     private final boolean scanComplete;
     private final boolean subnetScanEnabled;
+    private final int disabledCategoryMask;
+    private final int disabledFatalCategoryMask;
     private final ITextComponent statusMessage;
     private final List<LoopLocationClient> loops;
     private final List<ChunkLocationClient> chunks;
@@ -30,12 +33,15 @@ public final class ScannerSyncSnapshot {
     private final List<FatalNetworkError> fatalErrors;
     private final List<PatternIssue> patternIssues;
 
-    public ScannerSyncSnapshot(boolean scanComplete, boolean subnetScanEnabled, ITextComponent statusMessage,
+    public ScannerSyncSnapshot(boolean scanComplete, boolean subnetScanEnabled, int disabledCategoryMask,
+            int disabledFatalCategoryMask, ITextComponent statusMessage,
             List<LoopLocationClient> loops, List<ChunkLocationClient> chunks,
             List<MissingDeviceClient> missingDevices, List<ChokeLocationClient> chokepoints,
             List<FatalNetworkError> fatalErrors, List<PatternIssue> patternIssues) {
         this.scanComplete = scanComplete;
         this.subnetScanEnabled = subnetScanEnabled;
+        this.disabledCategoryMask = disabledCategoryMask;
+        this.disabledFatalCategoryMask = disabledFatalCategoryMask;
         this.statusMessage = statusMessage == null ? new TextComponentString("") : statusMessage;
         this.loops = immutableCopy(loops);
         this.chunks = immutableCopy(chunks);
@@ -51,6 +57,14 @@ public final class ScannerSyncSnapshot {
 
     public boolean isSubnetScanEnabled() {
         return subnetScanEnabled;
+    }
+
+    public boolean isCategoryDisabled(ScannerTabId category) {
+        return (disabledCategoryMask & 1 << category.ordinal()) != 0;
+    }
+
+    public boolean isFatalCategoryDisabled(FatalNetworkError.Category category) {
+        return (disabledFatalCategoryMask & 1 << category.ordinal()) != 0;
     }
 
     public ITextComponent getStatusMessage() {

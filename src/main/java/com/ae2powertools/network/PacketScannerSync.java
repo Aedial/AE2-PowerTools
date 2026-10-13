@@ -16,6 +16,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.features.scanner.NetworkScanner;
 import com.ae2powertools.features.scanner.ScanSessionManager;
 import com.ae2powertools.features.scanner.ScannerSyncSnapshot;
@@ -28,6 +29,7 @@ import com.ae2powertools.features.scanner.data.FatalNetworkError;
 import com.ae2powertools.features.scanner.data.IssueLocation;
 import com.ae2powertools.features.scanner.data.MissingChannelDevice;
 import com.ae2powertools.features.scanner.data.PatternIssue;
+import com.ae2powertools.features.scanner.data.ScannerTabId;
 import com.ae2powertools.features.scanner.data.client.ChokeLocationClient;
 import com.ae2powertools.features.scanner.data.client.ChunkLocationClient;
 import com.ae2powertools.features.scanner.data.client.ConnectionFlowClient;
@@ -44,6 +46,8 @@ public class PacketScannerSync implements IMessage {
     private boolean hasSession;
     private boolean isComplete;
     private boolean subnetScanEnabled;
+    private int disabledCategoryMask;
+    private int disabledFatalCategoryMask;
     // Serialized JSON of the status message component.
     // It will be deserialized and translated on the client.
     private String statusMessage;
@@ -243,6 +247,8 @@ public class PacketScannerSync implements IMessage {
             NetworkScanner scanner = session.getScanner();
             this.isComplete = scanner.isComplete();
             this.subnetScanEnabled = subnetScanEnabled;
+            this.disabledCategoryMask = getDisabledCategoryMask(scanner.getScannerSettings());
+            this.disabledFatalCategoryMask = getDisabledFatalCategoryMask(scanner.getScannerSettings());
             this.statusMessage = ITextComponent.Serializer.componentToJson(scanner.getStatusMessage());
 
             // Add loop locations
@@ -342,6 +348,8 @@ public class PacketScannerSync implements IMessage {
         hasSession = buf.readBoolean();
         isComplete = buf.readBoolean();
         subnetScanEnabled = buf.readBoolean();
+        disabledCategoryMask = buf.readInt();
+        disabledFatalCategoryMask = buf.readInt();
         statusMessage = ByteBufUtils.readUTF8String(buf);
 
         // Read loop locations
@@ -448,6 +456,8 @@ public class PacketScannerSync implements IMessage {
         buf.writeBoolean(hasSession);
         buf.writeBoolean(isComplete);
         buf.writeBoolean(subnetScanEnabled);
+        buf.writeInt(disabledCategoryMask);
+        buf.writeInt(disabledFatalCategoryMask);
         ByteBufUtils.writeUTF8String(buf, statusMessage != null ? statusMessage : "");
 
         // Write loop locations
@@ -647,6 +657,8 @@ public class PacketScannerSync implements IMessage {
                 ScannerClientState.applySync(deviceId, true, new ScannerSyncSnapshot(
                     message.isComplete,
                     message.subnetScanEnabled,
+                    message.disabledCategoryMask,
+                    message.disabledFatalCategoryMask,
                     statusComponent,
                     clientLoops,
                     clientChunks,
@@ -658,5 +670,23 @@ public class PacketScannerSync implements IMessage {
 
             return null;
         }
+    }
+
+    private static int getDisabledCategoryMask(PowerToolsServerConfig.ScannerSettings settings) {
+        int mask = 0;
+        for (ScannerTabId category : ScannerTabId.values()) {
+            if (!settings.isCategoryEnabled(category)) mask |= 1 << category.ordinal();
+        }
+
+        return mask;
+    }
+
+    private static int getDisabledFatalCategoryMask(PowerToolsServerConfig.ScannerSettings settings) {
+        int mask = 0;
+        for (FatalNetworkError.Category category : FatalNetworkError.Category.values()) {
+            if (!settings.isFatalCategoryEnabled(category)) mask |= 1 << category.ordinal();
+        }
+
+        return mask;
     }
 }

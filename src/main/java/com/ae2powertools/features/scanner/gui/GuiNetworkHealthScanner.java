@@ -250,16 +250,19 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         // Calculate height based on number of rows (fit as many as possible up to max)
         int tabCount = ScannerTabRegistry.getDisplayTabs().size();
         int minTabsHeight = HEADER_HEIGHT + tabCount * TAB_SIZE + Math.max(0, tabCount - 1) * 2;
-        int availableContentHeight = maxGuiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
+        int disabledCategoryNoticeHeight = getDisabledCategoryNoticeHeight();
+        int availableContentHeight = maxGuiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2
+            - disabledCategoryNoticeHeight;
         int maxVisibleRows = Math.max(1, availableContentHeight / ROW_HEIGHT);
         int visibleRows = Math.max(3, Math.min(displayRows.size(), maxVisibleRows));
-        guiHeight = HEADER_HEIGHT + visibleRows * ROW_HEIGHT + footerHeight + PADDING * 2;
+        guiHeight = HEADER_HEIGHT + disabledCategoryNoticeHeight + visibleRows * ROW_HEIGHT
+            + footerHeight + PADDING * 2;
         guiHeight = Math.max(MIN_GUI_HEIGHT, Math.min(maxGuiHeight, guiHeight));
         // Ensure GUI is tall enough to fit all tabs
         guiHeight = Math.max(guiHeight, minTabsHeight);
 
         // Recalculate max scroll
-        int viewHeight = guiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
+        int viewHeight = guiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2 - disabledCategoryNoticeHeight;
         maxScroll = Math.max(0, displayRows.size() * ROW_HEIGHT - viewHeight);
         scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
         rememberScrollOffset();
@@ -294,12 +297,20 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(row.getText()));
         }
 
+        if (session.isCurrentCategoryDisabled()) {
+            String key = displayRows.isEmpty()
+                ? "gui.ae2powertools.scanner.category_disabled"
+                : "gui.ae2powertools.scanner.category_disabled_warning";
+            maxTextWidth = Math.max(maxTextWidth, fontRenderer.getStringWidth(I18n.format(key)));
+        }
+
         // Calculate footer content and height
         rebuildFooter();
 
         // Calculate max scroll based on current GUI size
         if (guiHeight > 0) {
-            int viewHeight = guiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2;
+            int viewHeight = guiHeight - HEADER_HEIGHT - footerHeight - PADDING * 2
+                - getDisabledCategoryNoticeHeight();
             maxScroll = Math.max(0, displayRows.size() * ROW_HEIGHT - viewHeight);
             scrollOffset = Math.min(scrollOffset, maxScroll);
             rememberScrollOffset();
@@ -318,6 +329,14 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         footerHeight = Math.max(MIN_FOOTER_HEIGHT, Math.max(1, footerLines.size()) * fontRenderer.FONT_HEIGHT + 4);
     }
 
+    /**
+     * Get the height of the notice displayed when the current category is disabled,
+     * but content (somehow) got sent to the display.
+     */
+    private int getDisabledCategoryNoticeHeight() {
+        return session.isCurrentCategoryDisabled() && !displayRows.isEmpty() ? ROW_HEIGHT : 0;
+    }
+
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         // Draw darkened background
@@ -325,7 +344,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
 
         // Calculate content area
         int contentLeft = guiLeft + TAB_SIZE + PADDING;
-        int contentTop = guiTop + HEADER_HEIGHT;
+        int tabContentTop = guiTop + HEADER_HEIGHT;
+        int disabledCategoryNoticeHeight = getDisabledCategoryNoticeHeight();
+        int contentTop = tabContentTop + disabledCategoryNoticeHeight;
         int contentRight = guiLeft + guiWidth - SCROLLBAR_WIDTH;
         int contentBottom = guiTop + guiHeight - footerHeight;
         int contentWidth = contentRight - contentLeft;
@@ -358,6 +379,12 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         for (int index = 0; index < footerLines.size(); index++) {
             fontRenderer.drawString(footerLines.get(index), contentLeft + 2,
                 footerTextY + index * fontRenderer.FONT_HEIGHT, COLOR_TEXT_DIM);
+        }
+
+        if (disabledCategoryNoticeHeight > 0) {
+            drawDisabledCategoryWarning(contentLeft, tabContentTop, contentWidth);
+        } else if (session.isCurrentCategoryDisabled()) {
+            drawCenteredDisabledCategoryMessage(contentLeft, contentTop, contentWidth, contentHeight);
         }
 
         // Update hover states
@@ -439,6 +466,19 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         fontRenderer.drawString(selected ? "●" : "○", x + 18, y + (ROW_HEIGHT - fontRenderer.FONT_HEIGHT) / 2,
             selected ? COLOR_CATEGORY_TEXT : COLOR_TEXT_DIM);
         fontRenderer.drawString(row.getText(), x + 28, y + (ROW_HEIGHT - fontRenderer.FONT_HEIGHT) / 2, COLOR_TEXT);
+    }
+
+    private void drawDisabledCategoryWarning(int x, int y, int width) {
+        drawRect(x, y, x + width, y + ROW_HEIGHT, COLOR_CATEGORY_BG);
+        String text = I18n.format("gui.ae2powertools.scanner.category_disabled_warning");
+        fontRenderer.drawString(text, x + (width - fontRenderer.getStringWidth(text)) / 2,
+            y + (ROW_HEIGHT - fontRenderer.FONT_HEIGHT) / 2, COLOR_TEXT_DIM);
+    }
+
+    private void drawCenteredDisabledCategoryMessage(int x, int y, int width, int height) {
+        String text = I18n.format("gui.ae2powertools.scanner.category_disabled");
+        fontRenderer.drawString(text, x + (width - fontRenderer.getStringWidth(text)) / 2,
+            y + (height - fontRenderer.FONT_HEIGHT) / 2, COLOR_TEXT_DIM);
     }
 
     private void drawScrollbar(int x, int y, int width, int height) {
@@ -666,7 +706,7 @@ public class GuiNetworkHealthScanner extends GuiScreen {
             }
         }
 
-        int contentTop = guiTop + HEADER_HEIGHT;
+        int contentTop = guiTop + HEADER_HEIGHT + getDisabledCategoryNoticeHeight();
         int contentBottom = guiTop + guiHeight - footerHeight;
         int scrollbarX = guiLeft + guiWidth - SCROLLBAR_WIDTH;
 
@@ -714,7 +754,9 @@ public class GuiNetworkHealthScanner extends GuiScreen {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
 
         if (isDraggingScrollbar) {
-            updateScrollFromMouse(mouseY, guiTop + HEADER_HEIGHT, guiHeight - HEADER_HEIGHT - footerHeight);
+            int contentTop = guiTop + HEADER_HEIGHT + getDisabledCategoryNoticeHeight();
+            updateScrollFromMouse(mouseY, contentTop, guiHeight - HEADER_HEIGHT - footerHeight
+                - getDisabledCategoryNoticeHeight());
         }
     }
 

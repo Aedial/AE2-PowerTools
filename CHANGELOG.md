@@ -8,18 +8,20 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.6.9] - ???
+## [1.6.9] - 2026-10-??
 ### Added
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 - Add x10 multiplier on time for Better Level Maintainer frequency buttons when holding shift.
 - Better convey 2 cases where the Maintainer may seem stuck : 
   - Constantly unstable network (it requires 5s of stability): shown in TOP/WAILA
   - Calculating a heavy crafting tree too often: shown as "Calculating" state in GUI
+- Allow to disable specific categories in the Network Health Scanner. This should be used if your AE2 version fixes these specific issues.
 
 ### Fixed
 - Fix Storage Display part's face overlay disappearing when going too far from the part, due to AE2's cable-bus TESR being disabled at long range (separately from our own TESR culling).
 - Fix AutoCrafter maybe not saving its pending output, if exiting right after crafting.
 - Fix Maintainer not properly cancelling a task when changing the target item.
+- Fix channel-less network still reporting channel chokepoints
 
 
 ## [1.6.8] - 2026-09-04

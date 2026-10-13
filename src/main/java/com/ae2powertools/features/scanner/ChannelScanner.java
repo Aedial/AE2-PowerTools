@@ -39,10 +39,12 @@ import appeng.parts.misc.PartStorageBus;
 import appeng.tile.networking.TileController;
 
 import com.ae2powertools.AE2PowerTools;
+import com.ae2powertools.config.PowerToolsServerConfig;
 import com.ae2powertools.features.scanner.data.ChannelChokepoint.DirectionFlow;
 import com.ae2powertools.features.scanner.data.ChannelChokepoint;
 import com.ae2powertools.features.scanner.data.FatalNetworkError;
 import com.ae2powertools.features.scanner.data.MissingChannelDevice;
+import com.ae2powertools.features.scanner.data.ScannerTabId;
 
 
 /**
@@ -82,6 +84,7 @@ public class ChannelScanner {
     private final World world;
     private final IGridNode startNode;
     private final boolean channelsEnabled;
+    private final PowerToolsServerConfig.ScannerSettings scannerSettings;
 
     // Scan state
     private boolean isComplete = false;
@@ -176,11 +179,13 @@ public class ChannelScanner {
         }
     }
 
-    public ChannelScanner(IGrid grid, World world, IGridNode startNode, boolean channelsEnabled) {
+    public ChannelScanner(IGrid grid, World world, IGridNode startNode, boolean channelsEnabled,
+            PowerToolsServerConfig.ScannerSettings scannerSettings) {
         this.grid = grid;
         this.world = world;
         this.startNode = startNode;
         this.channelsEnabled = channelsEnabled;
+        this.scannerSettings = scannerSettings;
 
         initialize();
     }
@@ -470,7 +475,7 @@ public class ChannelScanner {
             // Add per-direction breakdown
             addConnectionFlows(chokepoint, bfsNode);
 
-            chokepoints.add(chokepoint);
+            if (scannerSettings.isCategoryEnabled(ScannerTabId.CHOKEPOINTS)) chokepoints.add(chokepoint);
         }
     }
 
@@ -507,7 +512,7 @@ public class ChannelScanner {
             MissingChannelDevice device = new MissingChannelDevice(
                 pos, dimension, dimName, itemStack, description
             );
-            missingDevices.add(device);
+            if (scannerSettings.isCategoryEnabled(ScannerTabId.MISSING_CHANNELS)) missingDevices.add(device);
         }
     }
 
@@ -643,6 +648,7 @@ public class ChannelScanner {
     }
 
     private void addFatalError(FatalNetworkError.Category category, IGridNode node, BlockPos pos) {
+        if (!scannerSettings.isFatalCategoryEnabled(category)) return;
         if (pos == null) return;
 
         int dimension = getNodeDimension(node);

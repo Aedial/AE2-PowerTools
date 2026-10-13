@@ -7,6 +7,8 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import com.ae2powertools.Tags;
+import com.ae2powertools.features.scanner.data.FatalNetworkError;
+import com.ae2powertools.features.scanner.data.ScannerTabId;
 
 
 /**
@@ -25,6 +27,9 @@ public class PowerToolsServerConfig {
 
     @Config.LangKey("ae2powertools.config.server.maintainer")
     public static final Maintainer maintainer = new Maintainer();
+
+    @Config.LangKey("ae2powertools.config.server.scanner")
+    public static final Scanner scanner = new Scanner();
 
     public static class Crafter {
 
@@ -100,6 +105,102 @@ public class PowerToolsServerConfig {
 
         public int getMaxCpuRetryCount() {
             return Math.max(1, maxCpuRetryCount);
+        }
+    }
+
+    public static class Scanner {
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordLoops")
+        @Config.Comment("Record loops in Network Scanner results.")
+        public boolean recordLoops = true;
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordUnloadedChunks")
+        @Config.Comment("Record non-chunkloaded chunks in Network Scanner results.")
+        public boolean recordUnloadedChunks = true;
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordChokepoints")
+        @Config.Comment("Record channel chokepoints in Network Scanner results.")
+        public boolean recordChokepoints = true;
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordMissingChannels")
+        @Config.Comment("Record missing channels in Network Scanner results.")
+        public boolean recordMissingChannels = true;
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordPatterns")
+        @Config.Comment("Record pattern errors in Network Scanner results.")
+        public boolean recordPatterns = true;
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordDuplicateStorageTargetErrors")
+        @Config.Comment("Record duplicate storage target errors in Network Scanner results.")
+        public boolean recordDuplicateStorageTargetErrors = true;
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordSameNetworkInterfaceLinkErrors")
+        @Config.Comment("Record same-network interface link errors in Network Scanner results.")
+        public boolean recordSameNetworkInterfaceLinkErrors = true;
+
+        @Config.LangKey("ae2powertools.config.server.scanner.recordChunkBoundaryMultiblockErrors")
+        @Config.Comment("Record chunk-boundary multiblock errors in Network Scanner results.")
+        public boolean recordChunkBoundaryMultiblockErrors = true;
+
+        public ScannerSettings createSettings() {
+            return new ScannerSettings(
+                recordLoops,
+                recordUnloadedChunks,
+                recordChokepoints,
+                recordMissingChannels,
+                recordPatterns,
+                recordDuplicateStorageTargetErrors,
+                recordSameNetworkInterfaceLinkErrors,
+                recordChunkBoundaryMultiblockErrors
+            );
+        }
+    }
+
+    public static final class ScannerSettings {
+
+        private final boolean recordLoops;
+        private final boolean recordUnloadedChunks;
+        private final boolean recordChokepoints;
+        private final boolean recordMissingChannels;
+        private final boolean recordPatterns;
+        private final boolean recordDuplicateStorageTargetErrors;
+        private final boolean recordSameNetworkInterfaceLinkErrors;
+        private final boolean recordChunkBoundaryMultiblockErrors;
+
+        private ScannerSettings(boolean recordLoops, boolean recordUnloadedChunks, boolean recordChokepoints,
+                boolean recordMissingChannels, boolean recordPatterns, boolean recordDuplicateStorageTargetErrors,
+                boolean recordSameNetworkInterfaceLinkErrors, boolean recordChunkBoundaryMultiblockErrors) {
+            this.recordLoops = recordLoops;
+            this.recordUnloadedChunks = recordUnloadedChunks;
+            this.recordChokepoints = recordChokepoints;
+            this.recordMissingChannels = recordMissingChannels;
+            this.recordPatterns = recordPatterns;
+            this.recordDuplicateStorageTargetErrors = recordDuplicateStorageTargetErrors;
+            this.recordSameNetworkInterfaceLinkErrors = recordSameNetworkInterfaceLinkErrors;
+            this.recordChunkBoundaryMultiblockErrors = recordChunkBoundaryMultiblockErrors;
+        }
+
+        public boolean isCategoryEnabled(ScannerTabId category) {
+            switch (category) {
+                case LOOPS: return recordLoops;
+                case UNLOADED_CHUNKS: return recordUnloadedChunks;
+                case CHOKEPOINTS: return recordChokepoints;
+                case MISSING_CHANNELS: return recordMissingChannels;
+                case FATAL_ERRORS:
+                    return recordDuplicateStorageTargetErrors || recordSameNetworkInterfaceLinkErrors
+                        || recordChunkBoundaryMultiblockErrors;
+                case PATTERNS: return recordPatterns;
+                default: return true;
+            }
+        }
+
+        public boolean isFatalCategoryEnabled(FatalNetworkError.Category category) {
+            switch (category) {
+                case DUPLICATE_STORAGE_TARGET: return recordDuplicateStorageTargetErrors;
+                case SAME_NETWORK_INTERFACE_LINK: return recordSameNetworkInterfaceLinkErrors;
+                case CHUNK_BOUNDARY_MULTIBLOCK: return recordChunkBoundaryMultiblockErrors;
+                default: return true;
+            }
         }
     }
 
