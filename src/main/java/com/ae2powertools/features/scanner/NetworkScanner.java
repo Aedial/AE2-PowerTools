@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
@@ -56,6 +58,8 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AEColor;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
+import appeng.core.AEConfig;
+import appeng.core.features.AEFeature;
 import appeng.helpers.IInterfaceHost;
 import appeng.helpers.InvalidPatternHelper;
 import appeng.items.misc.ItemEncodedPattern;
@@ -100,6 +104,8 @@ public class NetworkScanner {
     private final IGrid grid;
     private final World world;
     private final boolean includeSubnets;
+    private final IGridNode startNode;
+    private final boolean channelsEnabled;
 
     // Cache of forced chunks per dimension (lazy-loaded)
     private final Map<Integer, ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket>> forcedChunksCache = new HashMap<>();
@@ -116,7 +122,7 @@ public class NetworkScanner {
     // If we enter the same cluster from outside again, that indicates a loop.
     private final Map<IAECluster, BlockPos> clusterEntryPoints = new HashMap<>();
 
-    // Channel scanner (runs after main scan completes)
+    // Channel and storage configuration scanner, runs after the main scan completes
     private ChannelScanner channelScanner = null;
     private boolean channelScanStarted = false;
 
@@ -247,14 +253,13 @@ public class NetworkScanner {
         }
     }
 
-    public NetworkScanner(IGrid grid, World world) {
-        this(grid, world, false);
-    }
-
-    public NetworkScanner(IGrid grid, World world, boolean includeSubnets) {
+    public NetworkScanner(IGrid grid, World world, boolean includeSubnets,
+            @Nullable IGridNode startNode) {
         this.grid = grid;
         this.world = world;
         this.includeSubnets = includeSubnets;
+        this.startNode = startNode;
+        this.channelsEnabled = AEConfig.instance().isFeatureEnabled(AEFeature.CHANNELS);
 
         if (includeSubnets) {
             pendingSubnetGrids.addAll(SubnetGridHelper.collectConnectedGrids(grid));
@@ -264,7 +269,7 @@ public class NetworkScanner {
     }
 
     /**
-     * Initialize the BFS by finding controller(s) and starting from them.
+     * Initialize the BFS from controller nodes with channel diagnostics or from the clicked node.
      */
     private void initialize() {
         try {
@@ -273,25 +278,16 @@ public class NetworkScanner {
             ControllerState state = pathingGrid.getControllerState();
             hasController = (state == ControllerState.CONTROLLER_ONLINE);
 
-            if (!hasController) {
-                // Controllerless network - start from any node
-                for (IGridNode node : grid.getNodes()) {
-                    PathNode pathNode = new PathNode(node, null, null, 0);
-                    openList.add(pathNode);
-                    visitedNodes.put(node, pathNode);
-                    break; // Just start from one node
-                }
-
-                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning_controllerless");
-            } else {
+            if (hasController && channelsEnabled) {
                 // Start from all controller blocks
                 for (IGridNode node : grid.getMachines(TileController.class)) {
-                    PathNode pathNode = new PathNode(node, null, null, 0);
-                    openList.add(pathNode);
-                    visitedNodes.put(node, pathNode);
+                    addStartNode(node);
                 }
 
                 statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning_controller");
+            } else {
+                startFromSeedNode();
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning", 0);
             }
 
             if (openList.isEmpty()) {
@@ -302,6 +298,29 @@ public class NetworkScanner {
             AE2PowerTools.LOGGER.error("Error initializing network scanner", e);
             statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.error", e.getMessage());
             isComplete = true;
+        }
+    }
+
+    /**
+     * Add a node to the root of the main scan when it still belongs to this grid.
+     */
+    private boolean addStartNode(IGridNode node) {
+        if (node == null || node.getGrid() != grid) return false;
+
+        PathNode pathNode = new PathNode(node, null, null, 0);
+        openList.add(pathNode);
+        visitedNodes.put(node, pathNode);
+        return true;
+    }
+
+    /**
+     * Start from the clicked node and fall back to an available node in this grid.
+     */
+    private void startFromSeedNode() {
+        if (addStartNode(startNode)) return;
+
+        for (IGridNode node : grid.getNodes()) {
+            if (addStartNode(node)) return;
         }
     }
 
@@ -317,7 +336,7 @@ public class NetworkScanner {
         // Phase 1: Main network scan (loops and chunks)
         if (!openList.isEmpty()) return processMainScan();
 
-        // Phase 2: Channel scan (runs after main scan completes)
+        // Phase 2: Channel and storage configuration scan
         return processChannelScan();
     }
 
@@ -343,16 +362,16 @@ public class NetworkScanner {
         }
 
         if (openList.isEmpty()) {
-            // Main scan done - start channel scan if we have a controller
-            if (hasController && !channelScanStarted) {
+            // Main scan done - start the channel and storage configuration scan
+            if (!channelScanStarted) {
                 channelScanStarted = true;
-                channelScanner = new ChannelScanner(grid, world);
-                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.scanning_channels");
+                channelScanner = new ChannelScanner(grid, world, startNode, channelsEnabled);
+                statusMessage = channelScanner.getStatusMessage();
 
-                return false; // Continue to channel scan phase
+                return false; // Continue to channel and storage configuration scan phase
             }
 
-            // No controller or channel scan already done
+            // Channel and storage configuration scan already done
             return advanceAfterCurrentGridScan();
         }
 
@@ -363,7 +382,7 @@ public class NetworkScanner {
     }
 
     /**
-     * Process channel scan phase.
+     * Process the channel and storage configuration scan phase.
      */
     private boolean processChannelScan() {
         if (channelScanner == null) return processPatternScan();
@@ -394,7 +413,7 @@ public class NetworkScanner {
 
         IGrid subnetGrid = pendingSubnetGrids.removeFirst();
         World subnetWorld = SubnetGridHelper.resolveWorld(subnetGrid, world);
-        activeSubnetScanner = new NetworkScanner(subnetGrid, subnetWorld, false);
+        activeSubnetScanner = new NetworkScanner(subnetGrid, subnetWorld, false, null);
         statusMessage = activeSubnetScanner.getStatusMessage();
 
         return true;

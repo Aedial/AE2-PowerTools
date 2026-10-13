@@ -16,6 +16,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
@@ -45,14 +46,15 @@ import com.ae2powertools.features.scanner.data.MissingChannelDevice;
 
 
 /**
- * Scans an AE2 network for channel chokepoints - locations where channel demand exceeds cable capacity.
+ * Scans an AE2 network for storage configuration issues and, when enabled, channel chokepoints.
  * <p>
  * The algorithm:
- * 1. BFS from controller to find all channel-requiring devices and their paths to controller
- * 2. For each cable/connection, calculate:
+ * 1. BFS from controller nodes, or the clicked node when channel diagnostics are unavailable
+ * 2. For each cable/connection with channel diagnostics, calculate:
  *    - Actual channels being used (from IGridConnection.getUsedChannels())
  *    - Demanded channels (count of all REQUIRE_CHANNEL devices behind it)
- * 3. Report chokepoints where demand > capacity at intersections (3+ connections)
+ * 3. Report chokepoints where demand exceeds capacity at intersections with three or more connections
+ * 4. Report storage configuration issues from all discovered nodes
  * <p>
  * Note: AE2 doesn't expose "would-be" channel usage, so we must calculate demand ourselves.
  * <p>
@@ -78,6 +80,8 @@ public class ChannelScanner {
 
     private final IGrid grid;
     private final World world;
+    private final IGridNode startNode;
+    private final boolean channelsEnabled;
 
     // Scan state
     private boolean isComplete = false;
@@ -85,9 +89,9 @@ public class ChannelScanner {
     private int nodesProcessed = 0;
     // Stored as ITextComponent so the message can be serialized as JSON and re-translated
     // client-side in the player's locale (server-side I18n only has English fallback).
-    private ITextComponent statusMessage = new net.minecraft.util.text.TextComponentString("");
+    private ITextComponent statusMessage = new TextComponentString("");
 
-    // BFS tracking - Phase 1: Build tree structure from controller
+    // BFS tracking - Phase 1: Build tree structure from controller or clicked node
     private final Queue<BfsNode> openList = new LinkedList<>();
     private final Map<IGridNode, BfsNode> nodeMap = new HashMap<>();
     private final Set<IGridNode> controllerNodes = new HashSet<>();
@@ -172,15 +176,17 @@ public class ChannelScanner {
         }
     }
 
-    public ChannelScanner(IGrid grid, World world) {
+    public ChannelScanner(IGrid grid, World world, IGridNode startNode, boolean channelsEnabled) {
         this.grid = grid;
         this.world = world;
+        this.startNode = startNode;
+        this.channelsEnabled = channelsEnabled;
 
         initialize();
     }
 
     /**
-     * Initialize the scanner by finding controllers and starting BFS.
+     * Initialize the scanner from controllers or the clicked node.
      */
     private void initialize() {
         try {
@@ -189,36 +195,65 @@ public class ChannelScanner {
             ControllerState state = pathingGrid.getControllerState();
             hasController = (state == ControllerState.CONTROLLER_ONLINE);
 
-            if (!hasController) {
-                // Ad-hoc network - channel chokepoints don't make sense here
-                // (all devices share 8 channels, all-or-nothing)
-                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.no_controller");
-                isComplete = true;
-
-                return;
-            }
-
-            // Start BFS from all controller blocks
-            for (IGridNode node : grid.getMachines(TileController.class)) {
-                BfsNode bfsNode = new BfsNode(node, null, null, 0);
-                openList.add(bfsNode);
-                nodeMap.put(node, bfsNode);
-                controllerNodes.add(node);
-            }
+            if (canAnalyzeChannels()) startFromControllers();
+            else startFromSeedNode();
 
             if (openList.isEmpty()) {
-                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.no_controller");
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.no_start");
                 isComplete = true;
 
                 return;
             }
 
-            statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.building_tree");
+            statusMessage = canAnalyzeChannels()
+                ? new TextComponentTranslation("ae2powertools.scanner.channel.building_tree")
+                : new TextComponentTranslation("ae2powertools.scanner.status.scanning", 0);
         } catch (Exception e) {
             AE2PowerTools.LOGGER.error("Error initializing channel scanner", e);
             statusMessage = new TextComponentTranslation("ae2powertools.scanner.status.error", e.getMessage());
             isComplete = true;
         }
+    }
+
+    /**
+     * Check whether the grid can provide channel diagnostics.
+     */
+    private boolean canAnalyzeChannels() {
+        return hasController && channelsEnabled;
+    }
+
+    /**
+     * Start the scan from all controller nodes.
+     */
+    private void startFromControllers() {
+        for (IGridNode node : grid.getMachines(TileController.class)) {
+            if (!addStartNode(node)) continue;
+
+            controllerNodes.add(node);
+        }
+    }
+
+    /**
+     * Start the scan from the clicked node and fall back to an available grid node.
+     */
+    private void startFromSeedNode() {
+        if (addStartNode(startNode)) return;
+
+        for (IGridNode node : grid.getNodes()) {
+            if (addStartNode(node)) return;
+        }
+    }
+
+    /**
+     * Add a node to the root of the scan when it still belongs to this grid.
+     */
+    private boolean addStartNode(IGridNode node) {
+        if (node == null || node.getGrid() != grid) return false;
+
+        BfsNode bfsNode = new BfsNode(node, null, null, 0);
+        openList.add(bfsNode);
+        nodeMap.put(node, bfsNode);
+        return true;
     }
 
     /**
@@ -231,7 +266,7 @@ public class ChannelScanner {
         // Phase 1: BFS to build tree structure
         if (!phase1Complete) return processTreeBuildingPhase();
 
-        // Phase 2: Calculate demands bottom-up
+        // Phase 2: Calculate channel demand when channel diagnostics are available
         return processDemandCalculationPhase();
     }
 
@@ -258,18 +293,24 @@ public class ChannelScanner {
 
         if (openList.isEmpty()) {
             phase1Complete = true;
-            statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.calculating_demand");
+            if (canAnalyzeChannels()) {
+                statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.calculating_demand");
 
-            // Collect leaf nodes for bottom-up traversal
-            for (BfsNode node : nodeMap.values()) {
-                if (node.children.isEmpty()) leafNodes.add(node);
+                // Collect leaf nodes for bottom-up traversal
+                for (BfsNode node : nodeMap.values()) {
+                    if (node.children.isEmpty()) leafNodes.add(node);
+                }
+            } else {
+                identifyFatalErrors();
+                isComplete = true;
             }
         } else {
-            statusMessage = new TextComponentTranslation("ae2powertools.scanner.channel.building_tree_progress",
-                nodesProcessed);
+            statusMessage = canAnalyzeChannels()
+                ? new TextComponentTranslation("ae2powertools.scanner.channel.building_tree_progress", nodesProcessed)
+                : new TextComponentTranslation("ae2powertools.scanner.status.scanning", nodesProcessed);
         }
 
-        return false;
+        return isComplete;
     }
 
     /**
@@ -277,26 +318,28 @@ public class ChannelScanner {
      */
     private void processNodeConnections(BfsNode current) {
         IGridNode node = current.gridNode;
-        IGridHost currentHost = node.getMachine();
-        IAECluster currentCluster = getClusterOf(currentHost);
+        if (canAnalyzeChannels()) {
+            IGridHost currentHost = node.getMachine();
+            IAECluster currentCluster = getClusterOf(currentHost);
 
-        // Handle cluster membership for this node
-        if (currentCluster != null) {
-            BfsNode representative = clusterRepresentatives.get(currentCluster);
+            // Handle cluster membership for this node
+            if (currentCluster != null) {
+                BfsNode representative = clusterRepresentatives.get(currentCluster);
 
-            if (representative == null) {
-                // First node of this cluster - it becomes the representative
-                clusterRepresentatives.put(currentCluster, current);
+                if (representative == null) {
+                    // First node of this cluster - it becomes the representative
+                    clusterRepresentatives.put(currentCluster, current);
 
-                // Only the representative checks for channel requirement
-                if (node.hasFlag(GridFlags.REQUIRE_CHANNEL)) current.requiresChannel = true;
+                    // Only the representative checks for channel requirement
+                    if (node.hasFlag(GridFlags.REQUIRE_CHANNEL)) current.requiresChannel = true;
+                } else {
+                    // Part of existing cluster - point to representative, don't require a channel
+                    current.requiresChannel = false;
+                }
             } else {
-                // Part of existing cluster - point to representative, don't require a channel
-                current.requiresChannel = false;
+                // Not a multiblock - check channel requirement normally
+                if (node.hasFlag(GridFlags.REQUIRE_CHANNEL)) current.requiresChannel = true;
             }
-        } else {
-            // Not a multiblock - check channel requirement normally
-            if (node.hasFlag(GridFlags.REQUIRE_CHANNEL)) current.requiresChannel = true;
         }
 
         for (IGridConnection connection : node.getConnections()) {

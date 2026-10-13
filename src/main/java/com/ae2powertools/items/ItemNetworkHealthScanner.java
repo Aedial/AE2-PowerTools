@@ -200,8 +200,9 @@ public class ItemNetworkHealthScanner extends Item {
         ItemStack stack = player.getHeldItem(hand);
         long deviceId = getDeviceId(stack);
 
-        // Try to get grid from the clicked block
-        IGrid grid = getGridFromPosition(world, pos, side);
+        // Resolve the clicked grid node and its grid
+        IGridNode startNode = getGridNodeFromPosition(world, pos, side);
+        IGrid grid = startNode != null ? startNode.getGrid() : null;
 
         if (grid == null) {
             player.sendMessage(new TextComponentTranslation("item.ae2powertools.network_health_scanner.no_network"));
@@ -211,7 +212,7 @@ public class ItemNetworkHealthScanner extends Item {
 
         // Start network scan with device ID
         boolean includeSubnets = isSubnetScanEnabled(stack);
-        ScanSessionManager.startSession(player, grid, deviceId, includeSubnets);
+        ScanSessionManager.startSession(player, grid, startNode, deviceId, includeSubnets);
         player.sendMessage(new TextComponentTranslation("item.ae2powertools.network_health_scanner.started"));
 
         // Send initial sync packet
@@ -258,9 +259,9 @@ public class ItemNetworkHealthScanner extends Item {
     }
 
     /**
-     * Get the IGrid from a block position.
+     * Get the grid node selected by a block position.
      */
-    private IGrid getGridFromPosition(World world, BlockPos pos, EnumFacing side) {
+    private IGridNode getGridNodeFromPosition(World world, BlockPos pos, EnumFacing side) {
         TileEntity te = world.getTileEntity(pos);
         if (te == null) return null;
 
@@ -274,20 +275,14 @@ public class ItemNetworkHealthScanner extends Item {
 
             if (part instanceof IGridHost) {
                 IGridNode node = ((IGridHost) part).getGridNode(AEPartLocation.INTERNAL);
-                if (node != null) {
-                    node.getGrid();
-                    return node.getGrid();
-                }
+                if (node != null) return node;
             }
 
             // Try the cable in the center
             IPart cable = partHost.getPart(AEPartLocation.INTERNAL);
             if (cable instanceof IGridHost) {
                 IGridNode node = ((IGridHost) cable).getGridNode(AEPartLocation.INTERNAL);
-                if (node != null) {
-                    node.getGrid();
-                    return node.getGrid();
-                }
+                if (node != null) return node;
             }
 
             // Try all sides
@@ -295,10 +290,7 @@ public class ItemNetworkHealthScanner extends Item {
                 IPart p = partHost.getPart(loc);
                 if (p instanceof IGridHost) {
                     IGridNode node = ((IGridHost) p).getGridNode(AEPartLocation.INTERNAL);
-                    if (node != null) {
-                        node.getGrid();
-                        return node.getGrid();
-                    }
+                    if (node != null) return node;
                 }
             }
         }
@@ -310,10 +302,7 @@ public class ItemNetworkHealthScanner extends Item {
             // Try all possible node locations
             for (AEPartLocation loc : AEPartLocation.values()) {
                 IGridNode node = host.getGridNode(loc);
-                if (node != null) {
-                    node.getGrid();
-                    return node.getGrid();
-                }
+                if (node != null) return node;
             }
         }
 

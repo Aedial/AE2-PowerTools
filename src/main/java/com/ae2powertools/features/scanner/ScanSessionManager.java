@@ -14,6 +14,7 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 
 import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
 
 import com.ae2powertools.features.scanner.data.ChunkLocation;
 import com.ae2powertools.features.scanner.data.IssueLocation;
@@ -191,16 +192,17 @@ public class ScanSessionManager {
     }
 
     /**
-     * Start a new scan session for a player with a specific device.
+     * Start a new scan session from a specific grid node.
      */
-    public static void startSession(EntityPlayer player, IGrid grid, long deviceId, boolean includeSubnets) {
+    public static void startSession(EntityPlayer player, IGrid grid, IGridNode startNode, long deviceId,
+            boolean includeSubnets) {
         UUID playerId = player.getUniqueID();
         SessionKey key = new SessionKey(playerId, deviceId);
 
         // Cancel any existing session for this device
         sessions.remove(key);
 
-        NetworkScanner scanner = new NetworkScanner(grid, player.world, includeSubnets);
+        NetworkScanner scanner = new NetworkScanner(grid, player.world, includeSubnets, startNode);
         ScanSession session = new ScanSession(
             scanner,
             player.getPosition(),
