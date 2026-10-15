@@ -1387,7 +1387,7 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         }
 
         // Analyze the recipe
-        CrafterRecipeInfo info = analyzeRecipe(details);
+        CrafterRecipeInfo info = analyzeRecipe(entryIndex, !resetState, details);
         entry.setRecipeInfo(info);
 
         if (info.isValid() && resetState) {
@@ -1420,7 +1420,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
      * - TRANSFORMED: Different item remains (e.g., filled bucket -> empty bucket)
      * - DUPLICATION: Input appears in the recipe outputs
      */
-    private CrafterRecipeInfo analyzeRecipe(ICraftingPatternDetails details) {
+    private CrafterRecipeInfo analyzeRecipe(int entryIndex, boolean loadedFromNbt,
+                                            ICraftingPatternDetails details) {
         List<CrafterRecipeInfo.IngredientInfo> ingredients = new ArrayList<>();
         List<IAEItemStack> outputs = new ArrayList<>();
 
@@ -1441,6 +1442,8 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Add main output
         IAEItemStack mainOutput = AEItemStack.fromItemStack(recipeOutput);
         if (mainOutput != null) outputs.add(mainOutput);
+
+        logRecipeOutput(entryIndex, loadedFromNbt, recipe, recipeOutput, mainOutput);
 
         // Track how many copies of each output type can stay in catalyst inventory.
         // Any matching input beyond this allowance remains a normal consumed ingredient.
@@ -1514,6 +1517,36 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         if (outputs.isEmpty()) return new CrafterRecipeInfo(CrafterEntry.CrafterErrorState.NO_OUTPUT);
 
         return new CrafterRecipeInfo(ingredients, outputs);
+    }
+
+    private void logRecipeOutput(int entryIndex, boolean loadedFromNbt, IRecipe recipe,
+                                 ItemStack recipeOutput, @Nullable IAEItemStack cachedOutput) {
+        if (!AE2PowerTools.LOGGER.isDebugEnabled()) return;
+
+        String dimension = world != null ? Integer.toString(world.provider.getDimension()) : "unknown";
+        ItemStack cachedStack = cachedOutput != null ? cachedOutput.createItemStack() : ItemStack.EMPTY;
+        NBTTagCompound outputStackNbt = recipeOutput.writeToNBT(new NBTTagCompound());
+        NBTTagCompound cachedStackNbt = cachedStack.isEmpty()
+            ? null : cachedStack.writeToNBT(new NBTTagCompound());
+        AE2PowerTools.LOGGER.debug(
+            "AutoCrafter at {} in dimension {} entry {} {} recipe {} ({}) simulation output "
+                + "[id={}, meta={}, tag={}, stackNbt={}]; cached AE2 output "
+                + "[id={}, meta={}, tag={}, stackNbt={}]",
+            pos,
+            dimension,
+            entryIndex,
+            loadedFromNbt ? "loaded" : "inserted",
+            recipe.getRegistryName(),
+            recipe.getClass().getName(),
+            recipeOutput.getItem().getRegistryName(),
+            recipeOutput.getMetadata(),
+            recipeOutput.getTagCompound(),
+            outputStackNbt,
+            cachedStack.isEmpty() ? null : cachedStack.getItem().getRegistryName(),
+            cachedStack.isEmpty() ? null : cachedStack.getMetadata(),
+            cachedStack.isEmpty() ? null : cachedStack.getTagCompound(),
+            cachedStackNbt
+        );
     }
 
     private void subtractDuplicatedInputsFromOutputs(List<IAEItemStack> outputs,
