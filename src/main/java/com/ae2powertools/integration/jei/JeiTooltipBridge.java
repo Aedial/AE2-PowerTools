@@ -12,6 +12,8 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.ModContainer;
 import net.minecraftforge.fml.common.Optional;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
@@ -21,23 +23,24 @@ import mezz.jei.api.ingredients.IIngredientRegistry;
 import mezz.jei.api.ingredients.IIngredientRenderer;
 
 import com.ae2powertools.features.monitor.MonitoredResource;
+import com.ae2powertools.features.monitor.client.MonitoredResourceNameResolver;
 
 
 /**
  * Builds vanilla / JEI-quality tooltips for the storage emitter's resource cells and
  * selector slots without forcing the GUI code to know about every backing API.
  * <p>
- * Strategy:
  * <ol>
  *   <li>For items, defer to the GUI's vanilla {@code renderToolTip} (handled in the GUI).</li>
  *   <li>For non-items, ask JEI's {@link IIngredientRegistry#getIngredientRenderer(Object)}
  *       for the renderer registered against the underlying object (FluidStack, GasStack,
- *       AspectStack, ...). If a renderer is found, call {@code getTooltip} on it -- this
+ *       AspectStack, ...). If a renderer is found, call {@code getTooltip} on it, this
  *       gives us identical output to JEI's own ingredient list overlay.</li>
  *   <li>If JEI isn't loaded or doesn't know the ingredient type, fall back to a manual
  *       tooltip composed of display name + mod source + type label.</li>
  * </ol>
  */
+@SideOnly(Side.CLIENT)
 public final class JeiTooltipBridge {
 
     private JeiTooltipBridge() {}
@@ -146,7 +149,7 @@ public final class JeiTooltipBridge {
      */
     private static List<String> manualTooltip(MonitoredResource resource) {
         List<String> lines = new ArrayList<>();
-        lines.add(resource.getDisplayName());
+        lines.add(MonitoredResourceNameResolver.getDisplayName(resource));
 
         String modName = lookupModName(resource);
         if (modName != null) lines.add("§9§o" + modName);

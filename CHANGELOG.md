@@ -8,7 +8,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.6.9] - 2026-10-??
+## [1.6.9] - 2026-10-18
 ### Added
 - Add proper model for the Storage Level Emitter part, instead of reusing the Level Emitter's model (volumetric head instead of flat one).
 - Add x10 multiplier on time for Better Level Maintainer frequency buttons when holding shift.
@@ -22,6 +22,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix AutoCrafter maybe not saving its pending output, if exiting right after crafting.
 - Fix Maintainer not properly cancelling a task when changing the target item.
 - Fix channel-less network still reporting channel chokepoints
+- Fix Storage Level Monitor and Memory Card crashing with some items on dedicated servers, due to display name resolution calling client-side methods.
 
 
 ## [1.6.8] - 2026-09-04

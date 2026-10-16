@@ -27,11 +27,11 @@ import appeng.util.item.AEItemStack;
 
 /**
  * Universal wrapper for any AE2 resource (item, fluid, gas, essentia).
- * Handles serialization, display name, equality, and working with optional mod channels.
+ * Handles serialization, fallback names, equality, and optional mod channels.
  * <p>
  * The wrapper stores the resource type and serialized NBT data, so it can be reconstructed
- * even when the original mod (gas/essentia) isn't loaded (i.e., only display/name
- * data is preserved but the stack cannot be resolved).
+ * even when the original mod (gas/essentia) isn't loaded (i.e., the fallback name
+ * remains available while the stack cannot be resolved).
  */
 public class MonitoredResource {
 
@@ -45,50 +45,41 @@ public class MonitoredResource {
     private final IAEStack<?> stack;
 
     /**
-     * Display name, cached at creation time for tooltip use even if the stack can't be resolved.
+     * Last client-resolved name, retained when the stack cannot be resolved.
      */
-    private final String displayName;
+    @Nullable
+    private final String fallbackDisplayName;
 
-    private MonitoredResource(ResourceType type, @Nullable IAEStack<?> stack, String displayName) {
+    private MonitoredResource(ResourceType type, @Nullable IAEStack<?> stack, @Nullable String fallbackDisplayName) {
         this.type = type;
         this.stack = stack;
-        this.displayName = displayName;
+        this.fallbackDisplayName = fallbackDisplayName;
     }
 
     // --- Factory methods ---
 
-    public static MonitoredResource ofItem(IAEItemStack stack, boolean saveDisplayName) {
-        String displayName = saveDisplayName ? stack.getDefinition().getDisplayName() : null;
-        return new MonitoredResource(ResourceType.ITEM, stack.copy(), displayName);
-    }
-
     public static MonitoredResource ofItem(IAEItemStack stack) {
-        return ofItem(stack, true);
-    }
-
-    public static MonitoredResource ofFluid(IAEFluidStack stack, boolean saveDisplayName) {
-        String displayName = saveDisplayName ? stack.getFluidStack().getLocalizedName() : null;
-        return new MonitoredResource(ResourceType.FLUID, stack.copy(), displayName);
+        return new MonitoredResource(ResourceType.ITEM, stack.copy(), null);
     }
 
     public static MonitoredResource ofFluid(IAEFluidStack stack) {
-        return ofFluid(stack, true);
+        return new MonitoredResource(ResourceType.FLUID, stack.copy(), null);
     }
 
     /**
      * Creates a MonitoredResource for a gas stack.
      * Only call when Mekanism Energistics is loaded.
      */
-    public static MonitoredResource ofGas(IAEStack<?> stack, String displayName) {
-        return new MonitoredResource(ResourceType.GAS, stack.copy(), displayName);
+    public static MonitoredResource ofGas(IAEStack<?> stack) {
+        return new MonitoredResource(ResourceType.GAS, stack.copy(), null);
     }
 
     /**
      * Creates a MonitoredResource for an essentia stack.
      * Only call when Thaumic Energistics is loaded.
      */
-    public static MonitoredResource ofEssentia(IAEStack<?> stack, String displayName) {
-        return new MonitoredResource(ResourceType.ESSENTIA, stack.copy(), displayName);
+    public static MonitoredResource ofEssentia(IAEStack<?> stack) {
+        return new MonitoredResource(ResourceType.ESSENTIA, stack.copy(), null);
     }
 
     // --- Accessors ---
@@ -102,10 +93,18 @@ public class MonitoredResource {
         return stack;
     }
 
-    public String getDisplayName() {
-        if (displayName != null) return displayName;
+    @Nullable
+    public String getFallbackDisplayName() {
+        return fallbackDisplayName;
+    }
 
-        return resolveDisplayName(type, stack);
+    /**
+     * Returns a resource with a client-resolved fallback name.
+     */
+    public MonitoredResource withFallbackDisplayName(@Nullable String fallbackDisplayName) {
+        if (Objects.equals(this.fallbackDisplayName, fallbackDisplayName)) return this;
+
+        return new MonitoredResource(type, stack != null ? stack.copy() : null, fallbackDisplayName);
     }
 
     /**
@@ -134,7 +133,9 @@ public class MonitoredResource {
     public NBTTagCompound writeToNBT() {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setInteger(NBT_TYPE, type.getId());
-        if (displayName != null && !displayName.isEmpty()) tag.setString(NBT_NAME, displayName);
+        if (fallbackDisplayName != null && !fallbackDisplayName.isEmpty()) {
+            tag.setString(NBT_NAME, fallbackDisplayName);
+        }
 
         if (stack != null) {
             NBTTagCompound stackTag = serializeStack(this.type, this.stack);
@@ -159,7 +160,7 @@ public class MonitoredResource {
 
     public void writeToBuf(ByteBuf buf) {
         buf.writeInt(type.getId());
-        ByteBufUtils.writeUTF8String(buf, displayName != null ? displayName : "");
+        ByteBufUtils.writeUTF8String(buf, fallbackDisplayName != null ? fallbackDisplayName : "");
 
         NBTTagCompound stackTag = serializeStack(this.type, this.stack);
         ByteBufUtils.writeTag(buf, stackTag);
@@ -336,14 +337,16 @@ public class MonitoredResource {
         MonitoredResource that = (MonitoredResource) o;
         if (type != that.type) return false;
 
-        if (stack == null && that.stack == null) return Objects.equals(displayName, that.displayName);
+        if (stack == null && that.stack == null) {
+            return Objects.equals(fallbackDisplayName, that.fallbackDisplayName);
+        }
 
         return sameIdentity(type, stack, that.stack);
     }
 
     @Override
     public int hashCode() {
-        if (stack == null) return 31 * type.hashCode() + Objects.hashCode(displayName);
+        if (stack == null) return 31 * type.hashCode() + Objects.hashCode(fallbackDisplayName);
 
         NBTTagCompound identityTag = identityTag(this.type, this.stack);
 
@@ -352,7 +355,7 @@ public class MonitoredResource {
 
     @Override
     public String toString() {
-        return "MonitoredResource{" + type.getName() + ": " + displayName + "}";
+        return "MonitoredResource{" + type.getName() + ": " + fallbackDisplayName + "}";
     }
 
     @Nullable
@@ -375,59 +378,6 @@ public class MonitoredResource {
         return leftTag.equals(rightTag);
     }
 
-    private static String resolveDisplayName(ResourceType type, @Nullable IAEStack<?> stack) {
-        if (stack == null) return "";
-
-        switch (type) {
-            case ITEM:
-                if (stack instanceof IAEItemStack) {
-                    ItemStack itemStack = ((IAEItemStack) stack).getDefinition();
-                    if (!itemStack.isEmpty()) return itemStack.getDisplayName();
-                }
-                return "";
-
-            case FLUID:
-                if (stack instanceof IAEFluidStack) {
-                    FluidStack fluidStack = ((IAEFluidStack) stack).getFluidStack();
-                    if (fluidStack != null) return fluidStack.getLocalizedName();
-                }
-                return "";
-
-            case GAS:
-                if (!Loader.isModLoaded("mekeng")) return "";
-                return resolveGasDisplayName(stack);
-
-            case ESSENTIA:
-                if (!Loader.isModLoaded("thaumicenergistics")) return "";
-                return resolveEssentiaDisplayName(stack);
-
-            default:
-                return "";
-        }
-    }
-
-    @Optional.Method(modid = "mekeng")
-    private static String resolveGasDisplayName(IAEStack<?> stack) {
-        if (!(stack instanceof com.mekeng.github.common.me.data.IAEGasStack)) return "";
-
-        mekanism.api.gas.GasStack gasStack = ((com.mekeng.github.common.me.data.IAEGasStack) stack).getGasStack();
-        if (gasStack == null || gasStack.getGas() == null) return "";
-
-        return gasStack.getGas().getLocalizedName();
-    }
-
-    @Optional.Method(modid = "thaumicenergistics")
-    private static String resolveEssentiaDisplayName(IAEStack<?> stack) {
-        if (!(stack instanceof thaumicenergistics.api.storage.IAEEssentiaStack)) return "";
-
-        thaumicenergistics.api.EssentiaStack essentiaStack =
-            ((thaumicenergistics.api.storage.IAEEssentiaStack) stack).getStack();
-        if (essentiaStack == null || essentiaStack.getAspect() == null) return "";
-
-        return essentiaStack.getAspect().getName();
-    }
-
-
     /**
      * Lightweight key class for map lookups, based on resource type and stack identity.
      */
@@ -436,13 +386,13 @@ public class MonitoredResource {
         private final ResourceType type;
         @Nullable
         private final NBTTagCompound identityTag;
-        private final String displayName;
+        private final String fallbackDisplayName;
         private Integer hashCode;
 
         private MonitoredResourceKey(MonitoredResource resource) {
             this.type = resource.type;
             this.identityTag = identityTag(resource.type, resource.stack);
-            this.displayName = resource.displayName;
+            this.fallbackDisplayName = resource.fallbackDisplayName;
         }
 
         @Override
@@ -452,7 +402,9 @@ public class MonitoredResource {
 
             MonitoredResourceKey that = (MonitoredResourceKey) o;
             if (type != that.type) return false;
-            if (identityTag == null && that.identityTag == null) return Objects.equals(displayName, that.displayName);
+            if (identityTag == null && that.identityTag == null) {
+                return Objects.equals(fallbackDisplayName, that.fallbackDisplayName);
+            }
             if (identityTag == null || that.identityTag == null) return false;
 
             return identityTag.equals(that.identityTag);
@@ -461,7 +413,8 @@ public class MonitoredResource {
         @Override
         public int hashCode() {
             if (hashCode == null) {
-                hashCode = 31 * type.hashCode() + Objects.hashCode(identityTag != null ? identityTag : displayName);
+                hashCode = 31 * type.hashCode()
+                    + Objects.hashCode(identityTag != null ? identityTag : fallbackDisplayName);
             }
             return hashCode;
         }

@@ -83,6 +83,8 @@ public class PowerToolsNetwork {
         INSTANCE.registerMessage(PacketOpenStorageMonitorPollingRate.Handler.class, PacketOpenStorageMonitorPollingRate.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketStorageMonitorPollNow.Handler.class, PacketStorageMonitorPollNow.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketReturnToStorageMonitorGui.Handler.class, PacketReturnToStorageMonitorGui.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketRequestMonitorDisplayNameCapture.Handler.class, PacketRequestMonitorDisplayNameCapture.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketCaptureMonitorDisplayNames.Handler.class, PacketCaptureMonitorDisplayNames.class, packetId++, Side.SERVER);
 
         // Remote Storage Monitor packets
         INSTANCE.registerMessage(PacketRemoteMonitorOpenGui.Handler.class, PacketRemoteMonitorOpenGui.class, packetId++, Side.CLIENT);

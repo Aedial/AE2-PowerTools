@@ -391,8 +391,7 @@ public class MonitorLogic {
         for (com.mekeng.github.common.me.data.IAEGasStack stack : monitor.getStorageList()) {
             if (stack == null || stack.getStackSize() <= 0) continue;
 
-            String name = stack.getGasStack().getGas().getLocalizedName();
-            resources.add(MonitoredResource.ofGas(stack, name));
+            resources.add(MonitoredResource.ofGas(stack));
         }
     }
 
@@ -406,8 +405,7 @@ public class MonitorLogic {
         for (thaumicenergistics.api.storage.IAEEssentiaStack stack : monitor.getStorageList()) {
             if (stack == null || stack.getStackSize() <= 0) continue;
 
-            String name = stack.getAspect().getName();
-            resources.add(MonitoredResource.ofEssentia(stack, name));
+            resources.add(MonitoredResource.ofEssentia(stack));
         }
     }
 

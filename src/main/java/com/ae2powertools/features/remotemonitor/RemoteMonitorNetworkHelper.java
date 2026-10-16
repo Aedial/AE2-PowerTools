@@ -148,8 +148,8 @@ public final class RemoteMonitorNetworkHelper {
 
     @Nullable
     private static MonitoredResource createMonitoredResource(IAEStack<?> stack) {
-        if (stack instanceof IAEItemStack) return MonitoredResource.ofItem((IAEItemStack) stack, false);
-        if (stack instanceof IAEFluidStack) return MonitoredResource.ofFluid((IAEFluidStack) stack, false);
+        if (stack instanceof IAEItemStack) return MonitoredResource.ofItem((IAEItemStack) stack);
+        if (stack instanceof IAEFluidStack) return MonitoredResource.ofFluid((IAEFluidStack) stack);
         return null;
     }
 
@@ -163,7 +163,7 @@ public final class RemoteMonitorNetworkHelper {
         for (com.mekeng.github.common.me.data.IAEGasStack stack : monitor.getStorageList()) {
             if (stack == null || stack.getStackSize() <= 0) continue;
 
-            resources.add(MonitoredResource.ofGas(stack, null));
+            resources.add(MonitoredResource.ofGas(stack));
         }
     }
 
@@ -177,7 +177,7 @@ public final class RemoteMonitorNetworkHelper {
         for (thaumicenergistics.api.storage.IAEEssentiaStack stack : monitor.getStorageList()) {
             if (stack == null || stack.getStackSize() <= 0) continue;
 
-            resources.add(MonitoredResource.ofEssentia(stack, null));
+            resources.add(MonitoredResource.ofEssentia(stack));
         }
     }
 }

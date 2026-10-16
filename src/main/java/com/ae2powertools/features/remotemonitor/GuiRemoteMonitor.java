@@ -18,6 +18,7 @@ import appeng.api.storage.data.IAEStack;
 
 import com.ae2powertools.Tags;
 import com.ae2powertools.features.monitor.MonitoredResource;
+import com.ae2powertools.features.monitor.client.MonitoredResourceNameResolver;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
 import com.ae2powertools.integration.jei.JeiTooltipBridge;
 import com.ae2powertools.network.PacketRemoteMonitorPollNow;
@@ -79,7 +80,7 @@ public class GuiRemoteMonitor extends WidgetGui {
         this.selectorWidget = new SearchableGridSelectorWidget<>(
             this,
             "gui.ae2powertools.remote_monitor.selector.title",
-            MonitoredResource::getDisplayName,
+            MonitoredResourceNameResolver::getDisplayName,
             (context, resource, x, y) -> {
                 MonitoredResourceRenderer.renderIcon(resource, x, y, 16);
                 GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
@@ -281,7 +282,7 @@ public class GuiRemoteMonitor extends WidgetGui {
         PowerToolsNetwork.INSTANCE.sendToServer(new PacketRemoteMonitorSelectSlot(
             this.deviceId,
             this.selectorTargetIndex,
-            resource));
+            MonitoredResourceNameResolver.captureDisplayName(resource)));
     }
 
     public List<Rectangle> getJEIExclusionArea() {

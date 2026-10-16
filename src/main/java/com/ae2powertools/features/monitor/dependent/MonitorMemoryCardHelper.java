@@ -9,6 +9,7 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -38,6 +39,8 @@ import com.ae2powertools.features.monitor.MonitoredResource;
 import com.ae2powertools.features.monitor.alarm.BlockLevelMonitorAlarm;
 import com.ae2powertools.features.monitor.display.BlockStorageDisplay;
 import com.ae2powertools.features.monitor.emitter.BlockStorageLevelEmitter;
+import com.ae2powertools.network.PacketRequestMonitorDisplayNameCapture;
+import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.Ae2FluidCraftingCompat;
 import com.ae2powertools.util.Ae2FluidCraftingGasCompat;
 
@@ -109,12 +112,14 @@ public final class MonitorMemoryCardHelper {
 
         if (host.getHostType() == MonitorHostType.ALARM && isMaintainerCard(savedName, data)) {
             importMaintainerTargets(host, data);
+            requestDisplayNameCapture(player, host);
             memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_LOADED);
             return;
         }
 
         if (host.getHostType() == MonitorHostType.ALARM && isAutoCrafterCard(savedName, data)) {
             importAutoCrafterPatterns(world, host, data);
+            requestDisplayNameCapture(player, host);
             memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_LOADED);
             return;
         }
@@ -136,6 +141,14 @@ public final class MonitorMemoryCardHelper {
 
     private static boolean isAutoCrafterCard(String savedName, NBTTagCompound data) {
         return NAME_AUTO_CRAFTER.equals(savedName) && data != null && data.hasKey(NBT_PATTERNS);
+    }
+
+    private static void requestDisplayNameCapture(EntityPlayer player, IStorageMonitorHost host) {
+        if (!(player instanceof EntityPlayerMP)) return;
+
+        PowerToolsNetwork.INSTANCE.sendTo(
+            new PacketRequestMonitorDisplayNameCapture(host),
+            (EntityPlayerMP) player);
     }
 
     private static void applyMonitorData(IStorageMonitorHost host, NBTTagCompound data) {
@@ -323,6 +336,6 @@ public final class MonitorMemoryCardHelper {
         if (gas == null || gas.getGas() == null) return null;
 
         com.mekeng.github.common.me.data.IAEGasStack aeGas = com.mekeng.github.common.me.data.impl.AEGasStack.of(gas);
-        return aeGas != null ? MonitoredResource.ofGas(aeGas, gas.getGas().getLocalizedName()) : null;
+        return aeGas != null ? MonitoredResource.ofGas(aeGas) : null;
     }
 }

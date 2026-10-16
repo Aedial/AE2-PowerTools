@@ -21,6 +21,7 @@ import appeng.api.storage.data.IAEStack;
 import com.ae2powertools.Tags;
 import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.MonitoredResource;
+import com.ae2powertools.features.monitor.client.MonitoredResourceNameResolver;
 import com.ae2powertools.features.monitor.client.MonitoredResourceRenderer;
 import com.ae2powertools.features.monitor.dependent.widgets.StorageMonitorEntryGridWidget;
 import com.ae2powertools.features.monitor.emitter.EmitterRedstonePower;
@@ -166,7 +167,7 @@ public class GuiStorageMonitor extends WidgetGui {
         this.selectorWidget = new SearchableGridSelectorWidget<>(
             this,
             "gui.ae2powertools.storage_emitter.select_content",
-            MonitoredResource::getDisplayName,
+            MonitoredResourceNameResolver::getDisplayName,
             (context, resource, x, y) -> {
                 MonitoredResourceRenderer.renderIcon(resource, x, y, 16);
                 GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
@@ -692,7 +693,10 @@ public class GuiStorageMonitor extends WidgetGui {
 
     private void selectMonitorResource(MonitoredResource selected) {
         PowerToolsNetwork.INSTANCE.sendToServer(
-            new PacketSelectMonitorContent(container.getHost(), selected, selectorTargetIndex));
+            new PacketSelectMonitorContent(
+                container.getHost(),
+                MonitoredResourceNameResolver.captureDisplayName(selected),
+                selectorTargetIndex));
     }
 
     private static String formatDelta(int delta) {
