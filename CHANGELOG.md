@@ -23,6 +23,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix Maintainer not properly cancelling a task when changing the target item.
 - Fix channel-less network still reporting channel chokepoints
 - Fix Storage Level Monitor and Memory Card crashing with some items on dedicated servers, due to display name resolution calling client-side methods.
+- Fix AutoCrafter not working properly with some lazy-initialized NBT data (spooky action at a distance). This would cause crafted items to be different depending on whether anyone had crafted the item *before putting the pattern in*.
 
 
 ## [1.6.8] - 2026-09-04

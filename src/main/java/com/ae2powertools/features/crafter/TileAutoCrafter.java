@@ -31,6 +31,8 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.energy.CapabilityEnergy;
+import net.minecraftforge.energy.IEnergyStorage;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
@@ -1438,6 +1440,22 @@ public class TileAutoCrafter extends AEBaseTile implements ITickable, IActionHos
         // Get recipe output
         ItemStack recipeOutput = recipe.getCraftingResult(craftMatrix);
         if (recipeOutput.isEmpty()) return new CrafterRecipeInfo(CrafterEntry.CrafterErrorState.NO_OUTPUT);
+
+        // Cast *spooky action at a distance*, I hate lazy-init of NBT...
+        // Some lazy-init will affect *all* recipe outputs of this item after *anyone* crafts it once
+        // *How fun...*
+
+        // 1. Initialize result data through the crafted-result callback before caching it
+        FakePlayer player = getOrCreateFakePlayer();
+        if (player != null) recipeOutput.getItem().onCreated(recipeOutput, world, player);
+
+        // 2. Force RF/Forge-energy items to write their default energy tag by reading their energy capability
+        if (!recipeOutput.isEmpty() && recipeOutput.hasCapability(CapabilityEnergy.ENERGY, null)) {
+            IEnergyStorage energy = recipeOutput.getCapability(CapabilityEnergy.ENERGY, null);
+            if (energy != null) energy.getEnergyStored();
+        }
+
+        // 3. Please, let there not be a 3
 
         // Add main output
         IAEItemStack mainOutput = AEItemStack.fromItemStack(recipeOutput);
