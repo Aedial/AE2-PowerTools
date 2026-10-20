@@ -84,6 +84,8 @@ gui.ae2powertools.scanner.tab_chokepoints=阻塞点（%d）
 gui.ae2powertools.scanner.tab_missing=缺失频道（%d）
 gui.ae2powertools.scanner.tab_fatal=致命错误（%d）
 gui.ae2powertools.scanner.tab_patterns=样板（%d）
+gui.ae2powertools.scanner.category_disabled=该类别已在服务端设置中禁用
+gui.ae2powertools.scanner.category_disabled_warning=类别已在服务端设置中禁用。已接收的结果会持续显示
 gui.ae2powertools.scanner.chunk_entry=区块 [%d, %d]
 gui.ae2powertools.scanner.choke_entry=%d/%d 频道
 gui.ae2powertools.scanner.loops_info=注意：除非网络行为异常且已排除其他原因，否则环路不一定会造成问题。尽管如此，还是要尽量避免造成环路。
@@ -178,6 +180,7 @@ gui.ae2powertools.maintainer.state.running=§a运行中 - 合成进行中
 gui.ae2powertools.maintainer.state.stalled=§e停滞 - 等待空闲机器
 gui.ae2powertools.maintainer.state.error=§c错误
 gui.ae2powertools.maintainer.state.post_error=§5输出错误（无空间用于存储合成产物）
+gui.ae2powertools.maintainer.state.calculating=§e正在计算合成树
 
 # GUI - Maintainer Short States (for compact tall view entries)
 gui.ae2powertools.maintainer.state.short.disabled=已禁用
@@ -187,6 +190,7 @@ gui.ae2powertools.maintainer.state.short.running=运行中
 gui.ae2powertools.maintainer.state.short.stalled=停滞
 gui.ae2powertools.maintainer.state.short.error=错误
 gui.ae2powertools.maintainer.state.short.post_error=输出错误
+gui.ae2powertools.maintainer.state.short.calculating=正在计算
 
 # GUI - Maintainer Entry
 gui.ae2powertools.maintainer.frequency=每%s运行一次
@@ -203,6 +207,7 @@ gui.ae2powertools.maintainer.tooltip.frequency=§7每%s运行一次
 gui.ae2powertools.maintainer.tooltip.run_now=§a立即运行
 gui.ae2powertools.maintainer.tooltip.run_now_click=§b点击§7来立即启动该缓存指令器任务
 gui.ae2powertools.maintainer.tooltip.run_now_busy=§c该缓存指令器任务已处于活动状态
+gui.ae2powertools.maintainer.tooltip.calculating=§e正在计算，已耗时%s刻§7；配方可能过于复杂
 
 # GUI - Maintainer Status Bar Tooltips
 gui.ae2powertools.maintainer.status.cpu_title=§e合成CPU
@@ -356,6 +361,25 @@ ae2powertools.config.server.interfaceTerminal.tooltip=接口终端集成设置
 ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows=在接口终端中显示自动合成器
 ae2powertools.config.server.interfaceTerminal.enableAutoCrafterPatternRows.tooltip=在接口终端中将AE2自动合成器公开为可编辑的样板组。需要安装mixinbooter并完全重启。
 
+ae2powertools.config.server.scanner=网络扫描器
+ae2powertools.config.server.scanner.tooltip=网络扫描器结果设置（可禁用你所用AE2版本中已解决/已修复的类别）
+ae2powertools.config.server.scanner.recordLoops=环路
+ae2powertools.config.server.scanner.recordLoops.tooltip=在网络扫描器结果中记录环路
+ae2powertools.config.server.scanner.recordUnloadedChunks=未常加载区块
+ae2powertools.config.server.scanner.recordUnloadedChunks.tooltip=在网络扫描器结果中记录未常加载区块
+ae2powertools.config.server.scanner.recordChokepoints=频道阻塞点
+ae2powertools.config.server.scanner.recordChokepoints.tooltip=在网络扫描器结果中记录频道阻塞点
+ae2powertools.config.server.scanner.recordMissingChannels=缺失频道
+ae2powertools.config.server.scanner.recordMissingChannels.tooltip=在网络扫描器结果中记录缺失频道
+ae2powertools.config.server.scanner.recordPatterns=样板错误
+ae2powertools.config.server.scanner.recordPatterns.tooltip=在网络扫描器结果中记录样板错误
+ae2powertools.config.server.scanner.recordDuplicateStorageTargetErrors=重复的存储目标错误
+ae2powertools.config.server.scanner.recordDuplicateStorageTargetErrors.tooltip=在网络扫描器结果中记录重复的存储目标错误
+ae2powertools.config.server.scanner.recordSameNetworkInterfaceLinkErrors=同网络接口链接错误
+ae2powertools.config.server.scanner.recordSameNetworkInterfaceLinkErrors.tooltip=在网络扫描器结果中记录同网络接口链接错误
+ae2powertools.config.server.scanner.recordChunkBoundaryMultiblockErrors=跨区块边界多方块结构错误
+ae2powertools.config.server.scanner.recordChunkBoundaryMultiblockErrors.tooltip=在网络扫描器结果中记录跨区块边界多方块结构错误
+
 ae2powertools.config.server.maintainer=更好的缓存指令器
 ae2powertools.config.server.maintainer.tooltip=更好的缓存指令器的性能设置
 ae2powertools.config.server.maintainer.maxConcurrentCalculations=最大并发计算数
@@ -368,6 +392,8 @@ tooltip.ae2powertools.performance.none=方块工作：暂无样本
 tooltip.ae2powertools.performance.summary=方块工作：最近 %1$s / 平均 %2$s / 最大 %3$s
 tooltip.ae2powertools.maintainer.cpus=合成CPU：§a%1$s§r / §8%2$s§r
 tooltip.ae2powertools.maintainer.recipes=配方：§a%1$s§r / §8%2$s§r / §c%3$s§r / §5%4$s§r
+tooltip.ae2powertools.maintainer.network.stabilizing=网络：§e等待稳定中（已等待 %s）
+tooltip.ae2powertools.maintainer.network.stable=网络：§a已稳定 %s
 tooltip.ae2powertools.crafter.next_operation=距下次操作还有 %s
 tooltip.ae2powertools.crafter.user_error.catalyst=§c错误：缺失催化剂§r
 tooltip.ae2powertools.crafter.user_error.pattern=§c错误：无效样板§r
