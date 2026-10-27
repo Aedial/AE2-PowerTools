@@ -7,6 +7,10 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
+## [1.6.10] - 2026-??-??
+### Fixed
+- Fix Memory Card not being able to restore Emitter/Display/Alarm settings.
+
 
 ## [1.6.9] - 2026-10-18
 ### Added

@@ -36,9 +36,6 @@ import com.ae2powertools.features.maintainer.BlockBetterLevelMaintainer;
 import com.ae2powertools.features.maintainer.MaintainerEntry;
 import com.ae2powertools.features.monitor.MonitoredEntry;
 import com.ae2powertools.features.monitor.MonitoredResource;
-import com.ae2powertools.features.monitor.alarm.BlockLevelMonitorAlarm;
-import com.ae2powertools.features.monitor.display.BlockStorageDisplay;
-import com.ae2powertools.features.monitor.emitter.BlockStorageLevelEmitter;
 import com.ae2powertools.network.PacketRequestMonitorDisplayNameCapture;
 import com.ae2powertools.network.PowerToolsNetwork;
 import com.ae2powertools.util.Ae2FluidCraftingCompat;
@@ -60,9 +57,9 @@ public final class MonitorMemoryCardHelper {
     private static final String NBT_PATTERNS = "patterns";
     private static final String NBT_PATTERN = "patternNBT";
 
-    private static final String NAME_ALARM = getBlockMemoryCardName(BlockLevelMonitorAlarm.NAME);
-    private static final String NAME_DISPLAY = getBlockMemoryCardName(BlockStorageDisplay.NAME);
-    private static final String NAME_EMITTER = getBlockMemoryCardName(BlockStorageLevelEmitter.NAME);
+    private static final String NAME_ALARM = MonitorHostType.ALARM.getMemoryCardName();
+    private static final String NAME_DISPLAY = MonitorHostType.DISPLAY.getMemoryCardName();
+    private static final String NAME_EMITTER = MonitorHostType.EMITTER.getMemoryCardName();
     private static final String NAME_MAINTAINER = getBlockMemoryCardName(BlockBetterLevelMaintainer.NAME);
     private static final String NAME_AUTO_CRAFTER = getBlockMemoryCardName(BlockAutoCrafter.NAME);
 
