@@ -89,9 +89,7 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
         World world = getHostWorld();
         if (world == null) return TickRateModulation.IDLE;
 
-        monitorLogic.refresh();
-
-        if (emitterLogic.evaluate()) notifyOutputChanged();
+        if (monitorLogic.refresh() && emitterLogic.evaluate()) notifyOutputChanged();
 
         return TickRateModulation.SAME;
     }
@@ -168,9 +166,7 @@ public class PartStorageLevelEmitter extends PartStorageMonitorBase implements I
     public void triggerManualPoll() {
         if (getHostWorld() == null) return;
 
-        monitorLogic.refresh();
-
-        if (emitterLogic.evaluate()) notifyOutputChanged();
+        if (monitorLogic.refresh() && emitterLogic.evaluate()) notifyOutputChanged();
     }
 
     @Override

@@ -25,6 +25,9 @@ public class LevelEmitterLogic {
     /** Whether the emitter is currently producing a redstone signal */
     private boolean emitting;
 
+    /** Whether the next successful refresh must notify neighbors */
+    private boolean initialNotificationPending = true;
+
     /** Whether the emitter should provide strong power or weak power. */
     private EmitterRedstonePower redstonePower = EmitterRedstonePower.WEAK;
 
@@ -38,14 +41,15 @@ public class LevelEmitterLogic {
     /**
      * Evaluate the redstone output state based on the dependent's condition.
      *
-     * @return true if the emitting state changed (host should notify neighbors)
+     * @return true if neighbors need the initial output or an emitting state change
      */
     public boolean evaluate() {
         boolean shouldEmit = monitorLogic.isConditionMet();
 
-        if (shouldEmit == emitting) return false;
+        if (!initialNotificationPending && shouldEmit == emitting) return false;
 
         emitting = shouldEmit;
+        initialNotificationPending = false;
         return true;
     }
 
@@ -87,6 +91,7 @@ public class LevelEmitterLogic {
 
     public void readFromNBT(NBTTagCompound tag) {
         monitorLogic.readFromNBT(tag);
+        initialNotificationPending = true;
         redstonePower = tag.hasKey(NBT_REDSTONE_POWER)
             ? EmitterRedstonePower.fromId(tag.getInteger(NBT_REDSTONE_POWER))
             : EmitterRedstonePower.WEAK;

@@ -62,8 +62,7 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     public TickRateModulation tickingRequest(@Nonnull IGridNode node, int ticksSinceLastCall) {
         if (world == null) return TickRateModulation.IDLE;
 
-        monitorLogic.refresh();
-        if (emitterLogic.evaluate()) notifyOutputChanged();
+        if (monitorLogic.refresh() && emitterLogic.evaluate()) notifyOutputChanged();
 
         return TickRateModulation.SAME;
     }
@@ -131,9 +130,7 @@ public class TileStorageLevelEmitter extends TileStorageMonitorBase implements I
     public void triggerManualPoll() {
         if (world == null) return;
 
-        monitorLogic.refresh();
-
-        if (emitterLogic.evaluate()) notifyOutputChanged();
+        if (monitorLogic.refresh() && emitterLogic.evaluate()) notifyOutputChanged();
     }
 
     @Override

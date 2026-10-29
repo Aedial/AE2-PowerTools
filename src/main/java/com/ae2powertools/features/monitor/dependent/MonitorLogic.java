@@ -107,6 +107,8 @@ public class MonitorLogic {
      * evaluate each entry's condition (quantity COMP threshold), then AND/OR across all.
      * <p>
      * Called directly from IGridTickable hosts, the grid tick manager controls the rate.
+     *
+     * @return true if the refresh was successful, false if the network was unavailable
      */
     public boolean refresh() {
         AENetworkProxy proxy = host.getProxy();

@@ -10,6 +10,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [1.6.10] - 2026-??-??
 ### Fixed
 - Fix Memory Card not being able to restore Emitter/Display/Alarm settings.
+- Fix Storage Level Emitter not resetting redstone state on world load, if it switched from on to off during shutdown.
 
 
 ## [1.6.9] - 2026-10-18
